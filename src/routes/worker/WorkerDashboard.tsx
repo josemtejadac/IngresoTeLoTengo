@@ -27,6 +27,28 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     loadRecords()
   }, [loadRecords])
 
+  useEffect(() => {
+    const channel = supabase
+      .channel(`ingreso_attendance_worker_${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ingreso_attendance',
+          filter: `worker_id=eq.${profile.id}`,
+        },
+        () => {
+          loadRecords()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadRecords, profile.id])
+
   const lastRecord = records[0]
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
   const canRegisterSalida = !!lastRecord && lastRecord.type === 'entrada'

@@ -50,6 +50,23 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   }, [loadWorkers])
 
   useEffect(() => {
+    const channel = supabase
+      .channel('ingreso_attendance_admin')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_attendance' },
+        () => {
+          loadRecords()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadRecords])
+
+  useEffect(() => {
     loadRecords()
   }, [loadRecords])
 

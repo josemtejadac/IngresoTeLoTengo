@@ -198,3 +198,10 @@ select {
 .camera-error {
   color: #dc2626;
 }
+
+.camera-instruction {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+  color: #1e293b;
+}

@@ -20,7 +20,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     async function start() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
+          video: { facingMode: { ideal: 'environment' } },
           audio: false,
         })
         if (cancelled) {
@@ -80,7 +80,10 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
         {error ? (
           <p className="camera-error">{error}</p>
         ) : (
-          <video ref={videoRef} className="camera-video" playsInline muted />
+          <>
+            <p className="camera-instruction">Toma una foto al área de productos</p>
+            <video ref={videoRef} className="camera-video" playsInline muted />
+          </>
         )}
         <div className="camera-actions">
           <button type="button" onClick={onCancel} className="btn btn-secondary">

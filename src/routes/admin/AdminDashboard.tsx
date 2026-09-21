@@ -16,8 +16,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [filterWorker, setFilterWorker] = useState<string>('all')
   const [formOpen, setFormOpen] = useState(false)
   const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [createdRut, setCreatedRut] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [formBusy, setFormBusy] = useState(false)
 
@@ -68,16 +68,15 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ email, password, full_name: fullName }),
+          body: JSON.stringify({ password, full_name: fullName }),
         },
       )
       const body = await res.json()
       if (!res.ok) throw new Error(body.error ?? 'Error creando trabajador')
 
+      setCreatedRut(body.rut)
       setFullName('')
-      setEmail('')
       setPassword('')
-      setFormOpen(false)
       await loadWorkers()
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Error creando trabajador')
@@ -121,16 +120,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
             </label>
             <label>
-              Correo
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Contraseña temporal
+              Contraseña
               <input
                 type="password"
                 value={password}
@@ -144,6 +134,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               {formBusy ? 'Creando...' : 'Crear trabajador'}
             </button>
           </form>
+        )}
+
+        {createdRut && (
+          <p className="info-text">
+            Trabajador creado. Ya aparece en la pantalla de inicio de sesión por su nombre.
+          </p>
         )}
 
         <ul className="worker-list">

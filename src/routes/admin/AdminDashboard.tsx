@@ -10,6 +10,13 @@ interface AttendanceRow extends Attendance {
   ingreso_profiles: { full_name: string } | null
 }
 
+const TYPE_LABELS: Record<Attendance['type'], string> = {
+  entrada: 'Entrada',
+  salida: 'Salida',
+  ingreso_colacion: 'Ingreso colación',
+  salida_colacion: 'Salida colación',
+}
+
 export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [workers, setWorkers] = useState<Profile[]>([])
   const [records, setRecords] = useState<AttendanceRow[]>([])
@@ -192,7 +199,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             {records.map((r) => (
               <tr key={r.id}>
                 <td>{r.ingreso_profiles?.full_name ?? '—'}</td>
-                <td>{r.type === 'entrada' ? 'Entrada' : 'Salida'}</td>
+                <td>{TYPE_LABELS[r.type]}</td>
                 <td>{new Date(r.recorded_at).toLocaleString()}</td>
                 <td>
                   {r.photo_path ? (

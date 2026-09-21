@@ -11,7 +11,7 @@ export interface Profile {
 export interface Attendance {
   id: string
   worker_id: string
-  type: 'entrada' | 'salida'
+  type: 'entrada' | 'salida' | 'ingreso_colacion' | 'salida_colacion'
   recorded_at: string
   photo_path: string | null
   created_at: string

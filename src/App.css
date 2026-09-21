@@ -199,6 +199,17 @@ select {
   color: #dc2626;
 }
 
+.checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
 .camera-instruction {
   margin: 0;
   font-weight: 600;

@@ -7,6 +7,13 @@ interface WorkerDashboardProps {
   profile: Profile
 }
 
+const TYPE_LABELS: Record<Attendance['type'], string> = {
+  entrada: 'Entrada',
+  salida: 'Salida',
+  ingreso_colacion: 'Ingreso colación',
+  salida_colacion: 'Salida colación',
+}
+
 export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [records, setRecords] = useState<Attendance[]>([])
   const [showCamera, setShowCamera] = useState(false)
@@ -51,7 +58,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
   const lastRecord = records[0]
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
-  const canRegisterSalida = !!lastRecord && lastRecord.type === 'entrada'
+  const canRegisterIngresoColacion = lastRecord?.type === 'entrada'
+  const canRegisterSalidaColacion = lastRecord?.type === 'ingreso_colacion'
+  const canRegisterSalida =
+    lastRecord?.type === 'entrada' || lastRecord?.type === 'salida_colacion'
 
   async function registrarEntrada(photo: Blob) {
     setBusy(true)
@@ -82,19 +92,19 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
-  async function registrarSalida() {
+  async function registrarSimple(type: 'salida' | 'ingreso_colacion' | 'salida_colacion') {
     setBusy(true)
     setMessage(null)
     try {
       const { error } = await supabase.from('ingreso_attendance').insert({
         worker_id: profile.id,
-        type: 'salida',
+        type,
       })
       if (error) throw error
-      setMessage('Salida registrada correctamente.')
+      setMessage(`${TYPE_LABELS[type]} registrada correctamente.`)
       await loadRecords()
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Error registrando la salida.')
+      setMessage(err instanceof Error ? err.message : 'Error registrando el movimiento.')
     } finally {
       setBusy(false)
     }
@@ -105,7 +115,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       <header className="page-header">
         <div>
           <h1>Hola, {profile.full_name}</h1>
-          <p className="subtitle">Registra tu entrada o salida</p>
+          <p className="subtitle">Registra tu entrada, colación o salida</p>
         </div>
         <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
           Cerrar sesión
@@ -121,9 +131,23 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           Registrar entrada
         </button>
         <button
+          className="btn btn-secondary"
+          disabled={!canRegisterIngresoColacion || busy}
+          onClick={() => registrarSimple('ingreso_colacion')}
+        >
+          Ingreso colación
+        </button>
+        <button
+          className="btn btn-secondary"
+          disabled={!canRegisterSalidaColacion || busy}
+          onClick={() => registrarSimple('salida_colacion')}
+        >
+          Salida colación
+        </button>
+        <button
           className="btn btn-danger"
           disabled={!canRegisterSalida || busy}
-          onClick={registrarSalida}
+          onClick={() => registrarSimple('salida')}
         >
           Registrar salida
         </button>
@@ -147,7 +171,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <tbody>
           {records.map((r) => (
             <tr key={r.id}>
-              <td>{r.type === 'entrada' ? 'Entrada' : 'Salida'}</td>
+              <td>{TYPE_LABELS[r.type]}</td>
               <td>{new Date(r.recorded_at).toLocaleString()}</td>
               <td>{r.photo_path ? 'Sí' : '—'}</td>
             </tr>

@@ -17,12 +17,43 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   useEffect(() => {
     let cancelled = false
 
-    async function start() {
+    async function getRearCameraStream(): Promise<MediaStream> {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+        return await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: 'environment' } },
           audio: false,
         })
+      } catch {
+        // El navegador no soporta el constraint "exact"; buscamos manualmente
+        // el dispositivo cuya etiqueta indique que es la cámara trasera.
+      }
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const rearCamera = devices.find(
+          (d) =>
+            d.kind === 'videoinput' &&
+            /back|rear|trasera|environment/i.test(d.label),
+        )
+        if (rearCamera) {
+          return await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: rearCamera.deviceId } },
+            audio: false,
+          })
+        }
+      } catch {
+        // seguimos con el siguiente intento
+      }
+
+      return navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
+    }
+
+    async function start() {
+      try {
+        const stream = await getRearCameraStream()
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop())
           return

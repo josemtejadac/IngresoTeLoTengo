@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { REMEMBER_ME_KEY, supabase } from '../lib/supabase'
 
 const EMAIL_DOMAIN = 'ingresotelotengo.local'
 
@@ -12,6 +12,7 @@ export function Login() {
   const [directory, setDirectory] = useState<DirectoryEntry[]>([])
   const [selectedRut, setSelectedRut] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingDirectory, setLoadingDirectory] = useState(true)
@@ -33,6 +34,7 @@ export function Login() {
     if (!selectedRut) return
     setLoading(true)
     setError(null)
+    localStorage.setItem(REMEMBER_ME_KEY, remember ? '1' : '0')
     const email = `${selectedRut}@${EMAIL_DOMAIN}`
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
@@ -70,6 +72,15 @@ export function Login() {
             autoComplete="current-password"
           />
         </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
+          Mantener sesión iniciada
+        </label>
+
         {error && <p className="error-text">{error}</p>}
         <button type="submit" className="btn btn-primary" disabled={loading || !selectedRut}>
           {loading ? 'Ingresando...' : 'Ingresar'}

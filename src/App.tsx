@@ -1,4 +1,5 @@
 import { useAuth } from './lib/useAuth'
+import { supabaseConfigError } from './lib/supabase'
 import { Login } from './routes/Login'
 import { AdminDashboard } from './routes/admin/AdminDashboard'
 import { WorkerDashboard } from './routes/worker/WorkerDashboard'
@@ -6,6 +7,14 @@ import './App.css'
 
 function App() {
   const { session, profile, loading } = useAuth()
+
+  if (supabaseConfigError) {
+    return (
+      <div className="page-center">
+        <p className="error-text">{supabaseConfigError}</p>
+      </div>
+    )
+  }
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
@@ -168,18 +168,47 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <thead>
           <tr>
             <th>Tipo</th>
-            <th>Fecha y hora</th>
+            <th>Hora</th>
             <th>Foto</th>
           </tr>
         </thead>
         <tbody>
-          {records.map((r) => (
-            <tr key={r.id}>
-              <td>{TYPE_LABELS[r.type]}</td>
-              <td>{new Date(r.recorded_at).toLocaleString()}</td>
-              <td>{r.photo_path ? 'Sí' : '—'}</td>
-            </tr>
-          ))}
+          {records.map((r, i) => {
+            const dateLabel = new Date(r.recorded_at).toLocaleDateString('es-CL', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })
+            const prevDateLabel =
+              i > 0
+                ? new Date(records[i - 1].recorded_at).toLocaleDateString('es-CL', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  })
+                : null
+            const showDayHeader = dateLabel !== prevDateLabel
+
+            return (
+              <Fragment key={r.id}>
+                {showDayHeader && (
+                  <tr className="day-header-row">
+                    <td colSpan={3}>{dateLabel}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td>{TYPE_LABELS[r.type]}</td>
+                  <td>
+                    {new Date(r.recorded_at).toLocaleTimeString('es-CL', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </td>
+                  <td>{r.photo_path ? 'Sí' : '—'}</td>
+                </tr>
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>

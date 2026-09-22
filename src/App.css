@@ -163,6 +163,14 @@ select {
   flex-wrap: wrap;
 }
 
+.day-header-row td {
+  background: #f1f5f9;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: #334155;
+  font-size: 0.85rem;
+}
+
 .section-header {
   display: flex;
   align-items: center;

@@ -28,6 +28,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [workers, setWorkers] = useState<Profile[]>([])
   const [records, setRecords] = useState<AttendanceRow[]>([])
   const [filterWorker, setFilterWorker] = useState<string>('all')
+  const [filterDate, setFilterDate] = useState<string>('')
   const [formOpen, setFormOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
@@ -62,9 +63,16 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       query = query.eq('worker_id', filterWorker)
     }
 
+    if (filterDate) {
+      const [y, m, d] = filterDate.split('-').map(Number)
+      const start = new Date(y, m - 1, d, 0, 0, 0)
+      const end = new Date(y, m - 1, d + 1, 0, 0, 0)
+      query = query.gte('recorded_at', start.toISOString()).lt('recorded_at', end.toISOString())
+    }
+
     const { data } = await query
     setRecords((data as unknown as AttendanceRow[]) ?? [])
-  }, [filterWorker])
+  }, [filterWorker, filterDate])
 
   useEffect(() => {
     loadWorkers()
@@ -300,14 +308,26 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       <section className="card">
         <div className="section-header">
           <h2>Registros de entrada y salida</h2>
-          <select value={filterWorker} onChange={(e) => setFilterWorker(e.target.value)}>
-            <option value="all">Todos los trabajadores</option>
-            {workers.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.full_name}
-              </option>
-            ))}
-          </select>
+          <div className="table-controls">
+            <select value={filterWorker} onChange={(e) => setFilterWorker(e.target.value)}>
+              <option value="all">Todos los trabajadores</option>
+              {workers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.full_name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+            />
+            {filterDate && (
+              <button className="btn btn-secondary" onClick={() => setFilterDate('')}>
+                Ver todas las fechas
+              </button>
+            )}
+          </div>
         </div>
 
         <table className="table">

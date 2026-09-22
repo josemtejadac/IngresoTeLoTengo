@@ -6,6 +6,7 @@ export const OVERTIME_RATE_PER_HOUR = 2500
 
 export interface ShiftWithOvertime extends ShiftSummary {
   overtimeMs: number
+  isScheduledDay: boolean
 }
 
 function parseTimeToMinutes(value: string | null): number | null {
@@ -18,15 +19,22 @@ function parseTimeToMinutes(value: string | null): number | null {
 /**
  * Marca cuanto tiempo de cada turno queda fuera del horario habitual del
  * trabajador (entrar antes o salir despues de lo programado), para
- * calcularlo como hora extra.
+ * calcularlo como hora extra. Se compara siempre contra su horario
+ * habitual (ej. 08:30-17:30), incluso si ese dia no esta entre sus dias
+ * fijos (ej. un sabado extra que le toque trabajar) — asi las horas de
+ * mas tambien quedan como hora extra. "isScheduledDay" solo se usa para
+ * marcar visualmente esos dias como "dia extra" en el reporte.
  */
 export function annotateOvertime(shifts: ShiftSummary[], profile: Profile): ShiftWithOvertime[] {
   const startMinutes = parseTimeToMinutes(profile.schedule_start)
   const endMinutes = parseTimeToMinutes(profile.schedule_end)
 
   return shifts.map((s) => {
+    const weekday = s.entrada.getDay()
+    const isScheduledDay = profile.work_days?.includes(weekday) ?? false
+
     if (startMinutes === null || endMinutes === null) {
-      return { ...s, overtimeMs: 0 }
+      return { ...s, overtimeMs: 0, isScheduledDay }
     }
 
     const schedStart = new Date(s.entrada)
@@ -37,7 +45,7 @@ export function annotateOvertime(shifts: ShiftSummary[], profile: Profile): Shif
     const earlyMs = Math.max(0, schedStart.getTime() - s.entrada.getTime())
     const lateMs = s.salida ? Math.max(0, s.salida.getTime() - schedEnd.getTime()) : 0
 
-    return { ...s, overtimeMs: earlyMs + lateMs }
+    return { ...s, overtimeMs: earlyMs + lateMs, isScheduledDay }
   })
 }
 

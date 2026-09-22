@@ -157,6 +157,12 @@ select {
   font-size: 0.9rem;
 }
 
+.table-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .section-header {
   display: flex;
   align-items: center;

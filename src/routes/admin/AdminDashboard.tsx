@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { Logo } from '../../components/Logo'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
+import { groupByWorkerAndDay } from '../../lib/dailyGroups'
+import { formatTime } from '../../lib/hours'
 
 function currentMonthValue() {
   const now = new Date()
@@ -28,6 +30,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [workers, setWorkers] = useState<Profile[]>([])
   const [records, setRecords] = useState<AttendanceRow[]>([])
   const [filterWorker, setFilterWorker] = useState<string>('all')
+  const [viewMode, setViewMode] = useState<'day' | 'event'>('day')
   const [formOpen, setFormOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
@@ -166,6 +169,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     await loadRecords()
   }
 
+  const dailyGroups = useMemo(() => groupByWorkerAndDay(records), [records])
+
   async function handleDownloadReport() {
     if (!reportWorker) return
     const worker = workers.find((w) => w.id === reportWorker)
@@ -300,44 +305,94 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       <section className="card">
         <div className="section-header">
           <h2>Registros de entrada y salida</h2>
-          <select value={filterWorker} onChange={(e) => setFilterWorker(e.target.value)}>
-            <option value="all">Todos los trabajadores</option>
-            {workers.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.full_name}
-              </option>
-            ))}
-          </select>
+          <div className="table-controls">
+            <select value={filterWorker} onChange={(e) => setFilterWorker(e.target.value)}>
+              <option value="all">Todos los trabajadores</option>
+              {workers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.full_name}
+                </option>
+              ))}
+            </select>
+            <select value={viewMode} onChange={(e) => setViewMode(e.target.value as 'day' | 'event')}>
+              <option value="day">Vista por día</option>
+              <option value="event">Vista por movimiento</option>
+            </select>
+          </div>
         </div>
 
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Trabajador</th>
-              <th>Tipo</th>
-              <th>Fecha y hora</th>
-              <th>Foto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((r) => (
-              <tr key={r.id}>
-                <td>{r.ingreso_profiles?.full_name ?? '—'}</td>
-                <td>{TYPE_LABELS[r.type]}</td>
-                <td>{new Date(r.recorded_at).toLocaleString()}</td>
-                <td>
-                  {r.photo_path ? (
-                    <button className="btn-link" onClick={() => verFoto(r.photo_path as string)}>
-                      Ver foto
-                    </button>
-                  ) : (
-                    '—'
-                  )}
-                </td>
+        {viewMode === 'day' ? (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Trabajador</th>
+                <th>Fecha</th>
+                <th>Entrada</th>
+                <th>Ingreso colación</th>
+                <th>Salida colación</th>
+                <th>Salida</th>
+                <th>Foto</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {dailyGroups.map((g) => (
+                <tr key={g.key}>
+                  <td>{g.workerName}</td>
+                  <td>{g.dateLabel}</td>
+                  <td>{formatTime(g.entrada ? new Date(g.entrada.recorded_at) : null)}</td>
+                  <td>
+                    {formatTime(g.ingresoColacion ? new Date(g.ingresoColacion.recorded_at) : null)}
+                  </td>
+                  <td>
+                    {formatTime(g.salidaColacion ? new Date(g.salidaColacion.recorded_at) : null)}
+                  </td>
+                  <td>{formatTime(g.salida ? new Date(g.salida.recorded_at) : null)}</td>
+                  <td>
+                    {g.entrada?.photo_path ? (
+                      <button
+                        className="btn-link"
+                        onClick={() => verFoto(g.entrada!.photo_path as string)}
+                      >
+                        Ver foto
+                      </button>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Trabajador</th>
+                <th>Tipo</th>
+                <th>Fecha y hora</th>
+                <th>Foto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.ingreso_profiles?.full_name ?? '—'}</td>
+                  <td>{TYPE_LABELS[r.type]}</td>
+                  <td>{new Date(r.recorded_at).toLocaleString()}</td>
+                  <td>
+                    {r.photo_path ? (
+                      <button className="btn-link" onClick={() => verFoto(r.photo_path as string)}>
+                        Ver foto
+                      </button>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   )

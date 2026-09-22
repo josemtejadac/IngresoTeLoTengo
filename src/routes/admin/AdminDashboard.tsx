@@ -22,6 +22,7 @@ import {
   WEEKLY_SALES_GOAL,
   type ArqueoRowWithWorker,
 } from '../../lib/arqueo'
+import { downloadSalesPdf } from '../../lib/salesReport'
 
 const WEEKDAYS = [
   { value: 1, label: 'Lun' },
@@ -38,6 +39,7 @@ interface ScheduleForm {
   pay_amount: string
   pay_frequency: 'weekly' | 'monthly'
   tuesday_bonus: string
+  weekly_bonus_eligible: boolean
 }
 
 function scheduleFormFromProfile(w: Profile): ScheduleForm {
@@ -55,6 +57,7 @@ function scheduleFormFromProfile(w: Profile): ScheduleForm {
     pay_amount: w.pay_amount?.toString() ?? '',
     pay_frequency: w.pay_frequency ?? 'monthly',
     tuesday_bonus: w.tuesday_bonus ? w.tuesday_bonus.toString() : '',
+    weekly_bonus_eligible: w.weekly_bonus_eligible,
   }
 }
 
@@ -64,9 +67,10 @@ function describeSchedule(w: Profile): string {
     ? `${formatCLP(w.pay_amount)} ${w.pay_frequency === 'monthly' ? 'mensual' : 'semanal'}`
     : 'sin sueldo configurado'
   const bonus = w.tuesday_bonus > 0 ? ` · Bono martes ${formatCLP(w.tuesday_bonus)}` : ''
+  const meta = w.weekly_bonus_eligible ? ' · Participa en bono de meta' : ' · No participa en bono de meta'
 
   if (entries.length === 0) {
-    return `Sin horario configurado · ${pay}${bonus}`
+    return `Sin horario configurado · ${pay}${bonus}${meta}`
   }
 
   const days = entries
@@ -75,7 +79,7 @@ function describeSchedule(w: Profile): string {
       return `${d.label} ${s.start}–${s.end}`
     })
     .join(', ')
-  return `${days} · ${pay}${bonus}`
+  return `${days} · ${pay}${bonus}${meta}`
 }
 
 function currentMonthValue() {
@@ -137,6 +141,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [arqueoDate, setArqueoDate] = useState<string>(currentDateValue())
   const [arqueoRows, setArqueoRows] = useState<ArqueoRowWithWorker[]>([])
   const [weeklySales, setWeeklySales] = useState<number>(0)
+  const [salesReportMonth, setSalesReportMonth] = useState<string>(currentMonthValue())
+  const [salesReportBusy, setSalesReportBusy] = useState<'week' | 'month' | null>(null)
+  const [salesReportError, setSalesReportError] = useState<string | null>(null)
 
   const loadLastStatuses = useCallback(async () => {
     const { data } = await supabase.rpc('ingreso_last_attendance')
@@ -456,6 +463,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         pay_amount: payAmount,
         pay_frequency: scheduleForm.pay_frequency,
         tuesday_bonus: tuesdayBonus,
+        weekly_bonus_eligible: scheduleForm.weekly_bonus_eligible,
       })
       .eq('id', id)
     setScheduleBusy(false)
@@ -483,7 +491,72 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
+  async function handleDownloadWeeklySales() {
+    setSalesReportBusy('week')
+    setSalesReportError(null)
+    try {
+      const week = getCurrentWeek()
+      await downloadSalesPdf({
+        start: week.start,
+        end: week.end,
+        title: `Reporte de ventas — semana ${formatWeekLabel(week)}`,
+        fileSuffix: `semana-${week.end.toISOString().slice(0, 10)}`,
+        goal: WEEKLY_SALES_GOAL,
+      })
+    } catch (err) {
+      setSalesReportError(err instanceof Error ? err.message : 'Error generando el PDF')
+    } finally {
+      setSalesReportBusy(null)
+    }
+  }
+
+  async function handleDownloadMonthlySales() {
+    setSalesReportBusy('month')
+    setSalesReportError(null)
+    try {
+      const [y, m] = salesReportMonth.split('-').map(Number)
+      const start = new Date(y, m - 1, 1)
+      const end = new Date(y, m, 0)
+      await downloadSalesPdf({
+        start,
+        end,
+        title: `Reporte de ventas — ${salesReportMonth}`,
+        fileSuffix: salesReportMonth,
+      })
+    } catch (err) {
+      setSalesReportError(err instanceof Error ? err.message : 'Error generando el PDF')
+    } finally {
+      setSalesReportBusy(null)
+    }
+  }
+
   const weeksInBonusMonth = getWeeksEndingInMonth(bonusMonth)
+
+  const refreshAll = useCallback(() => {
+    loadWorkers()
+    loadRecords()
+    loadLastStatuses()
+    loadBonusRows()
+    loadArqueoRows()
+    loadWeeklySales()
+  }, [loadWorkers, loadRecords, loadLastStatuses, loadBonusRows, loadArqueoRows, loadWeeklySales])
+
+  // El celular corta el WebSocket de tiempo real cuando la pantalla se
+  // bloquea o la app pasa a segundo plano. Al volver, refrescamos todo a
+  // mano para no depender solo de la conexion en vivo.
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        refreshAll()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', refreshAll)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', refreshAll)
+    }
+  }, [refreshAll])
 
   return (
     <div className="page">
@@ -707,6 +780,18 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                       />
                     </label>
                   </div>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.weekly_bonus_eligible}
+                      onChange={(e) =>
+                        setScheduleForm(
+                          (f) => f && { ...f, weekly_bonus_eligible: e.target.checked },
+                        )
+                      }
+                    />
+                    Participa en el bono de meta semanal ({formatCLP(WEEKLY_BONUS_AMOUNT)})
+                  </label>
                   {scheduleError && <p className="error-text">{scheduleError}</p>}
                   <div className="report-row">
                     <button
@@ -752,6 +837,31 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> (
           {Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))}%)
         </p>
+        <div className="report-row">
+          <button
+            className="btn btn-primary"
+            onClick={handleDownloadWeeklySales}
+            disabled={salesReportBusy !== null}
+          >
+            {salesReportBusy === 'week' ? 'Generando...' : 'Descargar PDF de esta semana'}
+          </button>
+          <label>
+            Mes
+            <input
+              type="month"
+              value={salesReportMonth}
+              onChange={(e) => setSalesReportMonth(e.target.value)}
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            onClick={handleDownloadMonthlySales}
+            disabled={salesReportBusy !== null}
+          >
+            {salesReportBusy === 'month' ? 'Generando...' : 'Descargar PDF del mes'}
+          </button>
+        </div>
+        {salesReportError && <p className="error-text">{salesReportError}</p>}
       </section>
 
       <section className="card">
@@ -803,7 +913,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         <p className="subtitle">
           Las semanas van de lunes a domingo (el corte es el domingo). Una semana que empieza en
           el mes anterior se muestra en el mes de su domingo de cierre. Cada casilla suma{' '}
-          {formatCLP(WEEKLY_BONUS_AMOUNT)}.
+          {formatCLP(WEEKLY_BONUS_AMOUNT)}, y se marca sola al llegar la venta de esa semana a{' '}
+          {formatCLP(WEEKLY_SALES_GOAL)} (puedes ajustarla igual a mano). Los trabajadores que no
+          participan de este bono no aparecen aquí — se configura en "Horarios y sueldos".
         </p>
         <table className="table">
           <thead>
@@ -816,7 +928,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             </tr>
           </thead>
           <tbody>
-            {workers.map((w) => {
+            {workers.filter((w) => w.weekly_bonus_eligible).map((w) => {
               const earnedCount = weeksInBonusMonth.filter((week) =>
                 isBonusEarned(w.id, week),
               ).length

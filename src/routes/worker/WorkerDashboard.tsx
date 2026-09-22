@@ -212,6 +212,39 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }, [loadRecords, loadLastRecord, loadPaySummary, loadBonusRows, profile.id])
 
+  const refreshAll = useCallback(() => {
+    loadRecords()
+    loadLastRecord()
+    loadPaySummary()
+    loadBonusRows()
+    loadTodayArqueo()
+    loadWeeklySales()
+  }, [
+    loadRecords,
+    loadLastRecord,
+    loadPaySummary,
+    loadBonusRows,
+    loadTodayArqueo,
+    loadWeeklySales,
+  ])
+
+  // El celular corta el WebSocket de tiempo real cuando la pantalla se
+  // bloquea o la app pasa a segundo plano. Al volver, refrescamos todo a
+  // mano para no depender solo de la conexion en vivo.
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        refreshAll()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', refreshAll)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', refreshAll)
+    }
+  }, [refreshAll])
+
   const weeksThisMonth = getWeeksEndingInMonth(currentMonthValue())
 
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
@@ -371,22 +404,24 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               <strong>{formatCLP(paySummary.tuesdayBonusTotal)}</strong>
             </p>
           )}
-          <p>
-            Bono semanal este mes:{' '}
-            {weeksThisMonth.map((week) => {
-              const earned = isWeekEarned(weeklyBonusRows, week)
-              return (
-                <span
-                  key={week.end.toISOString()}
-                  className={earned ? 'bonus-week earned' : 'bonus-week'}
-                  title={formatWeekLabel(week)}
-                >
-                  {formatWeekLabel(week)}
-                </span>
-              )
-            })}{' '}
-            → <strong>{formatCLP(totalEarned(weeklyBonusRows))}</strong>
-          </p>
+          {profile.weekly_bonus_eligible && (
+            <p>
+              Bono semanal este mes:{' '}
+              {weeksThisMonth.map((week) => {
+                const earned = isWeekEarned(weeklyBonusRows, week)
+                return (
+                  <span
+                    key={week.end.toISOString()}
+                    className={earned ? 'bonus-week earned' : 'bonus-week'}
+                    title={formatWeekLabel(week)}
+                  >
+                    {formatWeekLabel(week)}
+                  </span>
+                )
+              })}{' '}
+              → <strong>{formatCLP(totalEarned(weeklyBonusRows))}</strong>
+            </p>
+          )}
           {paySummary.payFrequency === 'monthly' && (
             <p className="pay-total">
               Total del mes:{' '}

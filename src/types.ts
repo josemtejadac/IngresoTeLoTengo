@@ -19,6 +19,7 @@ export interface Profile {
   pay_amount: number | null
   pay_frequency: 'weekly' | 'monthly' | null
   tuesday_bonus: number
+  weekly_bonus_eligible: boolean
 }
 
 export interface Attendance {

@@ -7,6 +7,7 @@ import { formatCLP } from '../../lib/payroll'
 import {
   WEEKLY_BONUS_AMOUNT,
   formatWeekLabel,
+  getCurrentWeek,
   getWeeksEndingInMonth,
   isWeekEarned,
   loadWeeklyBonusForMonth,
@@ -14,6 +15,13 @@ import {
   type WeekRange,
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
+import {
+  loadArqueoForDate,
+  loadWeeklySalesTotal,
+  ventaTotal,
+  WEEKLY_SALES_GOAL,
+  type ArqueoRowWithWorker,
+} from '../../lib/arqueo'
 
 const WEEKDAYS = [
   { value: 1, label: 'Lun' },
@@ -126,6 +134,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [lastStatuses, setLastStatuses] = useState<Record<string, Attendance['type']>>({})
   const [salidaBusyId, setSalidaBusyId] = useState<string | null>(null)
   const [salidaError, setSalidaError] = useState<string | null>(null)
+  const [arqueoDate, setArqueoDate] = useState<string>(currentDateValue())
+  const [arqueoRows, setArqueoRows] = useState<ArqueoRowWithWorker[]>([])
+  const [weeklySales, setWeeklySales] = useState<number>(0)
 
   const loadLastStatuses = useCallback(async () => {
     const { data } = await supabase.rpc('ingreso_last_attendance')
@@ -135,6 +146,38 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
     setLastStatuses(map)
   }, [])
+
+  const loadArqueoRows = useCallback(async () => {
+    const rows = await loadArqueoForDate(arqueoDate)
+    setArqueoRows(rows)
+  }, [arqueoDate])
+
+  const loadWeeklySales = useCallback(async () => {
+    const total = await loadWeeklySalesTotal(getCurrentWeek())
+    setWeeklySales(total)
+  }, [])
+
+  useEffect(() => {
+    loadArqueoRows()
+  }, [loadArqueoRows])
+
+  useEffect(() => {
+    loadWeeklySales()
+  }, [loadWeeklySales])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('ingreso_arqueo_admin')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingreso_arqueo' }, () => {
+        loadArqueoRows()
+        loadWeeklySales()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadArqueoRows, loadWeeklySales])
 
   const loadWorkers = useCallback(async () => {
     const { data } = await supabase
@@ -692,6 +735,64 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="card">
+        <h2>Meta semanal de ventas</h2>
+        <p className="subtitle">
+          Semana {formatWeekLabel(getCurrentWeek())} · Meta: {formatCLP(WEEKLY_SALES_GOAL)}
+        </p>
+        <div className="goal-bar">
+          <div
+            className="goal-bar-fill"
+            style={{ width: `${Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))}%` }}
+          />
+        </div>
+        <p>
+          Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> (
+          {Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))}%)
+        </p>
+      </section>
+
+      <section className="card">
+        <div className="section-header">
+          <h2>Arqueo diario</h2>
+          <input type="date" value={arqueoDate} onChange={(e) => setArqueoDate(e.target.value)} />
+        </div>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Trabajador</th>
+              <th>Efectivo</th>
+              <th>Débito</th>
+              <th>Crédito</th>
+              <th>Transferencia</th>
+              <th>Venta total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {arqueoRows.map((a) => (
+              <tr key={a.id}>
+                <td>{a.ingreso_profiles?.full_name ?? '—'}</td>
+                <td>{formatCLP(a.efectivo)}</td>
+                <td>{formatCLP(a.debito)}</td>
+                <td>{formatCLP(a.credito)}</td>
+                <td>{formatCLP(a.transferencia)}</td>
+                <td>{formatCLP(ventaTotal(a))}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={5}>
+                <strong>Venta bruta del día</strong>
+              </td>
+              <td>
+                <strong>{formatCLP(arqueoRows.reduce((sum, a) => sum + ventaTotal(a), 0))}</strong>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </section>
 
       <section className="card">

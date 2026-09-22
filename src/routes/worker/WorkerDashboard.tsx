@@ -13,12 +13,21 @@ import {
 } from '../../lib/payroll'
 import {
   formatWeekLabel,
+  getCurrentWeek,
   getWeeksEndingInMonth,
   isWeekEarned,
   loadWeeklyBonusForWorker,
   totalEarned,
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
+import {
+  loadArqueoForWorkerDay,
+  loadWeeklySalesTotal,
+  submitArqueo,
+  ventaTotal,
+  WEEKLY_SALES_GOAL,
+  type ArqueoEntry,
+} from '../../lib/arqueo'
 
 interface WorkerDashboardProps {
   profile: Profile
@@ -52,6 +61,15 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthValue())
   const [paySummary, setPaySummary] = useState<PaySummary | null>(null)
   const [weeklyBonusRows, setWeeklyBonusRows] = useState<WeeklyBonusRow[]>([])
+  const [todayArqueo, setTodayArqueo] = useState<ArqueoEntry[]>([])
+  const [weeklySales, setWeeklySales] = useState<number>(0)
+  const [efectivo, setEfectivo] = useState('')
+  const [debito, setDebito] = useState('')
+  const [credito, setCredito] = useState('')
+  const [transferencia, setTransferencia] = useState('')
+  const [arqueoBusy, setArqueoBusy] = useState(false)
+  const [arqueoMessage, setArqueoMessage] = useState<string | null>(null)
+  const [arqueoError, setArqueoError] = useState<string | null>(null)
 
   const loadRecords = useCallback(async () => {
     let query = supabase
@@ -125,6 +143,38 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   useEffect(() => {
     loadBonusRows()
   }, [loadBonusRows])
+
+  const loadTodayArqueo = useCallback(async () => {
+    const rows = await loadArqueoForWorkerDay(profile.id, currentDateValue())
+    setTodayArqueo(rows)
+  }, [profile.id])
+
+  const loadWeeklySales = useCallback(async () => {
+    const total = await loadWeeklySalesTotal(getCurrentWeek())
+    setWeeklySales(total)
+  }, [])
+
+  useEffect(() => {
+    loadTodayArqueo()
+    loadWeeklySales()
+  }, [loadTodayArqueo, loadWeeklySales])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('ingreso_arqueo_all')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_arqueo' },
+        () => {
+          loadWeeklySales()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadWeeklySales])
 
   useEffect(() => {
     const channel = supabase
@@ -218,6 +268,37 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       setBusy(false)
     }
   }
+
+  const arqueoValues = {
+    efectivo: Number(efectivo) || 0,
+    debito: Number(debito) || 0,
+    credito: Number(credito) || 0,
+    transferencia: Number(transferencia) || 0,
+  }
+  const arqueoVentaTotal = ventaTotal(arqueoValues)
+
+  async function handleSubmitArqueo(e: React.FormEvent) {
+    e.preventDefault()
+    setArqueoBusy(true)
+    setArqueoError(null)
+    setArqueoMessage(null)
+    try {
+      await submitArqueo(profile.id, currentDateValue(), arqueoValues)
+      setEfectivo('')
+      setDebito('')
+      setCredito('')
+      setTransferencia('')
+      setArqueoMessage('Arqueo guardado correctamente.')
+      await loadTodayArqueo()
+      await loadWeeklySales()
+    } catch (err) {
+      setArqueoError(err instanceof Error ? err.message : 'Error guardando el arqueo')
+    } finally {
+      setArqueoBusy(false)
+    }
+  }
+
+  const weeklySalesPct = Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))
 
   return (
     <div className="page">
@@ -321,6 +402,98 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           )}
         </section>
       )}
+
+      <section className="card">
+        <h2>Meta semanal de ventas</h2>
+        <p className="subtitle">
+          Semana {formatWeekLabel(getCurrentWeek())} · Meta: {formatCLP(WEEKLY_SALES_GOAL)}
+        </p>
+        <div className="goal-bar">
+          <div className="goal-bar-fill" style={{ width: `${weeklySalesPct}%` }} />
+        </div>
+        <p>
+          Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> ({weeklySalesPct}%)
+        </p>
+      </section>
+
+      <section className="card">
+        <h2>Arqueo del día</h2>
+        <p className="subtitle">Ingresa las ventas de tu turno de hoy.</p>
+        <form onSubmit={handleSubmitArqueo} className="worker-form">
+          <label>
+            Efectivo
+            <input
+              type="number"
+              min={0}
+              value={efectivo}
+              onChange={(e) => setEfectivo(e.target.value)}
+            />
+          </label>
+          <label>
+            Débito
+            <input
+              type="number"
+              min={0}
+              value={debito}
+              onChange={(e) => setDebito(e.target.value)}
+            />
+          </label>
+          <label>
+            Crédito
+            <input
+              type="number"
+              min={0}
+              value={credito}
+              onChange={(e) => setCredito(e.target.value)}
+            />
+          </label>
+          <label>
+            Transferencia
+            <input
+              type="number"
+              min={0}
+              value={transferencia}
+              onChange={(e) => setTransferencia(e.target.value)}
+            />
+          </label>
+          <p>
+            Venta total: <strong>{formatCLP(arqueoVentaTotal)}</strong>
+          </p>
+          {arqueoError && <p className="error-text">{arqueoError}</p>}
+          {arqueoMessage && <p className="info-text">{arqueoMessage}</p>}
+          <button type="submit" className="btn btn-primary" disabled={arqueoBusy}>
+            {arqueoBusy ? 'Guardando...' : 'Guardar arqueo'}
+          </button>
+        </form>
+
+        {todayArqueo.length > 0 && (
+          <>
+            <h2>Arqueos de hoy</h2>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Efectivo</th>
+                  <th>Débito</th>
+                  <th>Crédito</th>
+                  <th>Transferencia</th>
+                  <th>Venta total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {todayArqueo.map((a) => (
+                  <tr key={a.id}>
+                    <td>{formatCLP(a.efectivo)}</td>
+                    <td>{formatCLP(a.debito)}</td>
+                    <td>{formatCLP(a.credito)}</td>
+                    <td>{formatCLP(a.transferencia)}</td>
+                    <td>{formatCLP(ventaTotal(a))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </section>
 
       {showCamera && (
         <CameraCapture onCapture={registrarEntrada} onCancel={() => setShowCamera(false)} />

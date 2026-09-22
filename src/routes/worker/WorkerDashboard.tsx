@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
+import { computeShifts, formatHoursMinutes } from '../../lib/hours'
+import { annotateOvertime, computePaySummary, formatCLP, type PaySummary } from '../../lib/payroll'
 
 interface WorkerDashboardProps {
   profile: Profile
@@ -34,6 +36,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [filterMode, setFilterMode] = useState<'day' | 'month'>('day')
   const [filterDate, setFilterDate] = useState<string>(currentDateValue())
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthValue())
+  const [paySummary, setPaySummary] = useState<PaySummary | null>(null)
 
   const loadRecords = useCallback(async () => {
     let query = supabase
@@ -78,6 +81,27 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     loadLastRecord()
   }, [loadLastRecord])
 
+  const loadPaySummary = useCallback(async () => {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0)
+
+    const { data } = await supabase
+      .from('ingreso_attendance')
+      .select('*')
+      .eq('worker_id', profile.id)
+      .gte('recorded_at', start.toISOString())
+      .lt('recorded_at', end.toISOString())
+      .order('recorded_at', { ascending: true })
+
+    const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), profile)
+    setPaySummary(computePaySummary(shifts, profile, start, end))
+  }, [profile])
+
+  useEffect(() => {
+    loadPaySummary()
+  }, [loadPaySummary])
+
   useEffect(() => {
     const channel = supabase
       .channel(`ingreso_attendance_worker_${profile.id}`)
@@ -92,6 +116,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         () => {
           loadRecords()
           loadLastRecord()
+          loadPaySummary()
         },
       )
       .subscribe()
@@ -99,7 +124,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadRecords, loadLastRecord, profile.id])
+  }, [loadRecords, loadLastRecord, loadPaySummary, profile.id])
 
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
   const canRegisterIngresoColacion = lastRecord?.type === 'entrada'
@@ -203,6 +228,29 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       </div>
 
       {message && <p className="info-text">{message}</p>}
+
+      {paySummary && (
+        <section className="card pay-card">
+          <h2>Mi sueldo</h2>
+          <p>
+            Sueldo base:{' '}
+            <strong>
+              {formatCLP(paySummary.baseAmount)}
+              {paySummary.payFrequency === 'monthly' ? ' mensual' : ' semanal'}
+            </strong>
+          </p>
+          <p>
+            Horas extra este mes: <strong>{formatHoursMinutes(paySummary.overtimeMs)}</strong> →{' '}
+            <strong>{formatCLP(paySummary.overtimePay)}</strong>
+          </p>
+          {paySummary.tuesdayBonusCount > 0 && (
+            <p>
+              Bono martes: {paySummary.tuesdayBonusCount} × {formatCLP(profile.tuesday_bonus)} ={' '}
+              <strong>{formatCLP(paySummary.tuesdayBonusTotal)}</strong>
+            </p>
+          )}
+        </section>
+      )}
 
       {showCamera && (
         <CameraCapture onCapture={registrarEntrada} onCancel={() => setShowCamera(false)} />

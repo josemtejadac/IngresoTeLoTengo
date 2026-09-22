@@ -6,6 +6,13 @@ export interface Profile {
   role: Role
   active: boolean
   created_at: string
+  rut: string | null
+  schedule_start: string | null
+  schedule_end: string | null
+  work_days: number[] | null
+  pay_amount: number | null
+  pay_frequency: 'weekly' | 'monthly' | null
+  tuesday_bonus: number
 }
 
 export interface Attendance {

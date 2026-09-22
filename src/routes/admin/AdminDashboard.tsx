@@ -3,6 +3,51 @@ import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { Logo } from '../../components/Logo'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
+import { formatCLP } from '../../lib/payroll'
+
+const WEEKDAYS = [
+  { value: 1, label: 'Lun' },
+  { value: 2, label: 'Mar' },
+  { value: 3, label: 'Mié' },
+  { value: 4, label: 'Jue' },
+  { value: 5, label: 'Vie' },
+  { value: 6, label: 'Sáb' },
+  { value: 0, label: 'Dom' },
+]
+
+interface ScheduleForm {
+  schedule_start: string
+  schedule_end: string
+  work_days: number[]
+  pay_amount: string
+  pay_frequency: 'weekly' | 'monthly'
+  tuesday_bonus: string
+}
+
+function scheduleFormFromProfile(w: Profile): ScheduleForm {
+  return {
+    schedule_start: w.schedule_start?.slice(0, 5) ?? '09:00',
+    schedule_end: w.schedule_end?.slice(0, 5) ?? '18:00',
+    work_days: w.work_days ?? [],
+    pay_amount: w.pay_amount?.toString() ?? '',
+    pay_frequency: w.pay_frequency ?? 'monthly',
+    tuesday_bonus: w.tuesday_bonus ? w.tuesday_bonus.toString() : '',
+  }
+}
+
+function describeSchedule(w: Profile): string {
+  if (!w.schedule_start || !w.schedule_end || !w.work_days || w.work_days.length === 0) {
+    return 'Sin horario configurado'
+  }
+  const days = WEEKDAYS.filter((d) => w.work_days!.includes(d.value))
+    .map((d) => d.label)
+    .join(', ')
+  const pay = w.pay_amount
+    ? `${formatCLP(w.pay_amount)} ${w.pay_frequency === 'monthly' ? 'mensual' : 'semanal'}`
+    : 'sin sueldo configurado'
+  const bonus = w.tuesday_bonus > 0 ? ` · Bono martes ${formatCLP(w.tuesday_bonus)}` : ''
+  return `${days} · ${w.schedule_start.slice(0, 5)}–${w.schedule_end.slice(0, 5)} · ${pay}${bonus}`
+}
 
 function currentMonthValue() {
   const now = new Date()
@@ -49,6 +94,10 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [reportMonth, setReportMonth] = useState<string>(currentMonthValue())
   const [reportBusy, setReportBusy] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
+  const [scheduleEditingId, setScheduleEditingId] = useState<string | null>(null)
+  const [scheduleForm, setScheduleForm] = useState<ScheduleForm | null>(null)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [scheduleBusy, setScheduleBusy] = useState(false)
 
   const loadWorkers = useCallback(async () => {
     const { data } = await supabase
@@ -186,6 +235,63 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     await loadRecords()
   }
 
+  function startScheduleEdit(w: Profile) {
+    setScheduleEditingId(w.id)
+    setScheduleForm(scheduleFormFromProfile(w))
+    setScheduleError(null)
+  }
+
+  function cancelScheduleEdit() {
+    setScheduleEditingId(null)
+    setScheduleForm(null)
+    setScheduleError(null)
+  }
+
+  function toggleScheduleDay(day: number) {
+    setScheduleForm((f) =>
+      f
+        ? {
+            ...f,
+            work_days: f.work_days.includes(day)
+              ? f.work_days.filter((d) => d !== day)
+              : [...f.work_days, day],
+          }
+        : f,
+    )
+  }
+
+  async function saveSchedule(id: string) {
+    if (!scheduleForm) return
+    setScheduleBusy(true)
+    setScheduleError(null)
+    const payAmount = Number(scheduleForm.pay_amount)
+    const tuesdayBonus = scheduleForm.tuesday_bonus ? Number(scheduleForm.tuesday_bonus) : 0
+    if (Number.isNaN(payAmount) || Number.isNaN(tuesdayBonus)) {
+      setScheduleError('Los montos deben ser números')
+      setScheduleBusy(false)
+      return
+    }
+    const { error } = await supabase
+      .from('ingreso_profiles')
+      .update({
+        schedule_start: scheduleForm.schedule_start,
+        schedule_end: scheduleForm.schedule_end,
+        work_days: scheduleForm.work_days,
+        pay_amount: payAmount,
+        pay_frequency: scheduleForm.pay_frequency,
+        tuesday_bonus: tuesdayBonus,
+      })
+      .eq('id', id)
+    setScheduleBusy(false)
+    if (error) {
+      setScheduleError(error.message)
+      return
+    }
+    setScheduleEditingId(null)
+    setScheduleForm(null)
+    await loadWorkers()
+  }
+
   async function handleDownloadReport() {
     if (!reportWorker) return
     const worker = workers.find((w) => w.id === reportWorker)
@@ -193,7 +299,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     setReportBusy(true)
     setReportError(null)
     try {
-      await downloadMonthlyHoursPdf(worker.id, worker.full_name, reportMonth)
+      await downloadMonthlyHoursPdf(worker, reportMonth)
     } catch (err) {
       setReportError(err instanceof Error ? err.message : 'Error generando el PDF')
     } finally {
@@ -315,6 +421,119 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </button>
         </div>
         {reportError && <p className="error-text">{reportError}</p>}
+      </section>
+
+      <section className="card">
+        <h2>Horarios y sueldos</h2>
+        <p className="subtitle">
+          Configura el horario habitual, el sueldo base y las horas extra de cada trabajador.
+        </p>
+        <ul className="worker-list">
+          {workers.map((w) => (
+            <li key={w.id} className="schedule-item">
+              {scheduleEditingId === w.id && scheduleForm ? (
+                <div className="schedule-form">
+                  <strong>{w.full_name}</strong>
+                  <div className="schedule-days">
+                    {WEEKDAYS.map((d) => (
+                      <label key={d.value} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={scheduleForm.work_days.includes(d.value)}
+                          onChange={() => toggleScheduleDay(d.value)}
+                        />
+                        {d.label}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="report-row">
+                    <label>
+                      Entrada
+                      <input
+                        type="time"
+                        value={scheduleForm.schedule_start}
+                        onChange={(e) =>
+                          setScheduleForm((f) => f && { ...f, schedule_start: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Salida
+                      <input
+                        type="time"
+                        value={scheduleForm.schedule_end}
+                        onChange={(e) =>
+                          setScheduleForm((f) => f && { ...f, schedule_end: e.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="report-row">
+                    <label>
+                      Sueldo base
+                      <input
+                        type="number"
+                        min={0}
+                        value={scheduleForm.pay_amount}
+                        onChange={(e) =>
+                          setScheduleForm((f) => f && { ...f, pay_amount: e.target.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      Frecuencia
+                      <select
+                        value={scheduleForm.pay_frequency}
+                        onChange={(e) =>
+                          setScheduleForm(
+                            (f) => f && { ...f, pay_frequency: e.target.value as 'weekly' | 'monthly' },
+                          )
+                        }
+                      >
+                        <option value="monthly">Mensual</option>
+                        <option value="weekly">Semanal</option>
+                      </select>
+                    </label>
+                    <label>
+                      Bono martes
+                      <input
+                        type="number"
+                        min={0}
+                        value={scheduleForm.tuesday_bonus}
+                        onChange={(e) =>
+                          setScheduleForm((f) => f && { ...f, tuesday_bonus: e.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  {scheduleError && <p className="error-text">{scheduleError}</p>}
+                  <div className="report-row">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => saveSchedule(w.id)}
+                      disabled={scheduleBusy}
+                    >
+                      {scheduleBusy ? 'Guardando...' : 'Guardar'}
+                    </button>
+                    <button className="btn btn-secondary" onClick={cancelScheduleEdit}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <strong>{w.full_name}</strong>
+                    <p className="subtitle">{describeSchedule(w)}</p>
+                  </div>
+                  <button className="btn-link" onClick={() => startScheduleEdit(w)}>
+                    Editar
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card">

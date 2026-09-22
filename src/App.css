@@ -163,6 +163,37 @@ select {
   flex-wrap: wrap;
 }
 
+.schedule-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.schedule-item:last-child {
+  border-bottom: none;
+}
+
+.schedule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.schedule-days {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pay-card p {
+  margin: 4px 0;
+  font-size: 0.9rem;
+}
+
 .day-header-row td {
   background: #f1f5f9;
   font-weight: 600;

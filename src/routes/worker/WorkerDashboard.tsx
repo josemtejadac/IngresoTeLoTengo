@@ -54,6 +54,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [records, setRecords] = useState<Attendance[]>([])
   const [lastRecord, setLastRecord] = useState<Attendance | null>(null)
   const [showCamera, setShowCamera] = useState(false)
+  const [cameraAction, setCameraAction] = useState<'entrada' | 'salida' | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [filterMode, setFilterMode] = useState<'day' | 'month'>('day')
@@ -253,7 +254,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const canRegisterSalida =
     lastRecord?.type === 'entrada' || lastRecord?.type === 'salida_colacion'
 
-  async function registrarEntrada(photo: Blob) {
+  async function registrarConFoto(type: 'entrada' | 'salida', photo: Blob) {
     setBusy(true)
     setMessage(null)
     try {
@@ -266,24 +267,25 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
       const { error: insertError } = await supabase.from('ingreso_attendance').insert({
         worker_id: profile.id,
-        type: 'entrada',
+        type,
         photo_path: path,
       })
 
       if (insertError) throw insertError
 
-      setMessage('Entrada registrada correctamente.')
+      setMessage(`${TYPE_LABELS[type]} registrada correctamente.`)
       setShowCamera(false)
+      setCameraAction(null)
       await loadRecords()
       await loadLastRecord()
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Error registrando la entrada.')
+      setMessage(err instanceof Error ? err.message : `Error registrando la ${TYPE_LABELS[type].toLowerCase()}.`)
     } finally {
       setBusy(false)
     }
   }
 
-  async function registrarSimple(type: 'salida' | 'ingreso_colacion' | 'salida_colacion') {
+  async function registrarSimple(type: 'ingreso_colacion' | 'salida_colacion') {
     setBusy(true)
     setMessage(null)
     try {
@@ -352,7 +354,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <button
           className="btn btn-primary"
           disabled={!canRegisterEntrada || busy}
-          onClick={() => setShowCamera(true)}
+          onClick={() => {
+            setCameraAction('entrada')
+            setShowCamera(true)
+          }}
         >
           Registrar entrada
         </button>
@@ -373,7 +378,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <button
           className="btn btn-danger"
           disabled={!canRegisterSalida || busy}
-          onClick={() => registrarSimple('salida')}
+          onClick={() => {
+            setCameraAction('salida')
+            setShowCamera(true)
+          }}
         >
           Registrar salida
         </button>
@@ -530,8 +538,14 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         )}
       </section>
 
-      {showCamera && (
-        <CameraCapture onCapture={registrarEntrada} onCancel={() => setShowCamera(false)} />
+      {showCamera && cameraAction && (
+        <CameraCapture
+          onCapture={(photo) => registrarConFoto(cameraAction, photo)}
+          onCancel={() => {
+            setShowCamera(false)
+            setCameraAction(null)
+          }}
+        />
       )}
 
       <div className="section-header">

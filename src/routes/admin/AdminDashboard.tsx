@@ -120,6 +120,18 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [bonusRows, setBonusRows] = useState<WeeklyBonusRow[]>([])
   const [bonusBusyKey, setBonusBusyKey] = useState<string | null>(null)
   const [bonusError, setBonusError] = useState<string | null>(null)
+  const [lastStatuses, setLastStatuses] = useState<Record<string, Attendance['type']>>({})
+  const [salidaBusyId, setSalidaBusyId] = useState<string | null>(null)
+  const [salidaError, setSalidaError] = useState<string | null>(null)
+
+  const loadLastStatuses = useCallback(async () => {
+    const { data } = await supabase.rpc('ingreso_last_attendance')
+    const map: Record<string, Attendance['type']> = {}
+    for (const row of (data as { worker_id: string; type: Attendance['type'] }[]) ?? []) {
+      map[row.worker_id] = row.type
+    }
+    setLastStatuses(map)
+  }, [])
 
   const loadWorkers = useCallback(async () => {
     const { data } = await supabase
@@ -160,6 +172,10 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   useEffect(() => {
     loadWorkers()
   }, [loadWorkers])
+
+  useEffect(() => {
+    loadLastStatuses()
+  }, [loadLastStatuses])
 
   useEffect(() => {
     if (!reportWorker && workers.length > 0) {
@@ -226,6 +242,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         { event: '*', schema: 'public', table: 'ingreso_attendance' },
         () => {
           loadRecords()
+          loadLastStatuses()
         },
       )
       .subscribe()
@@ -233,7 +250,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadRecords])
+  }, [loadRecords, loadLastStatuses])
 
   useEffect(() => {
     loadRecords()
@@ -277,6 +294,24 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       .createSignedUrl(path, 60)
     if (error || !data) return
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  async function marcarSalidaManual(workerId: string) {
+    setSalidaBusyId(workerId)
+    setSalidaError(null)
+    try {
+      const { error } = await supabase.from('ingreso_attendance').insert({
+        worker_id: workerId,
+        type: 'salida',
+      })
+      if (error) throw error
+      await loadRecords()
+      await loadLastStatuses()
+    } catch (err) {
+      setSalidaError(err instanceof Error ? err.message : 'Error marcando la salida')
+    } finally {
+      setSalidaBusyId(null)
+    }
   }
 
   function startEditing(w: Profile) {
@@ -476,12 +511,25 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                   <button className="btn-link" onClick={() => startEditing(w)}>
                     Editar
                   </button>
+                  <button
+                    className="btn btn-secondary btn-small"
+                    disabled={
+                      lastStatuses[w.id] === undefined ||
+                      lastStatuses[w.id] === 'salida' ||
+                      salidaBusyId === w.id
+                    }
+                    onClick={() => marcarSalidaManual(w.id)}
+                    title="Usar solo si el trabajador olvidó marcar su salida"
+                  >
+                    {salidaBusyId === w.id ? 'Marcando...' : 'Marcar salida'}
+                  </button>
                 </>
               )}
             </li>
           ))}
         </ul>
         {editError && <p className="error-text">{editError}</p>}
+        {salidaError && <p className="error-text">{salidaError}</p>}
       </section>
 
       <section className="card">

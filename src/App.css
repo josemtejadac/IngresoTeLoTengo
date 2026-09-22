@@ -275,11 +275,24 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .worker-list-item input {
   flex: 1;
+  min-width: 120px;
   max-width: 240px;
+}
+
+.worker-list-item span {
+  flex: 1 1 auto;
+  min-width: 80px;
+}
+
+.btn-small {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .report-row {

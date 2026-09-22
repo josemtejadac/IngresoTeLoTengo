@@ -47,6 +47,31 @@
   font-size: 1.4rem;
 }
 
+.logo-img {
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(20, 83, 45, 0.18);
+  display: block;
+}
+
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.login-brand h1 {
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -159,6 +184,24 @@ select {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.worker-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.worker-list-item input {
+  flex: 1;
+  max-width: 240px;
+}
+
+.report-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .camera-overlay {

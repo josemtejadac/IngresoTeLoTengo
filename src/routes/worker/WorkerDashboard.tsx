@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
+import { Logo } from '../../components/Logo'
 
 interface WorkerDashboardProps {
   profile: Profile
@@ -113,9 +114,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   return (
     <div className="page">
       <header className="page-header">
-        <div>
-          <h1>Hola, {profile.full_name}</h1>
-          <p className="subtitle">Registra tu entrada, colación o salida</p>
+        <div className="brand-row">
+          <Logo size={48} />
+          <div>
+            <h1>Hola, {profile.full_name}</h1>
+            <p className="subtitle">Registra tu entrada, colación o salida</p>
+          </div>
         </div>
         <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
           Cerrar sesión

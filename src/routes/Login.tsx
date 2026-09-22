@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { REMEMBER_ME_KEY, supabase } from '../lib/supabase'
+import { Logo } from '../components/Logo'
 
 const EMAIL_DOMAIN = 'ingresotelotengo.local'
 
@@ -44,7 +45,10 @@ export function Login() {
   return (
     <div className="page-center">
       <form onSubmit={handleSubmit} className="card login-form">
-        <h1>Ingreso Te Lo Tengo</h1>
+        <div className="login-brand">
+          <Logo size={72} />
+          <h1>Te Lo Tengo Market</h1>
+        </div>
         <p className="subtitle">Selecciona tu nombre e ingresa tu contraseña</p>
 
         {loadingDirectory ? (

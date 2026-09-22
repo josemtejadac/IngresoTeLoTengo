@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
+import { Logo } from '../../components/Logo'
+import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
+
+function currentMonthValue() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
 
 interface AdminDashboardProps {
   profile: Profile
@@ -27,6 +34,13 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [createdRut, setCreatedRut] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [formBusy, setFormBusy] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+  const [reportWorker, setReportWorker] = useState<string>('')
+  const [reportMonth, setReportMonth] = useState<string>(currentMonthValue())
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   const loadWorkers = useCallback(async () => {
     const { data } = await supabase
@@ -55,6 +69,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   useEffect(() => {
     loadWorkers()
   }, [loadWorkers])
+
+  useEffect(() => {
+    if (!reportWorker && workers.length > 0) {
+      setReportWorker(workers[0].id)
+    }
+  }, [workers, reportWorker])
 
   useEffect(() => {
     const channel = supabase
@@ -117,12 +137,59 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
+  function startEditing(w: Profile) {
+    setEditingId(w.id)
+    setEditingName(w.full_name)
+    setEditError(null)
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditingName('')
+    setEditError(null)
+  }
+
+  async function saveEditingName(id: string) {
+    const trimmed = editingName.trim()
+    if (!trimmed) return
+    setEditError(null)
+    const { error } = await supabase
+      .from('ingreso_profiles')
+      .update({ full_name: trimmed })
+      .eq('id', id)
+    if (error) {
+      setEditError(error.message)
+      return
+    }
+    setEditingId(null)
+    await loadWorkers()
+    await loadRecords()
+  }
+
+  async function handleDownloadReport() {
+    if (!reportWorker) return
+    const worker = workers.find((w) => w.id === reportWorker)
+    if (!worker) return
+    setReportBusy(true)
+    setReportError(null)
+    try {
+      await downloadMonthlyHoursPdf(worker.id, worker.full_name, reportMonth)
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : 'Error generando el PDF')
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-header">
-        <div>
-          <h1>Panel de administración</h1>
-          <p className="subtitle">Hola, {profile.full_name}</p>
+        <div className="brand-row">
+          <Logo size={48} />
+          <div>
+            <h1>Panel de administración</h1>
+            <p className="subtitle">Hola, {profile.full_name} (Administrador)</p>
+          </div>
         </div>
         <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
           Cerrar sesión
@@ -168,9 +235,66 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
 
         <ul className="worker-list">
           {workers.map((w) => (
-            <li key={w.id}>{w.full_name}</li>
+            <li key={w.id} className="worker-list-item">
+              {editingId === w.id ? (
+                <>
+                  <input
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    autoFocus
+                  />
+                  <button className="btn-link" onClick={() => saveEditingName(w.id)}>
+                    Guardar
+                  </button>
+                  <button className="btn-link" onClick={cancelEditing}>
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span>{w.full_name}</span>
+                  <button className="btn-link" onClick={() => startEditing(w)}>
+                    Editar
+                  </button>
+                </>
+              )}
+            </li>
           ))}
         </ul>
+        {editError && <p className="error-text">{editError}</p>}
+      </section>
+
+      <section className="card">
+        <h2>Reporte mensual de horas</h2>
+        <p className="subtitle">Descarga en PDF las horas trabajadas de un trabajador, día por día.</p>
+        <div className="report-row">
+          <label>
+            Trabajador
+            <select value={reportWorker} onChange={(e) => setReportWorker(e.target.value)}>
+              {workers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Mes
+            <input
+              type="month"
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            onClick={handleDownloadReport}
+            disabled={reportBusy || !reportWorker}
+          >
+            {reportBusy ? 'Generando...' : 'Descargar PDF'}
+          </button>
+        </div>
+        {reportError && <p className="error-text">{reportError}</p>}
       </section>
 
       <section className="card">

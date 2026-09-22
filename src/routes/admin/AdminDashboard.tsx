@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { Attendance, Profile } from '../../types'
+import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
@@ -16,19 +16,24 @@ const WEEKDAYS = [
 ]
 
 interface ScheduleForm {
-  schedule_start: string
-  schedule_end: string
-  work_days: number[]
+  days: Record<number, { enabled: boolean; start: string; end: string }>
   pay_amount: string
   pay_frequency: 'weekly' | 'monthly'
   tuesday_bonus: string
 }
 
 function scheduleFormFromProfile(w: Profile): ScheduleForm {
+  const days: ScheduleForm['days'] = {}
+  for (const d of WEEKDAYS) {
+    const existing = w.weekly_schedule?.[String(d.value)]
+    days[d.value] = {
+      enabled: !!existing,
+      start: existing?.start ?? '09:00',
+      end: existing?.end ?? '18:00',
+    }
+  }
   return {
-    schedule_start: w.schedule_start?.slice(0, 5) ?? '09:00',
-    schedule_end: w.schedule_end?.slice(0, 5) ?? '18:00',
-    work_days: w.work_days ?? [],
+    days,
     pay_amount: w.pay_amount?.toString() ?? '',
     pay_frequency: w.pay_frequency ?? 'monthly',
     tuesday_bonus: w.tuesday_bonus ? w.tuesday_bonus.toString() : '',
@@ -36,17 +41,23 @@ function scheduleFormFromProfile(w: Profile): ScheduleForm {
 }
 
 function describeSchedule(w: Profile): string {
-  if (!w.schedule_start || !w.schedule_end || !w.work_days || w.work_days.length === 0) {
-    return 'Sin horario configurado'
-  }
-  const days = WEEKDAYS.filter((d) => w.work_days!.includes(d.value))
-    .map((d) => d.label)
-    .join(', ')
+  const entries = WEEKDAYS.filter((d) => w.weekly_schedule?.[String(d.value)])
   const pay = w.pay_amount
     ? `${formatCLP(w.pay_amount)} ${w.pay_frequency === 'monthly' ? 'mensual' : 'semanal'}`
     : 'sin sueldo configurado'
   const bonus = w.tuesday_bonus > 0 ? ` · Bono martes ${formatCLP(w.tuesday_bonus)}` : ''
-  return `${days} · ${w.schedule_start.slice(0, 5)}–${w.schedule_end.slice(0, 5)} · ${pay}${bonus}`
+
+  if (entries.length === 0) {
+    return `Sin horario configurado · ${pay}${bonus}`
+  }
+
+  const days = entries
+    .map((d) => {
+      const s = w.weekly_schedule![String(d.value)]!
+      return `${d.label} ${s.start}–${s.end}`
+    })
+    .join(', ')
+  return `${days} · ${pay}${bonus}`
 }
 
 function currentMonthValue() {
@@ -252,9 +263,24 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       f
         ? {
             ...f,
-            work_days: f.work_days.includes(day)
-              ? f.work_days.filter((d) => d !== day)
-              : [...f.work_days, day],
+            days: {
+              ...f.days,
+              [day]: { ...f.days[day], enabled: !f.days[day].enabled },
+            },
+          }
+        : f,
+    )
+  }
+
+  function updateScheduleDayTime(day: number, field: 'start' | 'end', value: string) {
+    setScheduleForm((f) =>
+      f
+        ? {
+            ...f,
+            days: {
+              ...f.days,
+              [day]: { ...f.days[day], [field]: value },
+            },
           }
         : f,
     )
@@ -271,12 +297,18 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       setScheduleBusy(false)
       return
     }
+
+    const weeklySchedule: WeeklySchedule = {}
+    for (const [day, config] of Object.entries(scheduleForm.days)) {
+      if (config.enabled) {
+        weeklySchedule[day] = { start: config.start, end: config.end }
+      }
+    }
+
     const { error } = await supabase
       .from('ingreso_profiles')
       .update({
-        schedule_start: scheduleForm.schedule_start,
-        schedule_end: scheduleForm.schedule_end,
-        work_days: scheduleForm.work_days,
+        weekly_schedule: weeklySchedule,
         pay_amount: payAmount,
         pay_frequency: scheduleForm.pay_frequency,
         tuesday_bonus: tuesdayBonus,
@@ -434,40 +466,50 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               {scheduleEditingId === w.id && scheduleForm ? (
                 <div className="schedule-form">
                   <strong>{w.full_name}</strong>
-                  <div className="schedule-days">
-                    {WEEKDAYS.map((d) => (
-                      <label key={d.value} className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={scheduleForm.work_days.includes(d.value)}
-                          onChange={() => toggleScheduleDay(d.value)}
-                        />
-                        {d.label}
-                      </label>
-                    ))}
-                  </div>
-                  <div className="report-row">
-                    <label>
-                      Entrada
-                      <input
-                        type="time"
-                        value={scheduleForm.schedule_start}
-                        onChange={(e) =>
-                          setScheduleForm((f) => f && { ...f, schedule_start: e.target.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      Salida
-                      <input
-                        type="time"
-                        value={scheduleForm.schedule_end}
-                        onChange={(e) =>
-                          setScheduleForm((f) => f && { ...f, schedule_end: e.target.value })
-                        }
-                      />
-                    </label>
-                  </div>
+                  <table className="schedule-day-table">
+                    <thead>
+                      <tr>
+                        <th>Día</th>
+                        <th>Trabaja</th>
+                        <th>Entrada</th>
+                        <th>Salida</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {WEEKDAYS.map((d) => (
+                        <tr key={d.value}>
+                          <td>{d.label}</td>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={scheduleForm.days[d.value].enabled}
+                              onChange={() => toggleScheduleDay(d.value)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="time"
+                              disabled={!scheduleForm.days[d.value].enabled}
+                              value={scheduleForm.days[d.value].start}
+                              onChange={(e) =>
+                                updateScheduleDayTime(d.value, 'start', e.target.value)
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="time"
+                              disabled={!scheduleForm.days[d.value].enabled}
+                              value={scheduleForm.days[d.value].end}
+                              onChange={(e) =>
+                                updateScheduleDayTime(d.value, 'end', e.target.value)
+                              }
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                   <div className="report-row">
                     <label>
                       Sueldo base

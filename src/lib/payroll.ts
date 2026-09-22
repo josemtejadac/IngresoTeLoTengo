@@ -9,7 +9,7 @@ export interface ShiftWithOvertime extends ShiftSummary {
   isScheduledDay: boolean
 }
 
-function parseTimeToMinutes(value: string | null): number | null {
+function parseTimeToMinutes(value: string | undefined): number | null {
   if (!value) return null
   const [h, m] = value.split(':').map(Number)
   if (Number.isNaN(h) || Number.isNaN(m)) return null
@@ -17,24 +17,23 @@ function parseTimeToMinutes(value: string | null): number | null {
 }
 
 /**
- * Marca cuanto tiempo de cada turno queda fuera del horario habitual del
- * trabajador (entrar antes o salir despues de lo programado), para
- * calcularlo como hora extra. Se compara siempre contra su horario
- * habitual (ej. 08:30-17:30), incluso si ese dia no esta entre sus dias
- * fijos (ej. un sabado extra que le toque trabajar) — asi las horas de
- * mas tambien quedan como hora extra. "isScheduledDay" solo se usa para
- * marcar visualmente esos dias como "dia extra" en el reporte.
+ * Marca cuanto tiempo de cada turno queda fuera del horario de ese dia de
+ * la semana (entrar antes o salir despues de lo programado), para
+ * calcularlo como hora extra. Cada dia puede tener un horario distinto
+ * (ej. Darlin: mar-vie 08:30-17:30, sabado 09:00-17:30, domingo
+ * 10:30-19:00). Si el dia no tiene horario configurado, no se calcula
+ * hora extra (no hay con que comparar), pero las horas trabajadas igual
+ * se cuentan.
  */
 export function annotateOvertime(shifts: ShiftSummary[], profile: Profile): ShiftWithOvertime[] {
-  const startMinutes = parseTimeToMinutes(profile.schedule_start)
-  const endMinutes = parseTimeToMinutes(profile.schedule_end)
-
   return shifts.map((s) => {
     const weekday = s.entrada.getDay()
-    const isScheduledDay = profile.work_days?.includes(weekday) ?? false
+    const daySchedule = profile.weekly_schedule?.[String(weekday)]
+    const startMinutes = parseTimeToMinutes(daySchedule?.start)
+    const endMinutes = parseTimeToMinutes(daySchedule?.end)
 
     if (startMinutes === null || endMinutes === null) {
-      return { ...s, overtimeMs: 0, isScheduledDay }
+      return { ...s, overtimeMs: 0, isScheduledDay: false }
     }
 
     const schedStart = new Date(s.entrada)
@@ -45,7 +44,7 @@ export function annotateOvertime(shifts: ShiftSummary[], profile: Profile): Shif
     const earlyMs = Math.max(0, schedStart.getTime() - s.entrada.getTime())
     const lateMs = s.salida ? Math.max(0, s.salida.getTime() - schedEnd.getTime()) : 0
 
-    return { ...s, overtimeMs: earlyMs + lateMs, isScheduledDay }
+    return { ...s, overtimeMs: earlyMs + lateMs, isScheduledDay: true }
   })
 }
 

@@ -189,6 +189,23 @@ select {
   flex-wrap: wrap;
 }
 
+.schedule-day-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.schedule-day-table th,
+.schedule-day-table td {
+  text-align: left;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.schedule-day-table input[type='time'] {
+  padding: 4px 6px;
+  font-size: 0.85rem;
+}
+
 .pay-card p {
   margin: 4px 0;
   font-size: 0.9rem;

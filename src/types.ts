@@ -1,5 +1,13 @@
 export type Role = 'admin' | 'worker'
 
+export interface DaySchedule {
+  start: string
+  end: string
+}
+
+/** Claves: dia de la semana como string, "0" (domingo) a "6" (sabado). */
+export type WeeklySchedule = Partial<Record<string, DaySchedule>>
+
 export interface Profile {
   id: string
   full_name: string
@@ -7,9 +15,7 @@ export interface Profile {
   active: boolean
   created_at: string
   rut: string | null
-  schedule_start: string | null
-  schedule_end: string | null
-  work_days: number[] | null
+  weekly_schedule: WeeklySchedule | null
   pay_amount: number | null
   pay_frequency: 'weekly' | 'monthly' | null
   tuesday_bonus: number

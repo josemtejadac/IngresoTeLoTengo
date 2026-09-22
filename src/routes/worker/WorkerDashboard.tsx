@@ -15,25 +15,68 @@ const TYPE_LABELS: Record<Attendance['type'], string> = {
   salida_colacion: 'Salida colación',
 }
 
+function currentDateValue() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+function currentMonthValue() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
 export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [records, setRecords] = useState<Attendance[]>([])
+  const [lastRecord, setLastRecord] = useState<Attendance | null>(null)
   const [showCamera, setShowCamera] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [filterMode, setFilterMode] = useState<'day' | 'month'>('day')
+  const [filterDate, setFilterDate] = useState<string>(currentDateValue())
+  const [filterMonth, setFilterMonth] = useState<string>(currentMonthValue())
 
   const loadRecords = useCallback(async () => {
+    let query = supabase
+      .from('ingreso_attendance')
+      .select('*')
+      .eq('worker_id', profile.id)
+      .order('recorded_at', { ascending: false })
+      .limit(500)
+
+    if (filterMode === 'day') {
+      const [y, m, d] = filterDate.split('-').map(Number)
+      const start = new Date(y, m - 1, d, 0, 0, 0)
+      const end = new Date(y, m - 1, d + 1, 0, 0, 0)
+      query = query.gte('recorded_at', start.toISOString()).lt('recorded_at', end.toISOString())
+    } else {
+      const [y, m] = filterMonth.split('-').map(Number)
+      const start = new Date(y, m - 1, 1, 0, 0, 0)
+      const end = new Date(y, m, 1, 0, 0, 0)
+      query = query.gte('recorded_at', start.toISOString()).lt('recorded_at', end.toISOString())
+    }
+
+    const { data } = await query
+    setRecords((data as Attendance[]) ?? [])
+  }, [profile.id, filterMode, filterDate, filterMonth])
+
+  const loadLastRecord = useCallback(async () => {
     const { data } = await supabase
       .from('ingreso_attendance')
       .select('*')
       .eq('worker_id', profile.id)
       .order('recorded_at', { ascending: false })
-      .limit(30)
-    setRecords((data as Attendance[]) ?? [])
+      .limit(1)
+      .maybeSingle()
+    setLastRecord((data as Attendance | null) ?? null)
   }, [profile.id])
 
   useEffect(() => {
     loadRecords()
   }, [loadRecords])
+
+  useEffect(() => {
+    loadLastRecord()
+  }, [loadLastRecord])
 
   useEffect(() => {
     const channel = supabase
@@ -48,6 +91,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         },
         () => {
           loadRecords()
+          loadLastRecord()
         },
       )
       .subscribe()
@@ -55,9 +99,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadRecords, profile.id])
+  }, [loadRecords, loadLastRecord, profile.id])
 
-  const lastRecord = records[0]
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
   const canRegisterIngresoColacion = lastRecord?.type === 'entrada'
   const canRegisterSalidaColacion = lastRecord?.type === 'ingreso_colacion'
@@ -86,6 +129,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       setMessage('Entrada registrada correctamente.')
       setShowCamera(false)
       await loadRecords()
+      await loadLastRecord()
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Error registrando la entrada.')
     } finally {
@@ -104,6 +148,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       if (error) throw error
       setMessage(`${TYPE_LABELS[type]} registrada correctamente.`)
       await loadRecords()
+      await loadLastRecord()
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Error registrando el movimiento.')
     } finally {
@@ -163,7 +208,20 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <CameraCapture onCapture={registrarEntrada} onCancel={() => setShowCamera(false)} />
       )}
 
-      <h2>Tu historial</h2>
+      <div className="section-header">
+        <h2>Tu historial</h2>
+        <div className="table-controls">
+          <select value={filterMode} onChange={(e) => setFilterMode(e.target.value as 'day' | 'month')}>
+            <option value="day">Por día</option>
+            <option value="month">Por mes</option>
+          </select>
+          {filterMode === 'day' ? (
+            <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+          ) : (
+            <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} />
+          )}
+        </div>
+      </div>
       <table className="table">
         <thead>
           <tr>

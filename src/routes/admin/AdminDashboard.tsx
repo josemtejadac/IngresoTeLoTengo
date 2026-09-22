@@ -33,7 +33,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [workers, setWorkers] = useState<Profile[]>([])
   const [records, setRecords] = useState<AttendanceRow[]>([])
   const [filterWorker, setFilterWorker] = useState<string>('all')
+  const [filterMode, setFilterMode] = useState<'day' | 'month'>('day')
   const [filterDate, setFilterDate] = useState<string>(currentDateValue())
+  const [filterListMonth, setFilterListMonth] = useState<string>(currentMonthValue())
   const [formOpen, setFormOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')
@@ -62,22 +64,27 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       .from('ingreso_attendance')
       .select('*, ingreso_profiles(full_name)')
       .order('recorded_at', { ascending: false })
-      .limit(200)
+      .limit(500)
 
     if (filterWorker !== 'all') {
       query = query.eq('worker_id', filterWorker)
     }
 
-    if (filterDate) {
+    if (filterMode === 'day') {
       const [y, m, d] = filterDate.split('-').map(Number)
       const start = new Date(y, m - 1, d, 0, 0, 0)
       const end = new Date(y, m - 1, d + 1, 0, 0, 0)
+      query = query.gte('recorded_at', start.toISOString()).lt('recorded_at', end.toISOString())
+    } else {
+      const [y, m] = filterListMonth.split('-').map(Number)
+      const start = new Date(y, m - 1, 1, 0, 0, 0)
+      const end = new Date(y, m, 1, 0, 0, 0)
       query = query.gte('recorded_at', start.toISOString()).lt('recorded_at', end.toISOString())
     }
 
     const { data } = await query
     setRecords((data as unknown as AttendanceRow[]) ?? [])
-  }, [filterWorker, filterDate])
+  }, [filterWorker, filterMode, filterDate, filterListMonth])
 
   useEffect(() => {
     loadWorkers()
@@ -322,15 +329,22 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 </option>
               ))}
             </select>
-            <input
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-            />
-            {filterDate && (
-              <button className="btn btn-secondary" onClick={() => setFilterDate('')}>
-                Ver todas las fechas
-              </button>
+            <select value={filterMode} onChange={(e) => setFilterMode(e.target.value as 'day' | 'month')}>
+              <option value="day">Por día</option>
+              <option value="month">Por mes</option>
+            </select>
+            {filterMode === 'day' ? (
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+            ) : (
+              <input
+                type="month"
+                value={filterListMonth}
+                onChange={(e) => setFilterListMonth(e.target.value)}
+              />
             )}
           </div>
         </div>

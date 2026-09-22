@@ -4,6 +4,7 @@ import { supabase } from './supabase'
 import type { Attendance, Profile } from '../types'
 import { computeShifts, formatHoursMinutes, formatTime } from './hours'
 import { annotateOvertime, computePaySummary, formatCLP } from './payroll'
+import { loadWeeklyBonusForWorker, totalEarned, WEEKLY_BONUS_AMOUNT } from './weeklyBonus'
 
 const MONTH_NAMES = [
   'enero',
@@ -50,6 +51,9 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
   const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker)
   const totalMs = shifts.reduce((sum, s) => sum + s.workedMs, 0)
   const pay = computePaySummary(shifts, worker, start, end)
+  const weeklyBonusRows = await loadWeeklyBonusForWorker(worker.id, month)
+  const weeklyBonusEarnedCount = weeklyBonusRows.filter((r) => r.earned).length
+  const weeklyBonusTotal = totalEarned(weeklyBonusRows)
 
   const doc = new jsPDF()
   const monthLabel = `${MONTH_NAMES[monthIndex]} ${year}`
@@ -109,6 +113,24 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
             ],
           ]
         : []),
+      ...(weeklyBonusEarnedCount > 0
+        ? [
+            [
+              `Bono semanal: ${weeklyBonusEarnedCount} semana(s) × ${formatCLP(
+                WEEKLY_BONUS_AMOUNT,
+              )} = ${formatCLP(weeklyBonusTotal)}`,
+            ],
+          ]
+        : []),
+      ...(worker.pay_frequency === 'monthly'
+        ? [
+            [
+              `Total del mes: ${formatCLP(
+                pay.baseAmount + pay.overtimePay + pay.tuesdayBonusTotal + weeklyBonusTotal,
+              )}`,
+            ],
+          ]
+        : []),
     ],
     headStyles: { fillColor: [20, 83, 45] },
     styles: { fontSize: 9 },
@@ -118,7 +140,9 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
     (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY ?? finalY + 10
   doc.setFontSize(8)
   doc.text(
-    'El sueldo base se paga segun su frecuencia habitual; las horas extra y el bono de martes son montos adicionales generados durante este periodo.',
+    worker.pay_frequency === 'monthly'
+      ? 'El total del mes suma el sueldo base, las horas extra y los bonos generados en el periodo.'
+      : 'El sueldo base se paga segun su frecuencia habitual; las horas extra y los bonos son montos adicionales generados durante este periodo.',
     14,
     notesY + 8,
   )

@@ -211,6 +211,29 @@ select {
   font-size: 0.9rem;
 }
 
+.pay-total {
+  margin-top: 10px !important;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 1rem !important;
+}
+
+.bonus-week {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-right: 4px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.bonus-week.earned {
+  background: #dcfce7;
+  color: #15803d;
+}
+
 .day-header-row td {
   background: #f1f5f9;
   font-weight: 600;

@@ -4,6 +4,13 @@ import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
+import {
+  WEEKLY_BONUS_AMOUNT,
+  WEEKS_PER_MONTH,
+  loadWeeklyBonusForMonth,
+  setWeeklyBonusEarned,
+  type WeeklyBonusRow,
+} from '../../lib/weeklyBonus'
 
 const WEEKDAYS = [
   { value: 1, label: 'Lun' },
@@ -109,6 +116,10 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [scheduleForm, setScheduleForm] = useState<ScheduleForm | null>(null)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
   const [scheduleBusy, setScheduleBusy] = useState(false)
+  const [bonusMonth, setBonusMonth] = useState<string>(currentMonthValue())
+  const [bonusRows, setBonusRows] = useState<WeeklyBonusRow[]>([])
+  const [bonusBusyKey, setBonusBusyKey] = useState<string | null>(null)
+  const [bonusError, setBonusError] = useState<string | null>(null)
 
   const loadWorkers = useCallback(async () => {
     const { data } = await supabase
@@ -155,6 +166,57 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       setReportWorker(workers[0].id)
     }
   }, [workers, reportWorker])
+
+  const loadBonusRows = useCallback(async () => {
+    try {
+      const rows = await loadWeeklyBonusForMonth(bonusMonth)
+      setBonusRows(rows)
+    } catch (err) {
+      setBonusError(err instanceof Error ? err.message : 'Error cargando el bono semanal')
+    }
+  }, [bonusMonth])
+
+  useEffect(() => {
+    loadBonusRows()
+  }, [loadBonusRows])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('ingreso_weekly_bonus_admin')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_weekly_bonus' },
+        () => {
+          loadBonusRows()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadBonusRows])
+
+  function isBonusEarned(workerId: string, week: number): boolean {
+    return bonusRows.some(
+      (r) => r.worker_id === workerId && r.week_number === week && r.earned,
+    )
+  }
+
+  async function toggleBonus(workerId: string, week: number) {
+    const key = `${workerId}-${week}`
+    setBonusBusyKey(key)
+    setBonusError(null)
+    try {
+      const current = isBonusEarned(workerId, week)
+      await setWeeklyBonusEarned(workerId, bonusMonth, week, !current)
+      await loadBonusRows()
+    } catch (err) {
+      setBonusError(err instanceof Error ? err.message : 'Error guardando el bono')
+    } finally {
+      setBonusBusyKey(null)
+    }
+  }
 
   useEffect(() => {
     const channel = supabase
@@ -576,6 +638,55 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="card">
+        <div className="section-header">
+          <h2>Bono semanal ({formatCLP(WEEKLY_BONUS_AMOUNT)})</h2>
+          <input type="month" value={bonusMonth} onChange={(e) => setBonusMonth(e.target.value)} />
+        </div>
+        <p className="subtitle">
+          Marca las semanas en que cada trabajador se ganó el bono. Cada casilla suma{' '}
+          {formatCLP(WEEKLY_BONUS_AMOUNT)}.
+        </p>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Trabajador</th>
+              {WEEKS_PER_MONTH.map((w) => (
+                <th key={w}>Semana {w}</th>
+              ))}
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {workers.map((w) => {
+              const earnedCount = WEEKS_PER_MONTH.filter((week) =>
+                isBonusEarned(w.id, week),
+              ).length
+              return (
+                <tr key={w.id}>
+                  <td>{w.full_name}</td>
+                  {WEEKS_PER_MONTH.map((week) => {
+                    const key = `${w.id}-${week}`
+                    return (
+                      <td key={week}>
+                        <input
+                          type="checkbox"
+                          checked={isBonusEarned(w.id, week)}
+                          disabled={bonusBusyKey === key}
+                          onChange={() => toggleBonus(w.id, week)}
+                        />
+                      </td>
+                    )
+                  })}
+                  <td>{formatCLP(earnedCount * WEEKLY_BONUS_AMOUNT)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        {bonusError && <p className="error-text">{bonusError}</p>}
       </section>
 
       <section className="card">

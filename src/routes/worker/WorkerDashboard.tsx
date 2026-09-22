@@ -5,6 +5,12 @@ import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
 import { annotateOvertime, computePaySummary, formatCLP, type PaySummary } from '../../lib/payroll'
+import {
+  loadWeeklyBonusForWorker,
+  totalEarned,
+  WEEKS_PER_MONTH,
+  type WeeklyBonusRow,
+} from '../../lib/weeklyBonus'
 
 interface WorkerDashboardProps {
   profile: Profile
@@ -37,6 +43,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [filterDate, setFilterDate] = useState<string>(currentDateValue())
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthValue())
   const [paySummary, setPaySummary] = useState<PaySummary | null>(null)
+  const [weeklyBonusRows, setWeeklyBonusRows] = useState<WeeklyBonusRow[]>([])
 
   const loadRecords = useCallback(async () => {
     let query = supabase
@@ -102,6 +109,15 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     loadPaySummary()
   }, [loadPaySummary])
 
+  const loadBonusRows = useCallback(async () => {
+    const rows = await loadWeeklyBonusForWorker(profile.id, currentMonthValue())
+    setWeeklyBonusRows(rows)
+  }, [profile.id])
+
+  useEffect(() => {
+    loadBonusRows()
+  }, [loadBonusRows])
+
   useEffect(() => {
     const channel = supabase
       .channel(`ingreso_attendance_worker_${profile.id}`)
@@ -119,12 +135,24 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           loadPaySummary()
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ingreso_weekly_bonus',
+          filter: `worker_id=eq.${profile.id}`,
+        },
+        () => {
+          loadBonusRows()
+        },
+      )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadRecords, loadLastRecord, loadPaySummary, profile.id])
+  }, [loadRecords, loadLastRecord, loadPaySummary, loadBonusRows, profile.id])
 
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
   const canRegisterIngresoColacion = lastRecord?.type === 'entrada'
@@ -247,6 +275,31 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
             <p>
               Bono martes: {paySummary.tuesdayBonusCount} × {formatCLP(profile.tuesday_bonus)} ={' '}
               <strong>{formatCLP(paySummary.tuesdayBonusTotal)}</strong>
+            </p>
+          )}
+          <p>
+            Bono semanal este mes:{' '}
+            {WEEKS_PER_MONTH.map((week) => {
+              const earned = weeklyBonusRows.some((r) => r.week_number === week && r.earned)
+              return (
+                <span key={week} className={earned ? 'bonus-week earned' : 'bonus-week'}>
+                  S{week}
+                </span>
+              )
+            })}{' '}
+            → <strong>{formatCLP(totalEarned(weeklyBonusRows))}</strong>
+          </p>
+          {paySummary.payFrequency === 'monthly' && (
+            <p className="pay-total">
+              Total del mes:{' '}
+              <strong>
+                {formatCLP(
+                  paySummary.baseAmount +
+                    paySummary.overtimePay +
+                    paySummary.tuesdayBonusTotal +
+                    totalEarned(weeklyBonusRows),
+                )}
+              </strong>
             </p>
           )}
         </section>

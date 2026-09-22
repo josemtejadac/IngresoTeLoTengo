@@ -12,9 +12,11 @@ import {
   type PaySummary,
 } from '../../lib/payroll'
 import {
+  formatWeekLabel,
+  getWeeksEndingInMonth,
+  isWeekEarned,
   loadWeeklyBonusForWorker,
   totalEarned,
-  WEEKS_PER_MONTH,
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
 
@@ -160,6 +162,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }, [loadRecords, loadLastRecord, loadPaySummary, loadBonusRows, profile.id])
 
+  const weeksThisMonth = getWeeksEndingInMonth(currentMonthValue())
+
   const canRegisterEntrada = !lastRecord || lastRecord.type === 'salida'
   const canRegisterIngresoColacion = lastRecord?.type === 'entrada'
   const canRegisterSalidaColacion = lastRecord?.type === 'ingreso_colacion'
@@ -288,11 +292,15 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           )}
           <p>
             Bono semanal este mes:{' '}
-            {WEEKS_PER_MONTH.map((week) => {
-              const earned = weeklyBonusRows.some((r) => r.week_number === week && r.earned)
+            {weeksThisMonth.map((week) => {
+              const earned = isWeekEarned(weeklyBonusRows, week)
               return (
-                <span key={week} className={earned ? 'bonus-week earned' : 'bonus-week'}>
-                  S{week}
+                <span
+                  key={week.end.toISOString()}
+                  className={earned ? 'bonus-week earned' : 'bonus-week'}
+                  title={formatWeekLabel(week)}
+                >
+                  {formatWeekLabel(week)}
                 </span>
               )
             })}{' '}

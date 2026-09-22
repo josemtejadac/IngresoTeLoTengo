@@ -6,9 +6,12 @@ import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
 import {
   WEEKLY_BONUS_AMOUNT,
-  WEEKS_PER_MONTH,
+  formatWeekLabel,
+  getWeeksEndingInMonth,
+  isWeekEarned,
   loadWeeklyBonusForMonth,
   setWeeklyBonusEarned,
+  type WeekRange,
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
 
@@ -213,19 +216,20 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }, [loadBonusRows])
 
-  function isBonusEarned(workerId: string, week: number): boolean {
-    return bonusRows.some(
-      (r) => r.worker_id === workerId && r.week_number === week && r.earned,
+  function isBonusEarned(workerId: string, week: WeekRange): boolean {
+    return isWeekEarned(
+      bonusRows.filter((r) => r.worker_id === workerId),
+      week,
     )
   }
 
-  async function toggleBonus(workerId: string, week: number) {
-    const key = `${workerId}-${week}`
+  async function toggleBonus(workerId: string, week: WeekRange) {
+    const key = `${workerId}-${week.end.toISOString()}`
     setBonusBusyKey(key)
     setBonusError(null)
     try {
       const current = isBonusEarned(workerId, week)
-      await setWeeklyBonusEarned(workerId, bonusMonth, week, !current)
+      await setWeeklyBonusEarned(workerId, week, !current)
       await loadBonusRows()
     } catch (err) {
       setBonusError(err instanceof Error ? err.message : 'Error guardando el bono')
@@ -435,6 +439,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       setReportBusy(false)
     }
   }
+
+  const weeksInBonusMonth = getWeeksEndingInMonth(bonusMonth)
 
   return (
     <div className="page">
@@ -694,31 +700,32 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           <input type="month" value={bonusMonth} onChange={(e) => setBonusMonth(e.target.value)} />
         </div>
         <p className="subtitle">
-          Marca las semanas en que cada trabajador se ganó el bono. Cada casilla suma{' '}
+          Las semanas van de lunes a domingo (el corte es el domingo). Una semana que empieza en
+          el mes anterior se muestra en el mes de su domingo de cierre. Cada casilla suma{' '}
           {formatCLP(WEEKLY_BONUS_AMOUNT)}.
         </p>
         <table className="table">
           <thead>
             <tr>
               <th>Trabajador</th>
-              {WEEKS_PER_MONTH.map((w) => (
-                <th key={w}>Semana {w}</th>
+              {weeksInBonusMonth.map((week) => (
+                <th key={week.end.toISOString()}>Semana {formatWeekLabel(week)}</th>
               ))}
               <th>Total</th>
             </tr>
           </thead>
           <tbody>
             {workers.map((w) => {
-              const earnedCount = WEEKS_PER_MONTH.filter((week) =>
+              const earnedCount = weeksInBonusMonth.filter((week) =>
                 isBonusEarned(w.id, week),
               ).length
               return (
                 <tr key={w.id}>
                   <td>{w.full_name}</td>
-                  {WEEKS_PER_MONTH.map((week) => {
-                    const key = `${w.id}-${week}`
+                  {weeksInBonusMonth.map((week) => {
+                    const key = `${w.id}-${week.end.toISOString()}`
                     return (
-                      <td key={week}>
+                      <td key={key}>
                         <input
                           type="checkbox"
                           checked={isBonusEarned(w.id, week)}

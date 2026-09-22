@@ -65,14 +65,25 @@ export async function downloadMonthlyHoursPdf(
     body: shifts.map((s) => [
       s.date,
       formatTime(s.entrada),
-      formatTime(s.salida),
+      s.inProgress ? 'En curso' : formatTime(s.salida),
       s.breakMs > 0 ? formatHoursMinutes(s.breakMs) : '—',
-      formatHoursMinutes(s.workedMs),
+      s.inProgress ? `${formatHoursMinutes(s.workedMs)} (en curso)` : formatHoursMinutes(s.workedMs),
     ]),
     foot: [['', '', '', 'Total', formatHoursMinutes(totalMs)]],
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },
   })
+
+  if (shifts.some((s) => s.inProgress)) {
+    const finalY =
+      (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY ?? 48
+    doc.setFontSize(8)
+    doc.text(
+      'El turno "en curso" aun no tiene salida registrada; sus horas son un calculo hasta el momento de generar este PDF.',
+      14,
+      finalY + 8,
+    )
+  }
 
   const safeName = workerName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   doc.save(`horas-${safeName}-${month}.pdf`)

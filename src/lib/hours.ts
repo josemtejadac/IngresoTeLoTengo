@@ -3,14 +3,17 @@ import type { Attendance } from '../types'
 export interface ShiftSummary {
   date: string
   entrada: Date
-  salida: Date
+  salida: Date | null
   breakMs: number
   workedMs: number
+  inProgress: boolean
 }
 
 /**
  * Empareja entrada/salida en turnos, restando el tiempo de colación
  * (ingreso_colacion -> salida_colacion) que haya ocurrido dentro de cada turno.
+ * Si el ultimo turno no tiene salida registrada todavia, se incluye igual
+ * como "en curso" con las horas trabajadas hasta el momento.
  */
 export function computeShifts(records: Attendance[]): ShiftSummary[] {
   const sorted = [...records].sort(
@@ -44,11 +47,26 @@ export function computeShifts(records: Attendance[]): ShiftSummary[] {
           salida: at,
           breakMs,
           workedMs,
+          inProgress: false,
         })
         entradaAt = null
         breakMs = 0
       }
     }
+  }
+
+  if (entradaAt) {
+    const now = new Date()
+    const openBreakMs = colacionStart ? breakMs : breakMs
+    const workedMs = Math.max(0, now.getTime() - entradaAt.getTime() - openBreakMs)
+    shifts.push({
+      date: entradaAt.toLocaleDateString('es-CL'),
+      entrada: entradaAt,
+      salida: null,
+      breakMs: openBreakMs,
+      workedMs,
+      inProgress: true,
+    })
   }
 
   return shifts
@@ -61,6 +79,7 @@ export function formatHoursMinutes(ms: number): string {
   return `${hours}h ${minutes.toString().padStart(2, '0')}m`
 }
 
-export function formatTime(d: Date): string {
+export function formatTime(d: Date | null): string {
+  if (!d) return '—'
   return d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
 }

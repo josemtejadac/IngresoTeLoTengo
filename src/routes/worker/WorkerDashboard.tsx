@@ -4,7 +4,13 @@ import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
-import { annotateOvertime, computePaySummary, formatCLP, type PaySummary } from '../../lib/payroll'
+import {
+  annotateOvertime,
+  computePaySummary,
+  formatCLP,
+  OVERTIME_RATE_PER_HOUR,
+  type PaySummary,
+} from '../../lib/payroll'
 import {
   loadWeeklyBonusForWorker,
   totalEarned,
@@ -266,6 +272,9 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               {formatCLP(paySummary.baseAmount)}
               {paySummary.payFrequency === 'monthly' ? ' mensual' : ' semanal'}
             </strong>
+          </p>
+          <p className="subtitle">
+            Cada hora extra vale <strong>{formatCLP(OVERTIME_RATE_PER_HOUR)}</strong>
           </p>
           <p>
             Horas extra este mes: <strong>{formatHoursMinutes(paySummary.overtimeMs)}</strong> →{' '}

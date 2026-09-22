@@ -9,6 +9,11 @@ function currentMonthValue() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+function currentDateValue() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 interface AdminDashboardProps {
   profile: Profile
 }
@@ -28,7 +33,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [workers, setWorkers] = useState<Profile[]>([])
   const [records, setRecords] = useState<AttendanceRow[]>([])
   const [filterWorker, setFilterWorker] = useState<string>('all')
-  const [filterDate, setFilterDate] = useState<string>('')
+  const [filterDate, setFilterDate] = useState<string>(currentDateValue())
   const [formOpen, setFormOpen] = useState(false)
   const [fullName, setFullName] = useState('')
   const [password, setPassword] = useState('')

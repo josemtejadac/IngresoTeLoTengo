@@ -255,6 +255,97 @@ select {
   color: #15803d;
 }
 
+.qty-input {
+  width: 70px;
+}
+
+.tienda-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.tienda-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+}
+
+.tienda-foto {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.tienda-foto-placeholder {
+  display: block;
+}
+
+.tienda-nombre {
+  font-size: 0.85rem;
+  margin: 0;
+  min-height: 2.4em;
+}
+
+.tienda-precio {
+  font-weight: 700;
+  color: #14532d;
+  margin: 0;
+}
+
+.tienda-cart-bar {
+  position: sticky;
+  bottom: 0;
+  background: #14532d;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.tienda-cart-bar .btn-primary {
+  background: white;
+  color: #14532d;
+}
+
+.pedido-tienda-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.pedido-tienda-item:last-child {
+  border-bottom: none;
+}
+
+.pedido-tienda-item p {
+  margin: 2px 0;
+}
+
+.producto-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  display: block;
+}
+
+.pendiente-paid td {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
 .day-header-row td {
   background: #f1f5f9;
   font-weight: 600;

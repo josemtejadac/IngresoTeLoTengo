@@ -5,6 +5,7 @@ import type { Attendance, Profile } from '../types'
 import { computeShifts, formatHoursMinutes, formatTime } from './hours'
 import { annotateOvertime, computePaySummary, formatCLP } from './payroll'
 import { loadWeeklyBonusForWorker, totalEarned, WEEKLY_BONUS_AMOUNT } from './weeklyBonus'
+import { computeFeriadoBonus, loadFeriados, loadFeriadoExclusionsForWorker } from './feriados'
 
 const MONTH_NAMES = [
   'enero',
@@ -54,6 +55,10 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
   const weeklyBonusRows = await loadWeeklyBonusForWorker(worker.id, month)
   const weeklyBonusEarnedCount = weeklyBonusRows.filter((r) => r.earned).length
   const weeklyBonusTotal = totalEarned(weeklyBonusRows)
+  const feriados = await loadFeriados()
+  const exclusions = await loadFeriadoExclusionsForWorker(worker.id)
+  const excludedDates = new Set(exclusions.map((e) => e.fecha))
+  const feriadoSummary = computeFeriadoBonus(shifts, feriados, excludedDates)
 
   const doc = new jsPDF()
   const monthLabel = `${MONTH_NAMES[monthIndex]} ${year}`
@@ -66,18 +71,25 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
   doc.text(`Trabajador: ${worker.full_name}`, 14, 34)
   doc.text(`Periodo: 1 al ${lastDay} de ${monthLabel}`, 14, 40)
 
+  const feriadoByFecha = new Map(feriadoSummary.days.map((d) => [d.fecha, d]))
+
   autoTable(doc, {
     startY: 48,
-    head: [['Fecha', 'Entrada', 'Salida', 'Colación', 'Horas trabajadas', 'Horas extra']],
-    body: shifts.map((s) => [
-      s.date,
-      formatTime(s.entrada),
-      s.inProgress ? 'En curso' : formatTime(s.salida),
-      s.breakMs > 0 ? formatHoursMinutes(s.breakMs) : '—',
-      s.inProgress ? `${formatHoursMinutes(s.workedMs)} (en curso)` : formatHoursMinutes(s.workedMs),
-      s.overtimeMs > 0 ? formatHoursMinutes(s.overtimeMs) : '—',
-    ]),
-    foot: [['', '', '', '', 'Total', formatHoursMinutes(totalMs)]],
+    head: [['Fecha', 'Entrada', 'Salida', 'Colación', 'Horas trabajadas', 'Horas extra', 'Feriado']],
+    body: shifts.map((s) => {
+      const fecha = `${s.entrada.getFullYear()}-${String(s.entrada.getMonth() + 1).padStart(2, '0')}-${String(s.entrada.getDate()).padStart(2, '0')}`
+      const feriado = feriadoByFecha.get(fecha)
+      return [
+        s.date,
+        formatTime(s.entrada),
+        s.inProgress ? 'En curso' : formatTime(s.salida),
+        s.breakMs > 0 ? formatHoursMinutes(s.breakMs) : '—',
+        s.inProgress ? `${formatHoursMinutes(s.workedMs)} (en curso)` : formatHoursMinutes(s.workedMs),
+        s.overtimeMs > 0 ? formatHoursMinutes(s.overtimeMs) : '—',
+        feriado ? `${feriado.nombre} (${formatCLP(feriado.monto)})` : '—',
+      ]
+    }),
+    foot: [['', '', '', '', 'Total', formatHoursMinutes(totalMs), formatCLP(feriadoSummary.total)]],
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },
   })
@@ -122,11 +134,24 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
             ],
           ]
         : []),
+      ...(feriadoSummary.days.length > 0
+        ? [
+            [
+              `Feriados/irrenunciables trabajados: ${feriadoSummary.days
+                .map((d) => `${d.nombre} (${formatCLP(d.monto)})`)
+                .join(', ')} = ${formatCLP(feriadoSummary.total)}`,
+            ],
+          ]
+        : []),
       ...(worker.pay_frequency === 'monthly'
         ? [
             [
               `Total del mes: ${formatCLP(
-                pay.baseAmount + pay.overtimePay + pay.tuesdayBonusTotal + weeklyBonusTotal,
+                pay.baseAmount +
+                  pay.overtimePay +
+                  pay.tuesdayBonusTotal +
+                  weeklyBonusTotal +
+                  feriadoSummary.total,
               )}`,
             ],
           ]

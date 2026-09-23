@@ -1,11 +1,14 @@
 import { useAuth } from './lib/useAuth'
 import { supabaseConfigError } from './lib/supabase'
 import { Login } from './routes/Login'
+import { Tienda } from './routes/Tienda'
 import { AdminDashboard } from './routes/admin/AdminDashboard'
 import { WorkerDashboard } from './routes/worker/WorkerDashboard'
 import './App.css'
 
 function App() {
+  const isTienda = window.location.pathname.startsWith('/tienda')
+
   const { session, profile, loading } = useAuth()
 
   if (supabaseConfigError) {
@@ -14,6 +17,11 @@ function App() {
         <p className="error-text">{supabaseConfigError}</p>
       </div>
     )
+  }
+
+  // La tienda es publica: no requiere iniciar sesion.
+  if (isTienda) {
+    return <Tienda />
   }
 
   if (loading) {

@@ -2,6 +2,8 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
+import { InventarioAdmin } from '../../components/InventarioAdmin'
+import { PedidosTienda } from '../../components/PedidosTienda'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
 import {
@@ -23,6 +25,24 @@ import {
   type ArqueoRowWithWorker,
 } from '../../lib/arqueo'
 import { downloadSalesPdf } from '../../lib/salesReport'
+import {
+  loadPendientes,
+  markPendientePagado,
+  totalPendiente,
+  type PendienteEntry,
+} from '../../lib/pendientes'
+import { loadNameDirectory } from '../../lib/directory'
+import {
+  addFeriado,
+  deleteFeriado,
+  loadFeriados,
+  loadFeriadoExclusions,
+  setFeriadoExclusion,
+  FERIADO_BONUS,
+  IRRENUNCIABLE_BONUS,
+  type Feriado,
+  type FeriadoExclusion,
+} from '../../lib/feriados'
 
 const WEEKDAYS = [
   { value: 1, label: 'Lun' },
@@ -144,6 +164,20 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [salesReportMonth, setSalesReportMonth] = useState<string>(currentMonthValue())
   const [salesReportBusy, setSalesReportBusy] = useState<'week' | 'month' | null>(null)
   const [salesReportError, setSalesReportError] = useState<string | null>(null)
+  const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
+  const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
+  const [payingId, setPayingId] = useState<string | null>(null)
+  const [deletingPendienteId, setDeletingPendienteId] = useState<string | null>(null)
+  const [pendienteError, setPendienteError] = useState<string | null>(null)
+  const [feriados, setFeriados] = useState<Feriado[]>([])
+  const [feriadoFecha, setFeriadoFecha] = useState('')
+  const [feriadoNombre, setFeriadoNombre] = useState('')
+  const [feriadoTipo, setFeriadoTipo] = useState<'feriado' | 'irrenunciable'>('feriado')
+  const [feriadoBusy, setFeriadoBusy] = useState(false)
+  const [feriadoError, setFeriadoError] = useState<string | null>(null)
+  const [deletingFeriadoId, setDeletingFeriadoId] = useState<string | null>(null)
+  const [feriadoExclusions, setFeriadoExclusions] = useState<FeriadoExclusion[]>([])
+  const [exclusionBusyKey, setExclusionBusyKey] = useState<string | null>(null)
 
   const loadLastStatuses = useCallback(async () => {
     const { data } = await supabase.rpc('ingreso_last_attendance')
@@ -164,6 +198,42 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     setWeeklySales(total)
   }, [])
 
+  const loadPendientesRows = useCallback(async () => {
+    const rows = await loadPendientes()
+    setPendientes(rows)
+  }, [])
+
+  const loadDirectory = useCallback(async () => {
+    const map = await loadNameDirectory()
+    setNameDirectory(map)
+  }, [])
+
+  const loadFeriadosRows = useCallback(async () => {
+    const rows = await loadFeriados()
+    setFeriados(rows)
+  }, [])
+
+  const loadFeriadoExclusionsRows = useCallback(async () => {
+    const rows = await loadFeriadoExclusions()
+    setFeriadoExclusions(rows)
+  }, [])
+
+  async function toggleFeriadoExclusion(workerId: string, fecha: string) {
+    const key = `${workerId}-${fecha}`
+    setExclusionBusyKey(key)
+    try {
+      const current = feriadoExclusions.some(
+        (e) => e.worker_id === workerId && e.fecha === fecha,
+      )
+      await setFeriadoExclusion(workerId, fecha, !current)
+      await loadFeriadoExclusionsRows()
+    } catch (err) {
+      setFeriadoError(err instanceof Error ? err.message : 'Error actualizando la exclusión')
+    } finally {
+      setExclusionBusyKey(null)
+    }
+  }
+
   useEffect(() => {
     loadArqueoRows()
   }, [loadArqueoRows])
@@ -173,18 +243,55 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   }, [loadWeeklySales])
 
   useEffect(() => {
+    loadPendientesRows()
+    loadDirectory()
+  }, [loadPendientesRows, loadDirectory])
+
+  useEffect(() => {
+    loadFeriadosRows()
+    loadFeriadoExclusionsRows()
+  }, [loadFeriadosRows, loadFeriadoExclusionsRows])
+
+  useEffect(() => {
     const channel = supabase
       .channel('ingreso_arqueo_admin')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ingreso_arqueo' }, () => {
         loadArqueoRows()
         loadWeeklySales()
       })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_pendientes' },
+        () => {
+          loadPendientesRows()
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_feriados' },
+        () => {
+          loadFeriadosRows()
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_feriado_exclusion' },
+        () => {
+          loadFeriadoExclusionsRows()
+        },
+      )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadArqueoRows, loadWeeklySales])
+  }, [
+    loadArqueoRows,
+    loadWeeklySales,
+    loadPendientesRows,
+    loadFeriadosRows,
+    loadFeriadoExclusionsRows,
+  ])
 
   const loadWorkers = useCallback(async () => {
     const { data } = await supabase
@@ -530,6 +637,67 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
+  async function handleMarkPagado(id: string) {
+    setPayingId(id)
+    setPendienteError(null)
+    try {
+      await markPendientePagado(id, profile.id)
+      await loadPendientesRows()
+    } catch (err) {
+      setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
+    } finally {
+      setPayingId(null)
+    }
+  }
+
+  async function handleDeletePendiente(id: string) {
+    setDeletingPendienteId(id)
+    setPendienteError(null)
+    try {
+      const { error } = await supabase.from('ingreso_pendientes').delete().eq('id', id)
+      if (error) throw error
+      await loadPendientesRows()
+    } catch (err) {
+      setPendienteError(err instanceof Error ? err.message : 'Error eliminando el pendiente')
+    } finally {
+      setDeletingPendienteId(null)
+    }
+  }
+
+  async function handleAddFeriado(e: React.FormEvent) {
+    e.preventDefault()
+    if (!feriadoFecha || !feriadoNombre.trim()) {
+      setFeriadoError('Ingresa la fecha y el nombre del feriado.')
+      return
+    }
+    setFeriadoBusy(true)
+    setFeriadoError(null)
+    try {
+      await addFeriado(feriadoFecha, feriadoNombre.trim(), feriadoTipo)
+      setFeriadoFecha('')
+      setFeriadoNombre('')
+      setFeriadoTipo('feriado')
+      await loadFeriadosRows()
+    } catch (err) {
+      setFeriadoError(err instanceof Error ? err.message : 'Error agregando el feriado')
+    } finally {
+      setFeriadoBusy(false)
+    }
+  }
+
+  async function handleDeleteFeriado(id: string) {
+    setDeletingFeriadoId(id)
+    setFeriadoError(null)
+    try {
+      await deleteFeriado(id)
+      await loadFeriadosRows()
+    } catch (err) {
+      setFeriadoError(err instanceof Error ? err.message : 'Error eliminando el feriado')
+    } finally {
+      setDeletingFeriadoId(null)
+    }
+  }
+
   const weeksInBonusMonth = getWeeksEndingInMonth(bonusMonth)
 
   const refreshAll = useCallback(() => {
@@ -539,7 +707,22 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     loadBonusRows()
     loadArqueoRows()
     loadWeeklySales()
-  }, [loadWorkers, loadRecords, loadLastStatuses, loadBonusRows, loadArqueoRows, loadWeeklySales])
+    loadPendientesRows()
+    loadDirectory()
+    loadFeriadosRows()
+    loadFeriadoExclusionsRows()
+  }, [
+    loadWorkers,
+    loadRecords,
+    loadLastStatuses,
+    loadBonusRows,
+    loadArqueoRows,
+    loadWeeklySales,
+    loadPendientesRows,
+    loadDirectory,
+    loadFeriadosRows,
+    loadFeriadoExclusionsRows,
+  ])
 
   // El celular corta el WebSocket de tiempo real cuando la pantalla se
   // bloquea o la app pasa a segundo plano. Al volver, refrescamos todo a
@@ -864,6 +1047,10 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         {salesReportError && <p className="error-text">{salesReportError}</p>}
       </section>
 
+      <PedidosTienda />
+
+      <InventarioAdmin />
+
       <section className="card">
         <div className="section-header">
           <h2>Arqueo diario</h2>
@@ -902,6 +1089,164 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               </td>
             </tr>
           </tfoot>
+        </table>
+      </section>
+
+      <section className="card">
+        <h2>Pendientes (fiado)</h2>
+        <p className="subtitle">
+          Todos los trabajadores ven esta lista y pueden marcar como cobrado. Total pendiente:{' '}
+          <strong>{formatCLP(totalPendiente(pendientes))}</strong>
+        </p>
+        {pendienteError && <p className="error-text">{pendienteError}</p>}
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Quién debe</th>
+              <th>Monto</th>
+              <th>Registró</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendientes
+              .filter((p) => !p.pagado)
+              .map((p) => (
+                <tr key={p.id}>
+                  <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
+                  <td>{p.comentario}</td>
+                  <td>{formatCLP(p.monto)}</td>
+                  <td>{nameDirectory[p.worker_id] ?? '—'}</td>
+                  <td className="table-controls">
+                    <button
+                      className="btn btn-secondary btn-small"
+                      disabled={payingId === p.id}
+                      onClick={() => handleMarkPagado(p.id)}
+                    >
+                      {payingId === p.id ? 'Guardando...' : 'Marcar cobrado'}
+                    </button>
+                    <button
+                      className="btn btn-danger btn-small"
+                      disabled={deletingPendienteId === p.id}
+                      onClick={() => handleDeletePendiente(p.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            {pendientes
+              .filter((p) => p.pagado)
+              .slice(0, 15)
+              .map((p) => (
+                <tr key={p.id} className="pendiente-paid">
+                  <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
+                  <td>{p.comentario}</td>
+                  <td>{formatCLP(p.monto)}</td>
+                  <td>{nameDirectory[p.worker_id] ?? '—'}</td>
+                  <td>
+                    Cobrado por {p.paid_by ? (nameDirectory[p.paid_by] ?? '—') : '—'}
+                    {p.paid_at ? ` (${new Date(p.paid_at).toLocaleDateString('es-CL')})` : ''}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="card">
+        <h2>Feriados e irrenunciables</h2>
+        <p className="subtitle">
+          Feriado: {formatCLP(FERIADO_BONUS)} extra por día trabajado. Irrenunciable:{' '}
+          {formatCLP(IRRENUNCIABLE_BONUS)} extra. Se suma solo si el trabajador realmente
+          trabajó ese día. Si marcas a alguien en "No pagar a", no se le suma ese monto ese día
+          aunque tenga un turno registrado (ej. si no fue o libró igual).
+        </p>
+        <form onSubmit={handleAddFeriado} className="worker-form">
+          <label>
+            Fecha
+            <input
+              type="date"
+              value={feriadoFecha}
+              onChange={(e) => setFeriadoFecha(e.target.value)}
+            />
+          </label>
+          <label>
+            Nombre
+            <input
+              value={feriadoNombre}
+              onChange={(e) => setFeriadoNombre(e.target.value)}
+              placeholder="Ej: Día de la Virgen del Carmen"
+            />
+          </label>
+          <label>
+            Tipo
+            <select
+              value={feriadoTipo}
+              onChange={(e) => setFeriadoTipo(e.target.value as 'feriado' | 'irrenunciable')}
+            >
+              <option value="feriado">Feriado ({formatCLP(FERIADO_BONUS)})</option>
+              <option value="irrenunciable">Irrenunciable ({formatCLP(IRRENUNCIABLE_BONUS)})</option>
+            </select>
+          </label>
+          {feriadoError && <p className="error-text">{feriadoError}</p>}
+          <button type="submit" className="btn btn-primary" disabled={feriadoBusy}>
+            {feriadoBusy ? 'Guardando...' : 'Agregar feriado'}
+          </button>
+        </form>
+
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Bono</th>
+              <th>No pagar a</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {feriados.map((f) => (
+              <tr key={f.id}>
+                <td>{f.fecha}</td>
+                <td>{f.nombre}</td>
+                <td>{f.tipo === 'irrenunciable' ? 'Irrenunciable' : 'Feriado'}</td>
+                <td>
+                  {formatCLP(f.tipo === 'irrenunciable' ? IRRENUNCIABLE_BONUS : FERIADO_BONUS)}
+                </td>
+                <td>
+                  {workers.map((w) => {
+                    const key = `${w.id}-${f.fecha}`
+                    const excluded = feriadoExclusions.some(
+                      (e) => e.worker_id === w.id && e.fecha === f.fecha,
+                    )
+                    return (
+                      <label key={w.id} className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={excluded}
+                          disabled={exclusionBusyKey === key}
+                          onChange={() => toggleFeriadoExclusion(w.id, f.fecha)}
+                        />
+                        {w.full_name}
+                      </label>
+                    )
+                  })}
+                </td>
+                <td>
+                  <button
+                    className="btn btn-danger btn-small"
+                    disabled={deletingFeriadoId === f.id}
+                    onClick={() => handleDeleteFeriado(f.id)}
+                  >
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </section>
 

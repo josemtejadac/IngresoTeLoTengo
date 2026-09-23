@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
+import { ProductosScanner } from '../../components/ProductosScanner'
+import { PedidosTienda } from '../../components/PedidosTienda'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
 import {
   annotateOvertime,
@@ -28,6 +30,20 @@ import {
   WEEKLY_SALES_GOAL,
   type ArqueoEntry,
 } from '../../lib/arqueo'
+import {
+  addPendiente,
+  loadPendientes,
+  markPendientePagado,
+  totalPendiente,
+  type PendienteEntry,
+} from '../../lib/pendientes'
+import { loadNameDirectory } from '../../lib/directory'
+import {
+  computeFeriadoBonus,
+  loadFeriados,
+  loadFeriadoExclusionsForWorker,
+  type FeriadoSummary,
+} from '../../lib/feriados'
 
 interface WorkerDashboardProps {
   profile: Profile
@@ -61,6 +77,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [filterDate, setFilterDate] = useState<string>(currentDateValue())
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthValue())
   const [paySummary, setPaySummary] = useState<PaySummary | null>(null)
+  const [feriadoSummary, setFeriadoSummary] = useState<FeriadoSummary | null>(null)
   const [weeklyBonusRows, setWeeklyBonusRows] = useState<WeeklyBonusRow[]>([])
   const [todayArqueo, setTodayArqueo] = useState<ArqueoEntry[]>([])
   const [weeklySales, setWeeklySales] = useState<number>(0)
@@ -71,6 +88,13 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [arqueoBusy, setArqueoBusy] = useState(false)
   const [arqueoMessage, setArqueoMessage] = useState<string | null>(null)
   const [arqueoError, setArqueoError] = useState<string | null>(null)
+  const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
+  const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
+  const [pendienteMonto, setPendienteMonto] = useState('')
+  const [pendienteComentario, setPendienteComentario] = useState('')
+  const [pendienteBusy, setPendienteBusy] = useState(false)
+  const [pendienteError, setPendienteError] = useState<string | null>(null)
+  const [payingId, setPayingId] = useState<string | null>(null)
 
   const loadRecords = useCallback(async () => {
     let query = supabase
@@ -130,6 +154,11 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
     const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), profile)
     setPaySummary(computePaySummary(shifts, profile, start, end))
+
+    const feriados = await loadFeriados()
+    const exclusions = await loadFeriadoExclusionsForWorker(profile.id)
+    const excludedDates = new Set(exclusions.map((e) => e.fecha))
+    setFeriadoSummary(computeFeriadoBonus(shifts, feriados, excludedDates))
   }, [profile])
 
   useEffect(() => {
@@ -155,10 +184,22 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     setWeeklySales(total)
   }, [])
 
+  const loadPendientesRows = useCallback(async () => {
+    const rows = await loadPendientes()
+    setPendientes(rows)
+  }, [])
+
+  const loadDirectory = useCallback(async () => {
+    const map = await loadNameDirectory()
+    setNameDirectory(map)
+  }, [])
+
   useEffect(() => {
     loadTodayArqueo()
     loadWeeklySales()
-  }, [loadTodayArqueo, loadWeeklySales])
+    loadPendientesRows()
+    loadDirectory()
+  }, [loadTodayArqueo, loadWeeklySales, loadPendientesRows, loadDirectory])
 
   useEffect(() => {
     const channel = supabase
@@ -170,12 +211,19 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           loadWeeklySales()
         },
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_pendientes' },
+        () => {
+          loadPendientesRows()
+        },
+      )
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadWeeklySales])
+  }, [loadWeeklySales, loadPendientesRows])
 
   useEffect(() => {
     const channel = supabase
@@ -220,6 +268,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     loadBonusRows()
     loadTodayArqueo()
     loadWeeklySales()
+    loadPendientesRows()
+    loadDirectory()
   }, [
     loadRecords,
     loadLastRecord,
@@ -227,6 +277,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     loadBonusRows,
     loadTodayArqueo,
     loadWeeklySales,
+    loadPendientesRows,
+    loadDirectory,
   ])
 
   // El celular corta el WebSocket de tiempo real cuando la pantalla se
@@ -333,6 +385,40 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
+  async function handleAddPendiente(e: React.FormEvent) {
+    e.preventDefault()
+    const monto = Number(pendienteMonto)
+    if (!monto || monto <= 0 || !pendienteComentario.trim()) {
+      setPendienteError('Ingresa un monto válido y quién quedó debiendo.')
+      return
+    }
+    setPendienteBusy(true)
+    setPendienteError(null)
+    try {
+      await addPendiente(profile.id, monto, pendienteComentario.trim())
+      setPendienteMonto('')
+      setPendienteComentario('')
+      await loadPendientesRows()
+    } catch (err) {
+      setPendienteError(err instanceof Error ? err.message : 'Error registrando el pendiente')
+    } finally {
+      setPendienteBusy(false)
+    }
+  }
+
+  async function handleMarkPagado(id: string) {
+    setPayingId(id)
+    try {
+      await markPendientePagado(id, profile.id)
+      await loadPendientesRows()
+    } catch (err) {
+      setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
+    } finally {
+      setPayingId(null)
+    }
+  }
+
+  const pendientesSinPagar = pendientes.filter((p) => !p.pagado)
   const weeklySalesPct = Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))
 
   return (
@@ -430,6 +516,17 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               → <strong>{formatCLP(totalEarned(weeklyBonusRows))}</strong>
             </p>
           )}
+          {feriadoSummary && feriadoSummary.days.length > 0 && (
+            <p>
+              Feriados/irrenunciables trabajados este mes:{' '}
+              {feriadoSummary.days.map((d) => (
+                <span key={d.fecha}>
+                  {d.nombre} ({formatCLP(d.monto)}){' '}
+                </span>
+              ))}
+              → <strong>{formatCLP(feriadoSummary.total)}</strong>
+            </p>
+          )}
           {paySummary.payFrequency === 'monthly' && (
             <p className="pay-total">
               Total del mes:{' '}
@@ -438,7 +535,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                   paySummary.baseAmount +
                     paySummary.overtimePay +
                     paySummary.tuesdayBonusTotal +
-                    totalEarned(weeklyBonusRows),
+                    totalEarned(weeklyBonusRows) +
+                    (feriadoSummary?.total ?? 0),
                 )}
               </strong>
             </p>
@@ -458,6 +556,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> ({weeklySalesPct}%)
         </p>
       </section>
+
+      <PedidosTienda />
+
+      <ProductosScanner />
 
       <section className="card">
         <h2>Arqueo del día</h2>
@@ -536,6 +638,87 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
             </table>
           </>
         )}
+      </section>
+
+      <section className="card">
+        <h2>Pendientes (fiado)</h2>
+        <p className="subtitle">
+          Si le fiaste algo a alguien, regístralo aquí. Todos lo ven y cualquiera puede marcarlo
+          cobrado cuando pague.
+        </p>
+        <form onSubmit={handleAddPendiente} className="worker-form">
+          <label>
+            Monto
+            <input
+              type="number"
+              min={0}
+              value={pendienteMonto}
+              onChange={(e) => setPendienteMonto(e.target.value)}
+            />
+          </label>
+          <label>
+            ¿Quién quedó debiendo?
+            <input
+              value={pendienteComentario}
+              onChange={(e) => setPendienteComentario(e.target.value)}
+              placeholder="Ej: Juan, vecino del local de al lado"
+            />
+          </label>
+          {pendienteError && <p className="error-text">{pendienteError}</p>}
+          <button type="submit" className="btn btn-primary" disabled={pendienteBusy}>
+            {pendienteBusy ? 'Guardando...' : 'Registrar pendiente'}
+          </button>
+        </form>
+
+        <p>
+          Total pendiente por cobrar: <strong>{formatCLP(totalPendiente(pendientes))}</strong>
+        </p>
+
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Quién debe</th>
+              <th>Monto</th>
+              <th>Registró</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendientesSinPagar.map((p) => (
+              <tr key={p.id}>
+                <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
+                <td>{p.comentario}</td>
+                <td>{formatCLP(p.monto)}</td>
+                <td>{nameDirectory[p.worker_id] ?? '—'}</td>
+                <td>
+                  <button
+                    className="btn btn-secondary btn-small"
+                    disabled={payingId === p.id}
+                    onClick={() => handleMarkPagado(p.id)}
+                  >
+                    {payingId === p.id ? 'Guardando...' : 'Marcar cobrado'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {pendientes
+              .filter((p) => p.pagado)
+              .slice(0, 10)
+              .map((p) => (
+                <tr key={p.id} className="pendiente-paid">
+                  <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
+                  <td>{p.comentario}</td>
+                  <td>{formatCLP(p.monto)}</td>
+                  <td>{nameDirectory[p.worker_id] ?? '—'}</td>
+                  <td>
+                    Cobrado por {p.paid_by ? (nameDirectory[p.paid_by] ?? '—') : '—'}
+                    {p.paid_at ? ` (${new Date(p.paid_at).toLocaleDateString('es-CL')})` : ''}
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
       </section>
 
       {showCamera && cameraAction && (

@@ -11,6 +11,7 @@ import {
 } from '../lib/inventario'
 
 export function InventarioAdmin() {
+  const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -23,8 +24,9 @@ export function InventarioAdmin() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!open) return
     loadCategorias().then(setCategorias).catch(() => {})
-  }, [])
+  }, [open])
 
   const runSearch = useCallback(async () => {
     try {
@@ -36,10 +38,12 @@ export function InventarioAdmin() {
   }, [categoria, search])
 
   useEffect(() => {
+    if (!open) return
     runSearch()
-  }, [runSearch])
+  }, [open, runSearch])
 
   useEffect(() => {
+    if (!open) return
     const channel = supabase
       .channel('ingreso_productos_admin')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ingreso_productos' }, () => {
@@ -49,7 +53,7 @@ export function InventarioAdmin() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [runSearch])
+  }, [open, runSearch])
 
   function openEdit(p: Producto) {
     setEditing(p)
@@ -96,12 +100,31 @@ export function InventarioAdmin() {
     }
   }
 
+  if (!open) {
+    return (
+      <section className="card">
+        <div className="section-header">
+          <h2>Inventario</h2>
+          <button className="btn btn-primary" onClick={() => setOpen(true)}>
+            Inventario
+          </button>
+        </div>
+        <p className="subtitle">Buscar, editar precio, stock y foto de los productos.</p>
+      </section>
+    )
+  }
+
   return (
     <section className="card">
-      <h2>
-        Inventario ({productos.length}
-        {productos.length >= 100 ? '+' : ''} de la búsqueda)
-      </h2>
+      <div className="section-header">
+        <h2>
+          Inventario ({productos.length}
+          {productos.length >= 100 ? '+' : ''} de la búsqueda)
+        </h2>
+        <button className="btn btn-secondary" onClick={() => setOpen(false)}>
+          Cerrar
+        </button>
+      </div>
       <p className="subtitle">
         Solo tú puedes editar precio, foto y stock. Escribe en el buscador o filtra por categoría —
         el catálogo completo tiene miles de productos.

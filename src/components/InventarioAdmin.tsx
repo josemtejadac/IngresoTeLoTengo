@@ -108,11 +108,14 @@ export function InventarioAdmin() {
     }
   }
 
-  async function handleOcultar() {
-    if (!editing) return
+  async function handleOcultar(p: Producto | null = editing) {
+    if (!p) return
+    if (!window.confirm(`¿Ocultar "${p.nombre}"? Dejará de aparecer en la tienda y en los pedidos.`)) {
+      return
+    }
     setError(null)
     try {
-      await updateProducto(editing.id, { active: false })
+      await updateProducto(p.id, { active: false })
       setEditing(null)
       await runSearch()
     } catch (err) {
@@ -324,9 +327,14 @@ export function InventarioAdmin() {
                     Activar
                   </button>
                 ) : (
-                  <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
-                    Editar
-                  </button>
+                  <div className="table-controls">
+                    <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
+                      Editar
+                    </button>
+                    <button className="btn btn-danger btn-small" onClick={() => handleOcultar(p)}>
+                      Desactivar
+                    </button>
+                  </div>
                 )}
               </td>
             </tr>
@@ -378,7 +386,7 @@ export function InventarioAdmin() {
             {error && <p className="error-text">{error}</p>}
 
             <div className="camera-actions">
-              <button className="btn btn-danger" onClick={handleOcultar}>
+              <button className="btn btn-danger" onClick={() => handleOcultar()}>
                 Ocultar producto
               </button>
               <button className="btn btn-secondary" onClick={() => setEditing(null)}>

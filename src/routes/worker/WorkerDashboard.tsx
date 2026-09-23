@@ -1,9 +1,10 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
+import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
@@ -32,9 +33,10 @@ import {
   type ArqueoEntry,
 } from '../../lib/arqueo'
 import {
-  addPendiente,
+  addPendientes,
   loadPendientes,
-  markPendientePagado,
+  markPendientesPagados,
+  agruparPorCliente,
   totalPendiente,
   type PendienteEntry,
 } from '../../lib/pendientes'
@@ -91,8 +93,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [arqueoError, setArqueoError] = useState<string | null>(null)
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
   const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
-  const [pendienteMonto, setPendienteMonto] = useState('')
-  const [pendienteComentario, setPendienteComentario] = useState('')
+  const pendienteBusyRef = useRef(false)
+  const [pendienteRows, setPendienteRows] = useState([{ cliente: '', detalle: '', monto: '' }])
   const [pendienteBusy, setPendienteBusy] = useState(false)
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
@@ -213,6 +215,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         { event: '*', schema: 'public', table: 'ingreso_arqueo' },
         () => {
           loadWeeklySales()
+          loadTodayArqueo()
         },
       )
       .on(
@@ -227,7 +230,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadWeeklySales, loadPendientesRows])
+  }, [loadWeeklySales, loadTodayArqueo, loadPendientesRows])
 
   useEffect(() => {
     const channel = supabase
@@ -300,6 +303,15 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('focus', refreshAll)
     }
+  }, [refreshAll])
+
+  // Red de seguridad: si el WebSocket se cae sin avisar, igual se actualiza cada 30 s
+  // mientras la pantalla esta visible.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshAll()
+    }, 30000)
+    return () => clearInterval(id)
   }, [refreshAll])
 
   const weeksThisMonth = getWeeksEndingInMonth(currentMonthValue())
@@ -389,31 +401,43 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
+  function updatePendienteRow(i: number, field: 'cliente' | 'detalle' | 'monto', value: string) {
+    setPendienteRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
+  }
+
   async function handleAddPendiente(e: React.FormEvent) {
     e.preventDefault()
-    const monto = Number(pendienteMonto)
-    if (!monto || monto <= 0 || !pendienteComentario.trim()) {
-      setPendienteError('Ingresa un monto válido y quién quedó debiendo.')
+    if (pendienteBusyRef.current) return
+    // Filas completamente vacias se ignoran; las incompletas o invalidas frenan el envio.
+    const filled = pendienteRows.filter((r) => r.monto.trim() || r.cliente.trim())
+    const parsed = filled.map((r) => ({
+      monto: Number(r.monto),
+      cliente: r.cliente.trim(),
+      detalle: r.detalle.trim(),
+    }))
+    if (parsed.length === 0 || parsed.some((r) => !r.monto || r.monto <= 0 || !r.cliente)) {
+      setPendienteError('Cada deuda necesita el nombre del cliente y un monto válido.')
       return
     }
+    pendienteBusyRef.current = true
     setPendienteBusy(true)
     setPendienteError(null)
     try {
-      await addPendiente(profile.id, monto, pendienteComentario.trim())
-      setPendienteMonto('')
-      setPendienteComentario('')
+      await addPendientes(profile.id, parsed)
+      setPendienteRows([{ cliente: '', detalle: '', monto: '' }])
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error registrando el pendiente')
     } finally {
+      pendienteBusyRef.current = false
       setPendienteBusy(false)
     }
   }
 
-  async function handleMarkPagado(id: string) {
-    setPayingId(id)
+  async function handleCobrar(ids: string[], busyKey: string) {
+    setPayingId(busyKey)
     try {
-      await markPendientePagado(id, profile.id)
+      await markPendientesPagados(ids, profile.id)
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
@@ -422,7 +446,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
-  const pendientesSinPagar = pendientes.filter((p) => !p.pagado)
   const weeklySalesPct = Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))
 
   return (
@@ -691,30 +714,64 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       <section className="card">
         <h2>Pendientes (fiado)</h2>
         <p className="subtitle">
-          Si le fiaste algo a alguien, regístralo aquí. Todos lo ven y cualquiera puede marcarlo
-          cobrado cuando pague.
+          Si le fiaste algo a alguien, regístralo aquí con su nombre. Las deudas de una misma
+          persona se juntan, y se puede cobrar una por una o todas juntas.
         </p>
         <form onSubmit={handleAddPendiente} className="worker-form">
-          <label>
-            Monto
-            <input
-              type="number"
-              min={0}
-              value={pendienteMonto}
-              onChange={(e) => setPendienteMonto(e.target.value)}
-            />
-          </label>
-          <label>
-            ¿Quién quedó debiendo?
-            <input
-              value={pendienteComentario}
-              onChange={(e) => setPendienteComentario(e.target.value)}
-              placeholder="Ej: Juan, vecino del local de al lado"
-            />
-          </label>
+          <datalist id="clientes-fiado">
+            {agruparPorCliente(pendientes).map((g) => (
+              <option key={g.key} value={g.nombre} />
+            ))}
+          </datalist>
+          {pendienteRows.map((r, i) => (
+            <div key={i} className="report-row">
+              <label className="chat-input">
+                Cliente
+                <input
+                  list="clientes-fiado"
+                  value={r.cliente}
+                  onChange={(e) => updatePendienteRow(i, 'cliente', e.target.value)}
+                  placeholder="Ej: Juan, depto 202"
+                />
+              </label>
+              <label className="chat-input">
+                Detalle (opcional)
+                <input
+                  value={r.detalle}
+                  onChange={(e) => updatePendienteRow(i, 'detalle', e.target.value)}
+                  placeholder="Ej: 2 Coca-Cola y pan"
+                />
+              </label>
+              <label>
+                Monto
+                <input
+                  type="number"
+                  min={0}
+                  value={r.monto}
+                  onChange={(e) => updatePendienteRow(i, 'monto', e.target.value)}
+                />
+              </label>
+              {pendienteRows.length > 1 && (
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => setPendienteRows((prev) => prev.filter((_, idx) => idx !== i))}
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            onClick={() => setPendienteRows((prev) => [...prev, { cliente: '', detalle: '', monto: '' }])}
+          >
+            + Agregar otro cliente
+          </button>
           {pendienteError && <p className="error-text">{pendienteError}</p>}
           <button type="submit" className="btn btn-primary" disabled={pendienteBusy}>
-            {pendienteBusy ? 'Guardando...' : 'Registrar pendiente'}
+            {pendienteBusy ? 'Guardando...' : pendienteRows.length > 1 ? 'Registrar pendientes' : 'Registrar pendiente'}
           </button>
         </form>
 
@@ -722,51 +779,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           Total pendiente por cobrar: <strong>{formatCLP(totalPendiente(pendientes))}</strong>
         </p>
 
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Quién debe</th>
-              <th>Monto</th>
-              <th>Registró</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendientesSinPagar.map((p) => (
-              <tr key={p.id}>
-                <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
-                <td>{p.comentario}</td>
-                <td>{formatCLP(p.monto)}</td>
-                <td>{nameDirectory[p.worker_id] ?? '—'}</td>
-                <td>
-                  <button
-                    className="btn btn-secondary btn-small"
-                    disabled={payingId === p.id}
-                    onClick={() => handleMarkPagado(p.id)}
-                  >
-                    {payingId === p.id ? 'Guardando...' : 'Marcar cobrado'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {pendientes
-              .filter((p) => p.pagado)
-              .slice(0, 10)
-              .map((p) => (
-                <tr key={p.id} className="pendiente-paid">
-                  <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
-                  <td>{p.comentario}</td>
-                  <td>{formatCLP(p.monto)}</td>
-                  <td>{nameDirectory[p.worker_id] ?? '—'}</td>
-                  <td>
-                    Cobrado por {p.paid_by ? (nameDirectory[p.paid_by] ?? '—') : '—'}
-                    {p.paid_at ? ` (${new Date(p.paid_at).toLocaleDateString('es-CL')})` : ''}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        <PendientesPorCliente
+          pendientes={pendientes}
+          nameDirectory={nameDirectory}
+          busyKey={payingId}
+          onCobrar={handleCobrar}
+        />
       </section>
       )}
 

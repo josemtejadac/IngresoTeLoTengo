@@ -5,6 +5,8 @@ export interface PendienteEntry {
   worker_id: string
   monto: number
   comentario: string
+  /** Nombre del cliente; los registros antiguos no lo tienen y usan comentario. */
+  cliente: string | null
   pendiente_date: string
   pagado: boolean
   paid_by: string | null
@@ -34,6 +36,61 @@ export async function addPendiente(workerId: string, monto: number, comentario: 
     comentario,
   })
   if (error) throw error
+}
+
+/** Inserta varios pendientes de una vez (varios clientes que fiaron el mismo dia). */
+export async function addPendientes(
+  workerId: string,
+  rows: { cliente: string; detalle: string; monto: number }[],
+) {
+  const { error } = await supabase.from('ingreso_pendientes').insert(
+    rows.map((r) => ({
+      worker_id: workerId,
+      monto: r.monto,
+      cliente: r.cliente,
+      comentario: r.detalle,
+    })),
+  )
+  if (error) throw error
+}
+
+export async function markPendientesPagados(ids: string[], paidByWorkerId: string) {
+  if (ids.length === 0) return
+  const { error } = await supabase
+    .from('ingreso_pendientes')
+    .update({ pagado: true, paid_by: paidByWorkerId, paid_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('pagado', false)
+  if (error) throw error
+}
+
+export function clienteNombre(p: PendienteEntry): string {
+  return (p.cliente?.trim() || p.comentario).trim()
+}
+
+export interface DeudaCliente {
+  key: string
+  nombre: string
+  total: number
+  deudas: PendienteEntry[]
+}
+
+/** Agrupa las deudas sin cobrar por cliente (sin distinguir mayusculas ni espacios extra). */
+export function agruparPorCliente(rows: PendienteEntry[]): DeudaCliente[] {
+  const map = new Map<string, DeudaCliente>()
+  for (const p of rows.filter((r) => !r.pagado)) {
+    const nombre = clienteNombre(p)
+    const key = nombre.toLowerCase().replace(/\s+/g, ' ')
+    const g = map.get(key) ?? { key, nombre, total: 0, deudas: [] }
+    g.total += p.monto
+    g.deudas.push(p)
+    map.set(key, g)
+  }
+  const list = [...map.values()]
+  for (const g of list) {
+    g.deudas.sort((a, b) => a.created_at.localeCompare(b.created_at))
+  }
+  return list.sort((a, b) => b.total - a.total)
 }
 
 export async function markPendientePagado(id: string, paidByWorkerId: string) {

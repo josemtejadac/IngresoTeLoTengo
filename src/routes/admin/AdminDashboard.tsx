@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
+import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
@@ -28,7 +29,7 @@ import {
 import { downloadSalesPdf } from '../../lib/salesReport'
 import {
   loadPendientes,
-  markPendientePagado,
+  markPendientesPagados,
   totalPendiente,
   type PendienteEntry,
 } from '../../lib/pendientes'
@@ -168,7 +169,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
   const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
   const [payingId, setPayingId] = useState<string | null>(null)
-  const [deletingPendienteId, setDeletingPendienteId] = useState<string | null>(null)
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [feriados, setFeriados] = useState<Feriado[]>([])
   const [feriadoFecha, setFeriadoFecha] = useState('')
@@ -244,6 +244,23 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
+  const loadExtensiones = useCallback(async () => {
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+    const { data } = await supabase
+      .from('ingreso_extension_horas')
+      .select('worker_id, minutos')
+      .eq('fecha', hoy)
+    const map: Record<string, number> = {}
+    for (const r of (data as { worker_id: string; minutos: number }[]) ?? []) {
+      map[r.worker_id] = r.minutos
+    }
+    setExtensiones(map)
+  }, [])
+
+  useEffect(() => {
+    loadExtensiones()
+  }, [loadExtensiones])
+
   useEffect(() => {
     loadArqueoRows()
   }, [loadArqueoRows])
@@ -278,6 +295,13 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'ingreso_extension_horas' },
+        () => {
+          loadExtensiones()
+        },
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'ingreso_feriados' },
         () => {
           loadFeriadosRows()
@@ -301,6 +325,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     loadPendientesRows,
     loadFeriadosRows,
     loadFeriadoExclusionsRows,
+    loadExtensiones,
   ])
 
   const loadWorkers = useCallback(async () => {
@@ -466,23 +491,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     if (error || !data) return
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
-
-  const loadExtensiones = useCallback(async () => {
-    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
-    const { data } = await supabase
-      .from('ingreso_extension_horas')
-      .select('worker_id, minutos')
-      .eq('fecha', hoy)
-    const map: Record<string, number> = {}
-    for (const r of (data as { worker_id: string; minutos: number }[]) ?? []) {
-      map[r.worker_id] = r.minutos
-    }
-    setExtensiones(map)
-  }, [])
-
-  useEffect(() => {
-    loadExtensiones()
-  }, [loadExtensiones])
 
   async function sumarTiempo(minutos: number) {
     if (!tiempoWorker || tiempoBusy) return
@@ -690,11 +698,11 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
-  async function handleMarkPagado(id: string) {
-    setPayingId(id)
+  async function handleCobrar(ids: string[], busyKey: string) {
+    setPayingId(busyKey)
     setPendienteError(null)
     try {
-      await markPendientePagado(id, profile.id)
+      await markPendientesPagados(ids, profile.id)
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
@@ -704,7 +712,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   }
 
   async function handleDeletePendiente(id: string) {
-    setDeletingPendienteId(id)
     setPendienteError(null)
     try {
       const { error } = await supabase.from('ingreso_pendientes').delete().eq('id', id)
@@ -712,8 +719,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error eliminando el pendiente')
-    } finally {
-      setDeletingPendienteId(null)
     }
   }
 
@@ -764,6 +769,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     loadDirectory()
     loadFeriadosRows()
     loadFeriadoExclusionsRows()
+    loadExtensiones()
   }, [
     loadWorkers,
     loadRecords,
@@ -775,6 +781,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     loadDirectory,
     loadFeriadosRows,
     loadFeriadoExclusionsRows,
+    loadExtensiones,
   ])
 
   // El celular corta el WebSocket de tiempo real cuando la pantalla se
@@ -792,6 +799,16 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('focus', refreshAll)
     }
+  }, [refreshAll])
+
+
+  // Red de seguridad: si el WebSocket se cae sin avisar, igual se actualiza cada 30 s
+  // mientras la pantalla esta visible.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshAll()
+    }, 30000)
+    return () => clearInterval(id)
   }, [refreshAll])
 
   return (
@@ -1266,60 +1283,13 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           <strong>{formatCLP(totalPendiente(pendientes))}</strong>
         </p>
         {pendienteError && <p className="error-text">{pendienteError}</p>}
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Quién debe</th>
-              <th>Monto</th>
-              <th>Registró</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendientes
-              .filter((p) => !p.pagado)
-              .map((p) => (
-                <tr key={p.id}>
-                  <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
-                  <td>{p.comentario}</td>
-                  <td>{formatCLP(p.monto)}</td>
-                  <td>{nameDirectory[p.worker_id] ?? '—'}</td>
-                  <td className="table-controls">
-                    <button
-                      className="btn btn-secondary btn-small"
-                      disabled={payingId === p.id}
-                      onClick={() => handleMarkPagado(p.id)}
-                    >
-                      {payingId === p.id ? 'Guardando...' : 'Marcar cobrado'}
-                    </button>
-                    <button
-                      className="btn btn-danger btn-small"
-                      disabled={deletingPendienteId === p.id}
-                      onClick={() => handleDeletePendiente(p.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            {pendientes
-              .filter((p) => p.pagado)
-              .slice(0, 15)
-              .map((p) => (
-                <tr key={p.id} className="pendiente-paid">
-                  <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
-                  <td>{p.comentario}</td>
-                  <td>{formatCLP(p.monto)}</td>
-                  <td>{nameDirectory[p.worker_id] ?? '—'}</td>
-                  <td>
-                    Cobrado por {p.paid_by ? (nameDirectory[p.paid_by] ?? '—') : '—'}
-                    {p.paid_at ? ` (${new Date(p.paid_at).toLocaleDateString('es-CL')})` : ''}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        <PendientesPorCliente
+          pendientes={pendientes}
+          nameDirectory={nameDirectory}
+          busyKey={payingId}
+          onCobrar={handleCobrar}
+          onEliminar={handleDeletePendiente}
+        />
       </section>
       )}
 

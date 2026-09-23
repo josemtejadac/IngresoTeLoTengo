@@ -129,6 +129,33 @@ select {
   padding: 0;
 }
 
+.tab-nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  white-space: nowrap;
+}
+
+.tab-btn.active {
+  color: #14532d;
+  background: #dcfce7;
+}
+
 .action-row {
   display: flex;
   gap: 12px;
@@ -451,6 +478,8 @@ select {
   padding: 16px;
   max-width: 480px;
   width: 100%;
+  max-height: calc(100svh - 32px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;

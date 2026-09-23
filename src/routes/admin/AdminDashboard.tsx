@@ -179,6 +179,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [feriadoExclusions, setFeriadoExclusions] = useState<FeriadoExclusion[]>([])
   const [exclusionBusyKey, setExclusionBusyKey] = useState<string | null>(null)
   const [exclusionModalFeriado, setExclusionModalFeriado] = useState<Feriado | null>(null)
+  const [activeTab, setActiveTab] = useState<
+    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros'
+  >('trabajadores')
 
   const loadLastStatuses = useCallback(async () => {
     const { data } = await supabase.rpc('ingreso_last_attendance')
@@ -757,6 +760,52 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </button>
       </header>
 
+      <nav className="tab-nav">
+        <button
+          className={activeTab === 'trabajadores' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('trabajadores')}
+        >
+          Info trabajadores
+        </button>
+        <button
+          className={activeTab === 'reportes' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('reportes')}
+        >
+          Reportes
+        </button>
+        <button
+          className={activeTab === 'ventas' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('ventas')}
+        >
+          Ventas
+        </button>
+        <button
+          className={activeTab === 'pedidos' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('pedidos')}
+        >
+          Pedidos
+        </button>
+        <button
+          className={activeTab === 'pendientes' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('pendientes')}
+        >
+          Pendientes
+        </button>
+        <button
+          className={activeTab === 'inventario' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('inventario')}
+        >
+          Inventario
+        </button>
+        <button
+          className={activeTab === 'registros' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('registros')}
+        >
+          Registros
+        </button>
+      </nav>
+
+      {activeTab === 'trabajadores' && (
       <section className="card">
         <div className="section-header">
           <h2>Trabajadores ({workers.length})</h2>
@@ -837,7 +886,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         {editError && <p className="error-text">{editError}</p>}
         {salidaError && <p className="error-text">{salidaError}</p>}
       </section>
+      )}
 
+      {activeTab === 'reportes' && (
       <section className="card">
         <h2>Reporte mensual de horas</h2>
         <p className="subtitle">Descarga en PDF las horas trabajadas de un trabajador, día por día.</p>
@@ -870,7 +921,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </div>
         {reportError && <p className="error-text">{reportError}</p>}
       </section>
+      )}
 
+      {activeTab === 'trabajadores' && (
       <section className="card">
         <h2>Horarios y sueldos</h2>
         <p className="subtitle">
@@ -1005,7 +1058,10 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           ))}
         </ul>
       </section>
+      )}
 
+      {activeTab === 'ventas' && (
+      <>
       <section className="card">
         <h2>Meta semanal de ventas</h2>
         <p className="subtitle">
@@ -1048,10 +1104,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         {salesReportError && <p className="error-text">{salesReportError}</p>}
       </section>
 
-      <PedidosTienda />
-
-      <InventarioAdmin />
-
       <section className="card">
         <div className="section-header">
           <h2>Arqueo diario</h2>
@@ -1092,7 +1144,14 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </tfoot>
         </table>
       </section>
+      </>
+      )}
 
+      {activeTab === 'pedidos' && <PedidosTienda />}
+
+      {activeTab === 'inventario' && <InventarioAdmin />}
+
+      {activeTab === 'pendientes' && (
       <section className="card">
         <h2>Pendientes (fiado)</h2>
         <p className="subtitle">
@@ -1155,7 +1214,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </tbody>
         </table>
       </section>
+      )}
 
+      {activeTab === 'trabajadores' && (
       <section className="card">
         <h2>Feriados e irrenunciables</h2>
         <p className="subtitle">
@@ -1273,7 +1334,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </div>
         )}
       </section>
+      )}
 
+      {activeTab === 'reportes' && (
       <section className="card">
         <div className="section-header">
           <h2>Bono semanal ({formatCLP(WEEKLY_BONUS_AMOUNT)})</h2>
@@ -1325,7 +1388,9 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </table>
         {bonusError && <p className="error-text">{bonusError}</p>}
       </section>
+      )}
 
+      {activeTab === 'registros' && (
       <section className="card">
         <div className="section-header">
           <h2>Registros de entrada y salida</h2>
@@ -1411,6 +1476,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </tbody>
         </table>
       </section>
+      )}
     </div>
   )
 }

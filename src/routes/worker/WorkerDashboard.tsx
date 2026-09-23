@@ -95,6 +95,9 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [pendienteBusy, setPendienteBusy] = useState(false)
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<
+    'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'historial'
+  >('inicio')
 
   const loadRecords = useCallback(async () => {
     let query = supabase
@@ -436,6 +439,45 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         </button>
       </header>
 
+      <nav className="tab-nav">
+        <button
+          className={activeTab === 'inicio' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('inicio')}
+        >
+          Inicio
+        </button>
+        <button
+          className={activeTab === 'productos' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('productos')}
+        >
+          Productos
+        </button>
+        <button
+          className={activeTab === 'pedidos' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('pedidos')}
+        >
+          Pedidos
+        </button>
+        <button
+          className={activeTab === 'arqueo' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('arqueo')}
+        >
+          Arqueo
+        </button>
+        <button
+          className={activeTab === 'pendientes' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('pendientes')}
+        >
+          Pendientes
+        </button>
+        <button
+          className={activeTab === 'historial' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('historial')}
+        >
+          Historial
+        </button>
+      </nav>
+
       <div className="action-row">
         <button
           className="btn btn-primary"
@@ -475,7 +517,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
       {message && <p className="info-text">{message}</p>}
 
-      {paySummary && (
+      {activeTab === 'inicio' && paySummary && (
         <section className="card pay-card">
           <h2>Mi sueldo</h2>
           <p>
@@ -544,27 +586,29 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         </section>
       )}
 
-      <section className="card">
-        <h2>Meta semanal de ventas</h2>
-        <p className="subtitle">
-          Semana {formatWeekLabel(getCurrentWeek())} · Meta: {formatCLP(WEEKLY_SALES_GOAL)}
-        </p>
-        <div className="goal-bar">
-          <div className="goal-bar-fill" style={{ width: `${weeklySalesPct}%` }} />
-        </div>
-        <p>
-          Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> ({weeklySalesPct}%)
-        </p>
-      </section>
+      {activeTab === 'productos' && <ProductosScanner />}
 
-      <PedidosTienda />
+      {activeTab === 'pedidos' && <PedidosTienda />}
 
-      <ProductosScanner />
+      {activeTab === 'arqueo' && (
+        <>
+          <section className="card">
+            <h2>Meta semanal de ventas</h2>
+            <p className="subtitle">
+              Semana {formatWeekLabel(getCurrentWeek())} · Meta: {formatCLP(WEEKLY_SALES_GOAL)}
+            </p>
+            <div className="goal-bar">
+              <div className="goal-bar-fill" style={{ width: `${weeklySalesPct}%` }} />
+            </div>
+            <p>
+              Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> ({weeklySalesPct}%)
+            </p>
+          </section>
 
-      <section className="card">
-        <h2>Arqueo del día</h2>
-        <p className="subtitle">Ingresa las ventas de tu turno de hoy.</p>
-        <form onSubmit={handleSubmitArqueo} className="worker-form">
+          <section className="card">
+            <h2>Arqueo del día</h2>
+            <p className="subtitle">Ingresa las ventas de tu turno de hoy.</p>
+            <form onSubmit={handleSubmitArqueo} className="worker-form">
           <label>
             Efectivo
             <input
@@ -638,8 +682,11 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
             </table>
           </>
         )}
-      </section>
+          </section>
+        </>
+      )}
 
+      {activeTab === 'pendientes' && (
       <section className="card">
         <h2>Pendientes (fiado)</h2>
         <p className="subtitle">
@@ -720,6 +767,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           </tbody>
         </table>
       </section>
+      )}
 
       {showCamera && cameraAction && (
         <CameraCapture
@@ -731,6 +779,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         />
       )}
 
+      {activeTab === 'historial' && (
+        <section className="card">
       <div className="section-header">
         <h2>Tu historial</h2>
         <div className="table-controls">
@@ -792,6 +842,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           })}
         </tbody>
       </table>
+        </section>
+      )}
     </div>
   )
 }

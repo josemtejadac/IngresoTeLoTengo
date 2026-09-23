@@ -14,7 +14,6 @@ interface CartLine {
 }
 
 export function ProductosScanner() {
-  const [open, setOpen] = useState(false)
   const [barra, setBarra] = useState('')
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -27,9 +26,8 @@ export function ProductosScanner() {
   const barraInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!open) return
     loadCategorias().then(setCategorias).catch(() => {})
-  }, [open])
+  }, [])
 
   const runSearch = useCallback(async () => {
     try {
@@ -41,9 +39,8 @@ export function ProductosScanner() {
   }, [categoria, search])
 
   useEffect(() => {
-    if (!open) return
     runSearch()
-  }, [open, runSearch])
+  }, [runSearch])
 
   function addToCart(producto: Producto) {
     setCart((prev) => {
@@ -107,28 +104,9 @@ export function ProductosScanner() {
     }
   }
 
-  if (!open) {
-    return (
-      <section className="card">
-        <div className="section-header">
-          <h2>Productos</h2>
-          <button className="btn btn-primary" onClick={() => setOpen(true)}>
-            Armar pedido
-          </button>
-        </div>
-        <p className="subtitle">Escanea con la pistola o busca productos para armar un pedido.</p>
-      </section>
-    )
-  }
-
   return (
     <section className="card">
-      <div className="section-header">
-        <h2>Armar pedido</h2>
-        <button className="btn btn-secondary" onClick={() => setOpen(false)}>
-          Cerrar
-        </button>
-      </div>
+      <h2>Productos</h2>
       <p className="subtitle">Escanea con la pistola (o escribe el código) para armar un pedido.</p>
 
       <form onSubmit={handleScan} className="report-row">

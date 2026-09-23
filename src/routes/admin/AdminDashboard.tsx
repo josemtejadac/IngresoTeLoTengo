@@ -181,7 +181,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [exclusionBusyKey, setExclusionBusyKey] = useState<string | null>(null)
   const [exclusionModalFeriado, setExclusionModalFeriado] = useState<Feriado | null>(null)
   const [activeTab, setActiveTab] = useState<
-    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros' | 'asistente'
+    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros'
   >('trabajadores')
 
   const loadLastStatuses = useCallback(async () => {
@@ -804,12 +804,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         >
           Registros
         </button>
-        <button
-          className={activeTab === 'asistente' ? 'tab-btn active' : 'tab-btn'}
-          onClick={() => setActiveTab('asistente')}
-        >
-          Asistente
-        </button>
       </nav>
 
       {activeTab === 'trabajadores' && (
@@ -1158,8 +1152,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
 
       {activeTab === 'inventario' && <InventarioAdmin />}
 
-      {activeTab === 'asistente' && <AsistenteTienda />}
-
       {activeTab === 'pendientes' && (
       <section className="card">
         <h2>Pendientes (fiado)</h2>
@@ -1486,6 +1478,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </table>
       </section>
       )}
+      <AsistenteTienda />
     </div>
   )
 }

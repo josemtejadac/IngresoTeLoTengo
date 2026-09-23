@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { formatCLP } from '../lib/payroll'
+import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
 import {
   crearPedidoTienda,
   loadCatalogoTienda,
@@ -21,10 +22,16 @@ export function Tienda() {
   const [productos, setProductos] = useState<ProductoTienda[]>([])
   const [cart, setCart] = useState<CartLine[]>([])
   const [showCheckout, setShowCheckout] = useState(false)
-  const [nombre, setNombre] = useState('')
-  const [telefono, setTelefono] = useState('')
-  const [torre, setTorre] = useState('')
-  const [depto, setDepto] = useState('')
+  const [guardado, setGuardado] = useState(loadClienteGuardado)
+  const [nombre, setNombre] = useState(guardado?.nombre ?? '')
+  const [telefono, setTelefono] = useState(guardado?.telefono ?? '')
+  const [torre, setTorre] = useState(guardado?.direcciones[guardado.ultima]?.torre ?? '')
+  const [depto, setDepto] = useState(guardado?.direcciones[guardado.ultima]?.depto ?? '')
+  // 'nueva' = escribir otra direccion; numero = indice de una direccion guardada
+  const [dirSel, setDirSel] = useState<number | 'nueva'>(
+    guardado && guardado.direcciones.length > 0 ? guardado.ultima : 'nueva',
+  )
+  const [guardarDatos, setGuardarDatos] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmacion, setConfirmacion] = useState<{ total: number } | null>(null)
@@ -69,6 +76,29 @@ export function Tienda() {
     )
   }
 
+  function elegirDireccion(value: string) {
+    if (value === 'nueva') {
+      setDirSel('nueva')
+      setTorre('')
+      setDepto('')
+      return
+    }
+    const idx = Number(value)
+    setDirSel(idx)
+    setTorre(guardado?.direcciones[idx]?.torre ?? '')
+    setDepto(guardado?.direcciones[idx]?.depto ?? '')
+  }
+
+  function handleOlvidar() {
+    olvidarCliente()
+    setGuardado(null)
+    setDirSel('nueva')
+    setNombre('')
+    setTelefono('')
+    setTorre('')
+    setDepto('')
+  }
+
   const total = cart.reduce((sum, l) => sum + l.producto.precio * l.cantidad, 0)
 
   async function handleCheckout(e: React.FormEvent) {
@@ -84,13 +114,21 @@ export function Tienda() {
         depto,
         items: cart.map((l) => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
       })
+      if (guardarDatos) {
+        guardarCliente({ nombre, telefono, torre, depto })
+        const c = loadClienteGuardado()
+        setGuardado(c)
+        if (c) setDirSel(c.ultima)
+      }
       setConfirmacion({ total: result.total })
       setCart([])
       setShowCheckout(false)
-      setNombre('')
-      setTelefono('')
-      setTorre('')
-      setDepto('')
+      if (!guardarDatos) {
+        setNombre('')
+        setTelefono('')
+        setTorre('')
+        setDepto('')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error generando el pedido')
     } finally {
@@ -228,14 +266,44 @@ export function Tienda() {
                   required
                 />
               </label>
-              <label>
-                Torre
-                <input value={torre} onChange={(e) => setTorre(e.target.value)} required />
+              {guardado && guardado.direcciones.length > 0 && (
+                <label>
+                  Dirección de entrega
+                  <select value={String(dirSel)} onChange={(e) => elegirDireccion(e.target.value)}>
+                    {guardado.direcciones.map((d, i) => (
+                      <option key={i} value={i}>
+                        Torre {d.torre}, depto {d.depto}
+                      </option>
+                    ))}
+                    <option value="nueva">Otra dirección…</option>
+                  </select>
+                </label>
+              )}
+              {dirSel === 'nueva' && (
+                <>
+                  <label>
+                    Torre
+                    <input value={torre} onChange={(e) => setTorre(e.target.value)} required />
+                  </label>
+                  <label>
+                    Depto
+                    <input value={depto} onChange={(e) => setDepto(e.target.value)} required />
+                  </label>
+                </>
+              )}
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={guardarDatos}
+                  onChange={(e) => setGuardarDatos(e.target.checked)}
+                />
+                Guardar mis datos para la próxima vez
               </label>
-              <label>
-                Depto
-                <input value={depto} onChange={(e) => setDepto(e.target.value)} required />
-              </label>
+              {guardado && (
+                <button type="button" className="btn-link" onClick={handleOlvidar}>
+                  Borrar mis datos guardados
+                </button>
+              )}
               {error && <p className="error-text">{error}</p>}
               <div className="report-row">
                 <button

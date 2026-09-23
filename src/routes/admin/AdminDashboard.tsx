@@ -180,6 +180,11 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [feriadoExclusions, setFeriadoExclusions] = useState<FeriadoExclusion[]>([])
   const [exclusionBusyKey, setExclusionBusyKey] = useState<string | null>(null)
   const [exclusionModalFeriado, setExclusionModalFeriado] = useState<Feriado | null>(null)
+  const [tiempoWorker, setTiempoWorker] = useState<Profile | null>(null)
+  const [tiempoCustom, setTiempoCustom] = useState('')
+  const [tiempoBusy, setTiempoBusy] = useState(false)
+  const [tiempoError, setTiempoError] = useState<string | null>(null)
+  const [extensiones, setExtensiones] = useState<Record<string, number>>({})
   const [activeTab, setActiveTab] = useState<
     'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros'
   >('trabajadores')
@@ -460,6 +465,49 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       .createSignedUrl(path, 60)
     if (error || !data) return
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  const loadExtensiones = useCallback(async () => {
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+    const { data } = await supabase
+      .from('ingreso_extension_horas')
+      .select('worker_id, minutos')
+      .eq('fecha', hoy)
+    const map: Record<string, number> = {}
+    for (const r of (data as { worker_id: string; minutos: number }[]) ?? []) {
+      map[r.worker_id] = r.minutos
+    }
+    setExtensiones(map)
+  }, [])
+
+  useEffect(() => {
+    loadExtensiones()
+  }, [loadExtensiones])
+
+  async function sumarTiempo(minutos: number) {
+    if (!tiempoWorker || tiempoBusy) return
+    if (!Number.isFinite(minutos) || minutos <= 0) {
+      setTiempoError('Ingresa una cantidad de minutos válida')
+      return
+    }
+    setTiempoBusy(true)
+    setTiempoError(null)
+    try {
+      const { error } = await supabase.rpc('ingreso_sumar_tiempo', {
+        p_worker: tiempoWorker.id,
+        p_minutos: Math.round(minutos),
+      })
+      if (error) throw error
+      await loadExtensiones()
+      await loadRecords()
+      await loadLastStatuses()
+      setTiempoWorker(null)
+      setTiempoCustom('')
+    } catch (err) {
+      setTiempoError(err instanceof Error ? err.message : 'Error sumando tiempo')
+    } finally {
+      setTiempoBusy(false)
+    }
   }
 
   async function marcarSalidaManual(workerId: string) {
@@ -879,6 +927,16 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                   >
                     {salidaBusyId === w.id ? 'Marcando...' : 'Marcar salida'}
                   </button>
+                  <button
+                    className="btn btn-secondary btn-small"
+                    onClick={() => {
+                      setTiempoWorker(w)
+                      setTiempoError(null)
+                    }}
+                    title="Evita que el sistema cierre la salida automática a la hora del horario"
+                  >
+                    + Tiempo{extensiones[w.id] ? ` (${extensiones[w.id]} min hoy)` : ''}
+                  </button>
                 </>
               )}
             </li>
@@ -886,6 +944,54 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </ul>
         {editError && <p className="error-text">{editError}</p>}
         {salidaError && <p className="error-text">{salidaError}</p>}
+        <p className="subtitle">
+          La salida se marca sola a la hora de término del horario de cada trabajador. Usa
+          &quot;+ Tiempo&quot; para autorizar horas extra de hoy.
+        </p>
+        {tiempoWorker && (
+          <div className="camera-overlay">
+            <div className="camera-modal">
+              <h2>Sumar tiempo a {tiempoWorker.full_name}</h2>
+              <p className="subtitle">
+                Se suma a la hora de salida de hoy; hasta entonces el sistema no le cierra el turno.
+              </p>
+              <div className="action-row">
+                {[30, 60, 90, 120].map((m) => (
+                  <button
+                    key={m}
+                    className="btn btn-secondary"
+                    disabled={tiempoBusy}
+                    onClick={() => sumarTiempo(m)}
+                  >
+                    +{m >= 60 ? `${m / 60}h${m % 60 ? ' 30m' : ''}` : `${m} min`}
+                  </button>
+                ))}
+              </div>
+              <label>
+                Otra cantidad (minutos)
+                <input
+                  type="number"
+                  min={1}
+                  value={tiempoCustom}
+                  onChange={(e) => setTiempoCustom(e.target.value)}
+                />
+              </label>
+              {tiempoError && <p className="error-text">{tiempoError}</p>}
+              <div className="camera-actions">
+                <button className="btn btn-secondary" onClick={() => setTiempoWorker(null)}>
+                  Cerrar
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={tiempoBusy || !tiempoCustom}
+                  onClick={() => sumarTiempo(Number(tiempoCustom))}
+                >
+                  Sumar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
       )}
 

@@ -14,7 +14,6 @@ interface CartLine {
 }
 
 export function ProductosScanner() {
-  const [barra, setBarra] = useState('')
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -64,21 +63,25 @@ export function ProductosScanner() {
 
   async function handleScan(e: React.FormEvent) {
     e.preventDefault()
-    if (!barra.trim()) return
+    const term = search.trim()
+    if (!term) return
     setScanError(null)
     try {
-      const producto = await loadProductoPorBarra(barra.trim())
+      // Si coincide exactamente con un codigo de barras (pistola), se agrega directo al pedido.
+      const producto = await loadProductoPorBarra(term)
       if (!producto) {
-        setScanError(`No se encontró ningún producto con el código ${barra.trim()}`)
-      } else if (producto.precio === null) {
+        if (resultados.length === 0) setScanError(`No se encontró ningún producto con "${term}"`)
+        return
+      }
+      if (producto.precio === null) {
         setScanError(`"${producto.nombre}" todavía no tiene precio configurado.`)
       } else {
         addToCart(producto)
       }
+      setSearch('')
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Error buscando el producto')
     } finally {
-      setBarra('')
       barraInputRef.current?.focus()
     }
   }
@@ -107,17 +110,17 @@ export function ProductosScanner() {
   return (
     <section className="card">
       <h2>Productos</h2>
-      <p className="subtitle">Escanea con la pistola (o escribe el código) para armar un pedido.</p>
+      <p className="subtitle">Escanea con la pistola o busca por nombre para armar un pedido.</p>
 
       <form onSubmit={handleScan} className="report-row">
-        <label>
-          Código de barras
+        <label className="chat-input">
+          Código de barras o nombre
           <input
             ref={barraInputRef}
-            value={barra}
-            onChange={(e) => setBarra(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Escanea o escribe, ej: coca cola"
             autoFocus
-            inputMode="numeric"
           />
         </label>
         <button type="submit" className="btn btn-primary">
@@ -127,10 +130,6 @@ export function ProductosScanner() {
       {scanError && <p className="error-text">{scanError}</p>}
 
       <div className="report-row">
-        <label>
-          Buscar por nombre
-          <input value={search} onChange={(e) => setSearch(e.target.value)} />
-        </label>
         <label>
           Categoría
           <select value={categoria} onChange={(e) => setCategoria(e.target.value)}>

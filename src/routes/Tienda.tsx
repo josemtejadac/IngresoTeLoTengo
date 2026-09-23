@@ -171,9 +171,14 @@ export function Tienda() {
       {error && <p className="error-text">{error}</p>}
 
       <div className="report-row">
-        <label>
-          Buscar
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Ej: coca cola" />
+        <label className="chat-input">
+          Buscar producto
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Escribe el nombre, ej: coca cola"
+          />
         </label>
         <label>
           Categoría

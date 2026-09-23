@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useAuth } from './lib/useAuth'
 import { supabaseConfigError } from './lib/supabase'
+import { Home } from './routes/Home'
 import { Login } from './routes/Login'
 import { Tienda } from './routes/Tienda'
 import { AdminDashboard } from './routes/admin/AdminDashboard'
@@ -8,6 +10,7 @@ import './App.css'
 
 function App() {
   const isTienda = window.location.pathname.startsWith('/tienda')
+  const [showLogin, setShowLogin] = useState(false)
 
   const { session, profile, loading } = useAuth()
 
@@ -33,7 +36,11 @@ function App() {
   }
 
   if (!session) {
-    return <Login />
+    return showLogin ? (
+      <Login onBack={() => setShowLogin(false)} />
+    ) : (
+      <Home onIngreso={() => setShowLogin(true)} />
+    )
   }
 
   if (!profile) {

@@ -9,7 +9,11 @@ interface DirectoryEntry {
   rut: string
 }
 
-export function Login() {
+interface LoginProps {
+  onBack?: () => void
+}
+
+export function Login({ onBack }: LoginProps) {
   const [directory, setDirectory] = useState<DirectoryEntry[]>([])
   const [selectedRut, setSelectedRut] = useState('')
   const [password, setPassword] = useState('')
@@ -89,6 +93,11 @@ export function Login() {
         <button type="submit" className="btn btn-primary" disabled={loading || !selectedRut}>
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
+        {onBack && (
+          <button type="button" className="btn btn-secondary" onClick={onBack}>
+            Volver
+          </button>
+        )}
       </form>
     </div>
   )

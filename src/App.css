@@ -95,6 +95,9 @@ select {
   font-weight: 600;
   cursor: pointer;
   font-size: 0.95rem;
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
 }
 
 .btn:disabled {

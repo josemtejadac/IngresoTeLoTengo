@@ -8,6 +8,8 @@ export interface PendienteEntry {
   /** Nombre del cliente; los registros antiguos no lo tienen y usan comentario. */
   cliente: string | null
   pendiente_date: string
+  /** Suma de abonos parciales ya recibidos. */
+  abonado: number
   pagado: boolean
   paid_by: string | null
   paid_at: string | null
@@ -82,7 +84,7 @@ export function agruparPorCliente(rows: PendienteEntry[]): DeudaCliente[] {
     const nombre = clienteNombre(p)
     const key = nombre.toLowerCase().replace(/\s+/g, ' ')
     const g = map.get(key) ?? { key, nombre, total: 0, deudas: [] }
-    g.total += p.monto
+    g.total += saldo(p)
     g.deudas.push(p)
     map.set(key, g)
   }
@@ -101,6 +103,17 @@ export async function markPendientePagado(id: string, paidByWorkerId: string) {
   if (error) throw error
 }
 
+/** Lo que aun falta cobrar de una deuda (monto menos abonos). */
+export function saldo(p: PendienteEntry): number {
+  return Math.max(0, p.monto - p.abonado)
+}
+
 export function totalPendiente(rows: PendienteEntry[]): number {
-  return rows.filter((r) => !r.pagado).reduce((sum, r) => sum + r.monto, 0)
+  return rows.filter((r) => !r.pagado).reduce((sum, r) => sum + saldo(r), 0)
+}
+
+/** Abono parcial: se aplica primero a las deudas mas antiguas de la lista de ids. */
+export async function abonarPendientes(ids: string[], monto: number) {
+  const { error } = await supabase.rpc('ingreso_abonar', { p_ids: ids, p_monto: monto })
+  if (error) throw error
 }

@@ -30,6 +30,7 @@ import { downloadSalesPdf } from '../../lib/salesReport'
 import {
   loadPendientes,
   markPendientesPagados,
+  abonarPendientes,
   totalPendiente,
   type PendienteEntry,
 } from '../../lib/pendientes'
@@ -698,6 +699,21 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
+  async function handleAbonar(ids: string[], monto: number, busyKey: string): Promise<boolean> {
+    setPayingId(busyKey)
+    setPendienteError(null)
+    try {
+      await abonarPendientes(ids, monto)
+      await loadPendientesRows()
+      return true
+    } catch (err) {
+      setPendienteError(err instanceof Error ? err.message : 'Error registrando el abono')
+      return false
+    } finally {
+      setPayingId(null)
+    }
+  }
+
   async function handleCobrar(ids: string[], busyKey: string) {
     setPayingId(busyKey)
     setPendienteError(null)
@@ -1288,6 +1304,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           nameDirectory={nameDirectory}
           busyKey={payingId}
           onCobrar={handleCobrar}
+          onAbonar={handleAbonar}
           onEliminar={handleDeletePendiente}
         />
       </section>

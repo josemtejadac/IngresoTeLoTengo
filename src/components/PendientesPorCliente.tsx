@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { agruparPorCliente, clienteNombre, type PendienteEntry } from '../lib/pendientes'
+import { agruparPorCliente, clienteNombre, saldo, type PendienteEntry } from '../lib/pendientes'
 
 interface Props {
   pendientes: PendienteEntry[]
   nameDirectory: Record<string, string>
   busyKey: string | null
   onCobrar: (ids: string[], busyKey: string) => void
+  onAbonar: (ids: string[], monto: number, busyKey: string) => Promise<boolean>
   /** Solo el admin puede eliminar registros. */
   onEliminar?: (id: string) => void
 }
@@ -16,9 +17,12 @@ export function PendientesPorCliente({
   nameDirectory,
   busyKey,
   onCobrar,
+  onAbonar,
   onEliminar,
 }: Props) {
   const [abierto, setAbierto] = useState<string | null>(null)
+  const [abonando, setAbonando] = useState<string | null>(null)
+  const [abonoMonto, setAbonoMonto] = useState('')
   const grupos = agruparPorCliente(pendientes)
   const cobrados = pendientes.filter((p) => p.pagado).slice(0, 15)
 
@@ -43,6 +47,15 @@ export function PendientesPorCliente({
                 {abierto === g.key ? 'Ocultar detalle' : 'Ver detalle'}
               </button>
               <button
+                className="btn btn-secondary btn-small"
+                onClick={() => {
+                  setAbonando(abonando === g.key ? null : g.key)
+                  setAbonoMonto('')
+                }}
+              >
+                Abonar
+              </button>
+              <button
                 className="btn btn-primary btn-small"
                 disabled={busyKey === `all-${g.key}`}
                 onClick={() => {
@@ -62,6 +75,35 @@ export function PendientesPorCliente({
               </button>
             </div>
           </div>
+          {abonando === g.key && (
+            <div className="report-row">
+              <label>
+                Monto del abono (debe {formatCLP(g.total)})
+                <input
+                  type="number"
+                  min={1}
+                  max={g.total}
+                  value={abonoMonto}
+                  onChange={(e) => setAbonoMonto(e.target.value)}
+                  autoFocus
+                />
+              </label>
+              <button
+                className="btn btn-primary btn-small"
+                disabled={busyKey === `abono-${g.key}` || !Number(abonoMonto)}
+                onClick={async () => {
+                  const ok = await onAbonar(
+                    g.deudas.map((d) => d.id),
+                    Number(abonoMonto),
+                    `abono-${g.key}`,
+                  )
+                  if (ok) setAbonando(null)
+                }}
+              >
+                {busyKey === `abono-${g.key}` ? 'Guardando...' : 'Registrar abono'}
+              </button>
+            </div>
+          )}
           {abierto === g.key && (
             <table className="table">
               <thead>
@@ -78,7 +120,15 @@ export function PendientesPorCliente({
                   <tr key={d.id}>
                     <td>{new Date(d.created_at).toLocaleDateString('es-CL')}</td>
                     <td>{d.cliente?.trim() ? d.comentario || '—' : '—'}</td>
-                    <td>{formatCLP(d.monto)}</td>
+                    <td>
+                      {formatCLP(d.monto)}
+                      {d.abonado > 0 && (
+                        <span className="subtitle">
+                          {' '}
+                          (abonado {formatCLP(d.abonado)}, resta {formatCLP(saldo(d))})
+                        </span>
+                      )}
+                    </td>
                     <td>{nameDirectory[d.worker_id] ?? '—'}</td>
                     <td className="table-controls">
                       <button

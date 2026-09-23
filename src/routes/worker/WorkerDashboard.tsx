@@ -36,6 +36,7 @@ import {
   addPendientes,
   loadPendientes,
   markPendientesPagados,
+  abonarPendientes,
   agruparPorCliente,
   totalPendiente,
   type PendienteEntry,
@@ -434,6 +435,21 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
+  async function handleAbonar(ids: string[], monto: number, busyKey: string): Promise<boolean> {
+    setPayingId(busyKey)
+    setPendienteError(null)
+    try {
+      await abonarPendientes(ids, monto)
+      await loadPendientesRows()
+      return true
+    } catch (err) {
+      setPendienteError(err instanceof Error ? err.message : 'Error registrando el abono')
+      return false
+    } finally {
+      setPayingId(null)
+    }
+  }
+
   async function handleCobrar(ids: string[], busyKey: string) {
     setPayingId(busyKey)
     try {
@@ -784,6 +800,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           nameDirectory={nameDirectory}
           busyKey={payingId}
           onCobrar={handleCobrar}
+          onAbonar={handleAbonar}
         />
       </section>
       )}

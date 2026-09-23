@@ -23,6 +23,8 @@ export function PendientesPorCliente({
   const [abierto, setAbierto] = useState<string | null>(null)
   const [abonando, setAbonando] = useState<string | null>(null)
   const [abonoMonto, setAbonoMonto] = useState('')
+  const [abonandoDeuda, setAbonandoDeuda] = useState<string | null>(null)
+  const [abonoDeudaMonto, setAbonoDeudaMonto] = useState('')
   const grupos = agruparPorCliente(pendientes)
   const cobrados = pendientes.filter((p) => p.pagado).slice(0, 15)
 
@@ -78,7 +80,7 @@ export function PendientesPorCliente({
           {abonando === g.key && (
             <div className="report-row">
               <label>
-                Monto del abono (debe {formatCLP(g.total)})
+                Abono general (se descuenta de las más antiguas; debe {formatCLP(g.total)})
                 <input
                   type="number"
                   min={1}
@@ -131,13 +133,52 @@ export function PendientesPorCliente({
                     </td>
                     <td>{nameDirectory[d.worker_id] ?? '—'}</td>
                     <td className="table-controls">
-                      <button
-                        className="btn btn-secondary btn-small"
-                        disabled={busyKey === d.id}
-                        onClick={() => onCobrar([d.id], d.id)}
-                      >
-                        {busyKey === d.id ? 'Guardando...' : 'Cobrar'}
-                      </button>
+                      {abonandoDeuda === d.id ? (
+                        <>
+                          <input
+                            type="number"
+                            min={1}
+                            max={saldo(d)}
+                            value={abonoDeudaMonto}
+                            onChange={(e) => setAbonoDeudaMonto(e.target.value)}
+                            placeholder={`Máx ${saldo(d)}`}
+                            className="qty-input"
+                            autoFocus
+                          />
+                          <button
+                            className="btn btn-primary btn-small"
+                            disabled={busyKey === `abono-${d.id}` || !Number(abonoDeudaMonto)}
+                            onClick={async () => {
+                              const ok = await onAbonar([d.id], Number(abonoDeudaMonto), `abono-${d.id}`)
+                              if (ok) setAbonandoDeuda(null)
+                            }}
+                          >
+                            {busyKey === `abono-${d.id}` ? 'Guardando...' : 'Guardar'}
+                          </button>
+                          <button className="btn-link" onClick={() => setAbonandoDeuda(null)}>
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => {
+                              setAbonandoDeuda(d.id)
+                              setAbonoDeudaMonto('')
+                            }}
+                          >
+                            Abonar
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-small"
+                            disabled={busyKey === d.id}
+                            onClick={() => onCobrar([d.id], d.id)}
+                          >
+                            {busyKey === d.id ? 'Guardando...' : 'Cobrar'}
+                          </button>
+                        </>
+                      )}
                       {onEliminar && (
                         <button
                           className="btn btn-danger btn-small"

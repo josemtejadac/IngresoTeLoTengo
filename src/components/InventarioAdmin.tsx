@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import {
+  activarProductoPorBarra,
+  crearProductoNuevo,
   loadCategorias,
   loadProductos,
   productoFotoUrl,
@@ -12,6 +14,14 @@ import {
 
 export function InventarioAdmin() {
   const [open, setOpen] = useState(false)
+  const [catalogoOculto, setCatalogoOculto] = useState(false)
+  const [scanBarra, setScanBarra] = useState('')
+  const [sumarStock, setSumarStock] = useState(false)
+  const [scanMessage, setScanMessage] = useState<string | null>(null)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [nuevoBarra, setNuevoBarra] = useState<string | null>(null)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [nuevaCategoria, setNuevaCategoria] = useState('')
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -25,17 +35,90 @@ export function InventarioAdmin() {
 
   useEffect(() => {
     if (!open) return
-    loadCategorias().then(setCategorias).catch(() => {})
-  }, [open])
+    loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
+  }, [open, catalogoOculto])
 
   const runSearch = useCallback(async () => {
     try {
-      const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined })
+      const rows = await loadProductos({
+        categoria: categoria || undefined,
+        search: search || undefined,
+        soloInactivos: catalogoOculto,
+      })
       setProductos(rows)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando productos')
     }
-  }, [categoria, search])
+  }, [categoria, search, catalogoOculto])
+
+  async function handleScan(e: React.FormEvent) {
+    e.preventDefault()
+    const code = scanBarra.trim()
+    if (!code) return
+    setScanError(null)
+    setScanMessage(null)
+    setNuevoBarra(null)
+    try {
+      const result = await activarProductoPorBarra(code, sumarStock)
+      if (result.tipo === 'no_encontrado') {
+        setNuevoBarra(code)
+        setNuevoNombre('')
+        setNuevaCategoria('')
+      } else if (result.tipo === 'activado') {
+        setScanMessage(`Activado: ${result.producto.nombre}`)
+      } else {
+        setScanMessage(
+          `Ya estaba en tu inventario: ${result.producto.nombre} (stock ${result.producto.stock})`,
+        )
+      }
+      await runSearch()
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Error escaneando el producto')
+    } finally {
+      setScanBarra('')
+    }
+  }
+
+  async function handleCrearNuevo(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nuevoBarra || !nuevoNombre.trim()) return
+    setScanError(null)
+    try {
+      const p = await crearProductoNuevo({
+        codigo_barras: nuevoBarra,
+        nombre: nuevoNombre,
+        categoria: nuevaCategoria,
+        stock: sumarStock ? 1 : 0,
+      })
+      setScanMessage(`Producto nuevo creado: ${p.nombre}`)
+      setNuevoBarra(null)
+      await runSearch()
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Error creando el producto')
+    }
+  }
+
+  async function handleActivar(p: Producto) {
+    setError(null)
+    try {
+      await updateProducto(p.id, { active: true })
+      await runSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error activando el producto')
+    }
+  }
+
+  async function handleOcultar() {
+    if (!editing) return
+    setError(null)
+    try {
+      await updateProducto(editing.id, { active: false })
+      setEditing(null)
+      await runSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error ocultando el producto')
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -126,9 +209,71 @@ export function InventarioAdmin() {
         </button>
       </div>
       <p className="subtitle">
-        Solo tú puedes editar precio, foto y stock. Escribe en el buscador o filtra por categoría —
-        el catálogo completo tiene miles de productos.
+        Aquí ves solo los productos que ya escaneaste (tu inventario real). Escanea con la pistola
+        para activar cada producto del catálogo; los que no estén en el catálogo los puedes crear
+        al momento.
       </p>
+
+      <form onSubmit={handleScan} className="report-row">
+        <label>
+          Escanear código de barras
+          <input
+            value={scanBarra}
+            onChange={(e) => setScanBarra(e.target.value)}
+            inputMode="numeric"
+            autoFocus
+          />
+        </label>
+        <button type="submit" className="btn btn-primary">
+          Activar
+        </button>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={sumarStock}
+            onChange={(e) => setSumarStock(e.target.checked)}
+          />
+          Sumar 1 al stock por cada escaneo
+        </label>
+      </form>
+      {scanMessage && <p className="info-text">{scanMessage}</p>}
+      {scanError && <p className="error-text">{scanError}</p>}
+
+      {nuevoBarra && (
+        <form onSubmit={handleCrearNuevo} className="worker-form">
+          <p>
+            El código <strong>{nuevoBarra}</strong> no está en el catálogo. Créalo como producto
+            nuevo:
+          </p>
+          <label>
+            Nombre
+            <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required />
+          </label>
+          <label>
+            Categoría (opcional)
+            <input value={nuevaCategoria} onChange={(e) => setNuevaCategoria(e.target.value)} />
+          </label>
+          <div className="report-row">
+            <button type="submit" className="btn btn-primary">
+              Crear producto
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => setNuevoBarra(null)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="report-row">
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={catalogoOculto}
+            onChange={(e) => setCatalogoOculto(e.target.checked)}
+          />
+          Ver catálogo oculto (productos sin activar)
+        </label>
+      </div>
       <div className="report-row">
         <label>
           Buscar por nombre o código de barras
@@ -174,9 +319,15 @@ export function InventarioAdmin() {
               <td>{p.precio !== null ? formatCLP(p.precio) : 'Sin precio'}</td>
               <td>{p.stock}</td>
               <td>
-                <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
-                  Editar
-                </button>
+                {catalogoOculto ? (
+                  <button className="btn btn-primary btn-small" onClick={() => handleActivar(p)}>
+                    Activar
+                  </button>
+                ) : (
+                  <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
+                    Editar
+                  </button>
+                )}
               </td>
             </tr>
           ))}
@@ -227,6 +378,9 @@ export function InventarioAdmin() {
             {error && <p className="error-text">{error}</p>}
 
             <div className="camera-actions">
+              <button className="btn btn-danger" onClick={handleOcultar}>
+                Ocultar producto
+              </button>
               <button className="btn btn-secondary" onClick={() => setEditing(null)}>
                 Cerrar
               </button>

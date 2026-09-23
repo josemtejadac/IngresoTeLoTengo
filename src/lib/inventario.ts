@@ -18,11 +18,13 @@ export async function loadProductos(params: {
   categoria?: string
   search?: string
   limit?: number
+  /** Solo para el admin: incluir el catalogo maestro oculto (productos no activados). */
+  soloInactivos?: boolean
 }): Promise<Producto[]> {
   let query = supabase
     .from('ingreso_productos')
     .select('*')
-    .eq('active', true)
+    .eq('active', !params.soloInactivos)
     .order('nombre')
     .limit(params.limit ?? 100)
 
@@ -48,13 +50,83 @@ export async function loadProductoPorBarra(codigoBarras: string): Promise<Produc
   return (data as Producto | null) ?? null
 }
 
-export async function loadCategorias(): Promise<string[]> {
+export type ResultadoEscaneoAdmin =
+  | { tipo: 'activado'; producto: Producto }
+  | { tipo: 'ya_activo'; producto: Producto }
+  | { tipo: 'no_encontrado' }
+
+/**
+ * Escaneo del admin para armar el inventario real: busca el codigo de barras
+ * en el catalogo maestro (activo o no); si estaba oculto lo activa, y
+ * opcionalmente suma 1 al stock (conteo fisico).
+ */
+export async function activarProductoPorBarra(
+  codigoBarras: string,
+  sumarStock: boolean,
+): Promise<ResultadoEscaneoAdmin> {
   const { data, error } = await supabase
     .from('ingreso_productos')
+    .select('*')
+    .eq('codigo_barras', codigoBarras.trim())
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return { tipo: 'no_encontrado' }
+
+  const producto = data as Producto
+  const yaActivo = producto.active
+  const nuevoStock = sumarStock ? producto.stock + 1 : producto.stock
+
+  if (yaActivo && !sumarStock) return { tipo: 'ya_activo', producto }
+
+  const { data: updated, error: updateError } = await supabase
+    .from('ingreso_productos')
+    .update({ active: true, stock: nuevoStock, updated_at: new Date().toISOString() })
+    .eq('id', producto.id)
+    .select('*')
+    .single()
+  if (updateError) throw updateError
+
+  return { tipo: yaActivo ? 'ya_activo' : 'activado', producto: updated as Producto }
+}
+
+/** Producto que no existia en el catalogo maestro (ya activo desde el inicio). */
+export async function crearProductoNuevo(params: {
+  codigo_barras: string
+  nombre: string
+  categoria?: string
+  stock?: number
+}): Promise<Producto> {
+  const { data, error } = await supabase
+    .from('ingreso_productos')
+    .insert({
+      codigo_barras: params.codigo_barras.trim(),
+      nombre: params.nombre.trim(),
+      categoria: params.categoria?.trim() || null,
+      stock: params.stock ?? 0,
+      active: true,
+    })
+    .select('*')
+    .single()
+  if (error) throw error
+  return data as Producto
+}
+
+export async function desactivarProducto(id: string) {
+  const { error } = await supabase
+    .from('ingreso_productos')
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function loadCategorias(incluirInactivos = false): Promise<string[]> {
+  let query = supabase
+    .from('ingreso_productos')
     .select('categoria')
-    .eq('active', true)
     .not('categoria', 'is', null)
     .limit(3000)
+  if (!incluirInactivos) query = query.eq('active', true)
+  const { data, error } = await query
   if (error) throw error
   const set = new Set((data as { categoria: string }[]).map((r) => r.categoria).filter(Boolean))
   return [...set].sort()
@@ -62,7 +134,7 @@ export async function loadCategorias(): Promise<string[]> {
 
 export async function updateProducto(
   id: string,
-  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria'>>,
+  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active'>>,
 ) {
   const { error } = await supabase
     .from('ingreso_productos')

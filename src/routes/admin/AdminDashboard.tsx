@@ -178,6 +178,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [deletingFeriadoId, setDeletingFeriadoId] = useState<string | null>(null)
   const [feriadoExclusions, setFeriadoExclusions] = useState<FeriadoExclusion[]>([])
   const [exclusionBusyKey, setExclusionBusyKey] = useState<string | null>(null)
+  const [exclusionModalFeriado, setExclusionModalFeriado] = useState<Feriado | null>(null)
 
   const loadLastStatuses = useCallback(async () => {
     const { data } = await supabase.rpc('ingreso_last_attendance')
@@ -1203,51 +1204,74 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               <th>Nombre</th>
               <th>Tipo</th>
               <th>Bono</th>
-              <th>No pagar a</th>
+              <th></th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {feriados.map((f) => (
-              <tr key={f.id}>
-                <td>{f.fecha}</td>
-                <td>{f.nombre}</td>
-                <td>{f.tipo === 'irrenunciable' ? 'Irrenunciable' : 'Feriado'}</td>
-                <td>
-                  {formatCLP(f.tipo === 'irrenunciable' ? IRRENUNCIABLE_BONUS : FERIADO_BONUS)}
-                </td>
-                <td>
-                  {workers.map((w) => {
-                    const key = `${w.id}-${f.fecha}`
-                    const excluded = feriadoExclusions.some(
-                      (e) => e.worker_id === w.id && e.fecha === f.fecha,
-                    )
-                    return (
-                      <label key={w.id} className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={excluded}
-                          disabled={exclusionBusyKey === key}
-                          onChange={() => toggleFeriadoExclusion(w.id, f.fecha)}
-                        />
-                        {w.full_name}
-                      </label>
-                    )
-                  })}
-                </td>
-                <td>
-                  <button
-                    className="btn btn-danger btn-small"
-                    disabled={deletingFeriadoId === f.id}
-                    onClick={() => handleDeleteFeriado(f.id)}
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {feriados.map((f) => {
+              const excludedCount = feriadoExclusions.filter((e) => e.fecha === f.fecha).length
+              return (
+                <tr key={f.id}>
+                  <td>{f.fecha}</td>
+                  <td>{f.nombre}</td>
+                  <td>{f.tipo === 'irrenunciable' ? 'Irrenunciable' : 'Feriado'}</td>
+                  <td>
+                    {formatCLP(f.tipo === 'irrenunciable' ? IRRENUNCIABLE_BONUS : FERIADO_BONUS)}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      onClick={() => setExclusionModalFeriado(f)}
+                    >
+                      No pagar a{excludedCount > 0 ? ` (${excludedCount})` : ''}
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-danger btn-small"
+                      disabled={deletingFeriadoId === f.id}
+                      onClick={() => handleDeleteFeriado(f.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
+
+        {exclusionModalFeriado && (
+          <div className="camera-overlay">
+            <div className="camera-modal">
+              <h2>No pagar a — {exclusionModalFeriado.nombre}</h2>
+              <p className="subtitle">{exclusionModalFeriado.fecha}</p>
+              {workers.map((w) => {
+                const key = `${w.id}-${exclusionModalFeriado.fecha}`
+                const excluded = feriadoExclusions.some(
+                  (e) => e.worker_id === w.id && e.fecha === exclusionModalFeriado.fecha,
+                )
+                return (
+                  <label key={w.id} className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={excluded}
+                      disabled={exclusionBusyKey === key}
+                      onChange={() => toggleFeriadoExclusion(w.id, exclusionModalFeriado.fecha)}
+                    />
+                    {w.full_name}
+                  </label>
+                )
+              })}
+              <div className="camera-actions">
+                <button className="btn btn-primary" onClick={() => setExclusionModalFeriado(null)}>
+                  Listo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="card">

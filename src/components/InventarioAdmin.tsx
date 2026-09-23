@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { formatCLP } from '../lib/payroll'
 import {
   loadCategorias,
   loadProductos,
@@ -14,7 +15,9 @@ export function InventarioAdmin() {
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
-  const [edits, setEdits] = useState<Record<string, { precio: string; stock: string }>>({})
+  const [editing, setEditing] = useState<Producto | null>(null)
+  const [editPrecio, setEditPrecio] = useState('')
+  const [editStock, setEditStock] = useState('0')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -27,11 +30,6 @@ export function InventarioAdmin() {
     try {
       const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined })
       setProductos(rows)
-      setEdits(
-        Object.fromEntries(
-          rows.map((p) => [p.id, { precio: p.precio?.toString() ?? '', stock: p.stock.toString() }]),
-        ),
-      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando productos')
     }
@@ -53,20 +51,27 @@ export function InventarioAdmin() {
     }
   }, [runSearch])
 
-  async function handleSave(producto: Producto) {
-    const edit = edits[producto.id]
-    if (!edit) return
-    const precio = edit.precio === '' ? null : Number(edit.precio)
-    const stock = Number(edit.stock)
+  function openEdit(p: Producto) {
+    setEditing(p)
+    setEditPrecio(p.precio?.toString() ?? '')
+    setEditStock(p.stock.toString())
+    setError(null)
+  }
+
+  async function handleSave() {
+    if (!editing) return
+    const precio = editPrecio === '' ? null : Number(editPrecio)
+    const stock = Number(editStock)
     if ((precio !== null && Number.isNaN(precio)) || Number.isNaN(stock)) {
       setError('Precio o stock inválido')
       return
     }
-    setSavingId(producto.id)
+    setSavingId(editing.id)
     setError(null)
     try {
-      await updateProducto(producto.id, { precio, stock })
+      await updateProducto(editing.id, { precio, stock })
       await runSearch()
+      setEditing(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error guardando el producto')
     } finally {
@@ -74,13 +79,16 @@ export function InventarioAdmin() {
     }
   }
 
-  async function handleFoto(producto: Producto, file: File | undefined) {
-    if (!file) return
-    setUploadingId(producto.id)
+  async function handleFoto(file: File | undefined) {
+    if (!file || !editing) return
+    setUploadingId(editing.id)
     setError(null)
     try {
-      await uploadProductoFoto(producto.id, file)
-      await runSearch()
+      await uploadProductoFoto(editing.id, file)
+      const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined })
+      setProductos(rows)
+      const updated = rows.find((r) => r.id === editing.id)
+      if (updated) setEditing(updated)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error subiendo la foto')
     } finally {
@@ -90,10 +98,13 @@ export function InventarioAdmin() {
 
   return (
     <section className="card">
-      <h2>Inventario ({productos.length}{productos.length >= 100 ? '+' : ''} de la búsqueda)</h2>
+      <h2>
+        Inventario ({productos.length}
+        {productos.length >= 100 ? '+' : ''} de la búsqueda)
+      </h2>
       <p className="subtitle">
-        Solo tú puedes editar precio, nombre, foto y stock. Escribe en el buscador o filtra por
-        categoría — el catálogo completo tiene miles de productos.
+        Solo tú puedes editar precio, foto y stock. Escribe en el buscador o filtra por categoría —
+        el catálogo completo tiene miles de productos.
       </p>
       <div className="report-row">
         <label>
@@ -112,7 +123,7 @@ export function InventarioAdmin() {
           </select>
         </label>
       </div>
-      {error && <p className="error-text">{error}</p>}
+      {error && !editing && <p className="error-text">{error}</p>}
 
       <table className="table">
         <thead>
@@ -120,69 +131,93 @@ export function InventarioAdmin() {
             <th>Foto</th>
             <th>Nombre</th>
             <th>Categoría</th>
-            <th>Código de barras</th>
             <th>Precio</th>
             <th>Stock</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          {productos.map((p) => {
-            const edit = edits[p.id] ?? { precio: '', stock: '0' }
-            return (
-              <tr key={p.id}>
-                <td>
-                  {p.foto_path ? (
-                    <img src={productoFotoUrl(p.foto_path)} alt="" className="producto-thumb" />
-                  ) : (
-                    '—'
-                  )}
-                  <br />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploadingId === p.id}
-                    onChange={(e) => handleFoto(p, e.target.files?.[0])}
-                  />
-                </td>
-                <td>{p.nombre}</td>
-                <td>{p.categoria ?? '—'}</td>
-                <td>{p.codigo_barras ?? '—'}</td>
-                <td>
-                  <input
-                    type="number"
-                    min={0}
-                    className="qty-input"
-                    value={edit.precio}
-                    onChange={(e) =>
-                      setEdits((prev) => ({ ...prev, [p.id]: { ...edit, precio: e.target.value } }))
-                    }
-                  />
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    className="qty-input"
-                    value={edit.stock}
-                    onChange={(e) =>
-                      setEdits((prev) => ({ ...prev, [p.id]: { ...edit, stock: e.target.value } }))
-                    }
-                  />
-                </td>
-                <td>
-                  <button
-                    className="btn btn-secondary btn-small"
-                    disabled={savingId === p.id}
-                    onClick={() => handleSave(p)}
-                  >
-                    {savingId === p.id ? 'Guardando...' : 'Guardar'}
-                  </button>
-                </td>
-              </tr>
-            )
-          })}
+          {productos.map((p) => (
+            <tr key={p.id}>
+              <td>
+                {p.foto_path ? (
+                  <img src={productoFotoUrl(p.foto_path)} alt="" className="producto-thumb" />
+                ) : (
+                  '—'
+                )}
+              </td>
+              <td>{p.nombre}</td>
+              <td>{p.categoria ?? '—'}</td>
+              <td>{p.precio !== null ? formatCLP(p.precio) : 'Sin precio'}</td>
+              <td>{p.stock}</td>
+              <td>
+                <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
+                  Editar
+                </button>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
+
+      {editing && (
+        <div className="camera-overlay">
+          <div className="camera-modal">
+            <h2>{editing.nombre}</h2>
+            <p className="subtitle">
+              {editing.categoria ?? '—'} · Código: {editing.codigo_barras ?? '—'}
+            </p>
+
+            {editing.foto_path ? (
+              <img
+                src={productoFotoUrl(editing.foto_path)}
+                alt=""
+                className="producto-preview"
+              />
+            ) : (
+              <div className="producto-preview producto-preview-empty">Sin foto</div>
+            )}
+            <label>
+              Foto (se comprime automáticamente)
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploadingId === editing.id}
+                onChange={(e) => handleFoto(e.target.files?.[0])}
+              />
+            </label>
+
+            <label>
+              Precio
+              <input
+                type="number"
+                min={0}
+                value={editPrecio}
+                onChange={(e) => setEditPrecio(e.target.value)}
+              />
+            </label>
+            <label>
+              Stock
+              <input type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+            </label>
+
+            {error && <p className="error-text">{error}</p>}
+
+            <div className="camera-actions">
+              <button className="btn btn-secondary" onClick={() => setEditing(null)}>
+                Cerrar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={savingId === editing.id}
+              >
+                {savingId === editing.id ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }

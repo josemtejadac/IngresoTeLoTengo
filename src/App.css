@@ -344,6 +344,23 @@ select {
   display: block;
 }
 
+.producto-preview {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 10px;
+  align-self: center;
+}
+
+.producto-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
 .pendiente-paid td {
   color: #94a3b8;
   font-size: 0.85rem;

@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 
+/**
+ * En moviles a veces un solo toque dispara dos eventos de click casi
+ * simultaneos ("ghost click"), lo que alcanzaba a generar dos fotos y dos
+ * registros de asistencia antes de que React aplicara el estado "busy".
+ * Por eso ademas del estado, usamos un ref: se marca de forma sincronica
+ * en el mismo tick del primer click, antes de que cualquier segundo click
+ * pueda pasar la validacion.
+ */
+
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void
   onCancel: () => void
@@ -13,6 +22,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const streamRef = useRef<MediaStream | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const capturedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -77,9 +87,16 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   }, [])
 
   function handleCapture() {
-    const video = videoRef.current
-    if (!video) return
+    if (capturedRef.current) return
+    capturedRef.current = true
     setBusy(true)
+
+    const video = videoRef.current
+    if (!video) {
+      capturedRef.current = false
+      setBusy(false)
+      return
+    }
 
     const scale = Math.min(1, MAX_WIDTH / video.videoWidth)
     const width = Math.round(video.videoWidth * scale)
@@ -90,6 +107,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     canvas.height = height
     const ctx = canvas.getContext('2d')
     if (!ctx) {
+      capturedRef.current = false
       setBusy(false)
       return
     }
@@ -97,8 +115,14 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
 
     canvas.toBlob(
       (blob) => {
-        setBusy(false)
-        if (blob) onCapture(blob)
+        if (blob) {
+          // No se resetea busy/capturedRef: el boton queda deshabilitado
+          // hasta que el padre termine de subir la foto y cierre este modal.
+          onCapture(blob)
+        } else {
+          capturedRef.current = false
+          setBusy(false)
+        }
       },
       'image/jpeg',
       JPEG_QUALITY,
@@ -117,7 +141,7 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
           </>
         )}
         <div className="camera-actions">
-          <button type="button" onClick={onCancel} className="btn btn-secondary">
+          <button type="button" onClick={onCancel} className="btn btn-secondary" disabled={busy}>
             Cancelar
           </button>
           <button

@@ -4,6 +4,7 @@ import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
+import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
 import {
@@ -96,7 +97,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<
-    'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'historial'
+    'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'historial' | 'asistente'
   >('inicio')
 
   const loadRecords = useCallback(async () => {
@@ -476,6 +477,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         >
           Historial
         </button>
+        <button
+          className={activeTab === 'asistente' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('asistente')}
+        >
+          Asistente
+        </button>
       </nav>
 
       <div className="action-row">
@@ -589,6 +596,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       {activeTab === 'productos' && <ProductosScanner />}
 
       {activeTab === 'pedidos' && <PedidosTienda />}
+
+      {activeTab === 'asistente' && <AsistenteTienda />}
 
       {activeTab === 'arqueo' && (
         <>

@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
+import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
@@ -180,7 +181,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [exclusionBusyKey, setExclusionBusyKey] = useState<string | null>(null)
   const [exclusionModalFeriado, setExclusionModalFeriado] = useState<Feriado | null>(null)
   const [activeTab, setActiveTab] = useState<
-    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros'
+    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros' | 'asistente'
   >('trabajadores')
 
   const loadLastStatuses = useCallback(async () => {
@@ -803,6 +804,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         >
           Registros
         </button>
+        <button
+          className={activeTab === 'asistente' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('asistente')}
+        >
+          Asistente
+        </button>
       </nav>
 
       {activeTab === 'trabajadores' && (
@@ -1150,6 +1157,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       {activeTab === 'pedidos' && <PedidosTienda />}
 
       {activeTab === 'inventario' && <InventarioAdmin />}
+
+      {activeTab === 'asistente' && <AsistenteTienda />}
 
       {activeTab === 'pendientes' && (
       <section className="card">

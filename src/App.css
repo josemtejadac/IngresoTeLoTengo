@@ -518,3 +518,35 @@ select {
   text-align: center;
   color: #1e293b;
 }
+
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.chat-msg {
+  max-width: 90%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+}
+
+.chat-user {
+  align-self: flex-end;
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.chat-bot {
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.chat-input {
+  flex: 1 1 200px;
+}

@@ -4,6 +4,7 @@ import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
+import { ClienteSugerido, type ClienteOpcion } from '../../components/ClienteSugerido'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
@@ -40,6 +41,7 @@ import {
   markPendientesPagados,
   abonarPendientes,
   agruparPorCliente,
+  clienteNombre,
   totalPendiente,
   type PendienteEntry,
 } from '../../lib/pendientes'
@@ -408,6 +410,26 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     setPendienteRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
   }
 
+  // Todos los clientes que alguna vez tuvieron deuda (con o sin deuda hoy), para sugerirlos al escribir.
+  const clientesConocidos: ClienteOpcion[] = (() => {
+    const deudaPorClave = new Map(agruparPorCliente(pendientes).map((g) => [g.key, g.total]))
+    const vistos = new Map<string, ClienteOpcion>()
+    for (const p of pendientes) {
+      const nombre = clienteNombre(p)
+      const clave = nombre.toLowerCase().replace(/\s+/g, ' ')
+      if (!vistos.has(clave)) vistos.set(clave, { nombre, deuda: deudaPorClave.get(clave) ?? 0 })
+    }
+    return [...vistos.values()]
+  })()
+
+  /** Si el nombre coincide con uno ya registrado (sin importar mayusculas/tildes), usa esa escritura. */
+  function canonico(nombre: string): string {
+    const norm = (t: string) =>
+      t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+    const igual = clientesConocidos.find((c) => norm(c.nombre) === norm(nombre))
+    return igual ? igual.nombre : nombre
+  }
+
   async function handleAddPendiente(e: React.FormEvent) {
     e.preventDefault()
     if (pendienteBusyRef.current) return
@@ -415,7 +437,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     const filled = pendienteRows.filter((r) => r.monto.trim() || r.cliente.trim())
     const parsed = filled.map((r) => ({
       monto: Number(r.monto),
-      cliente: r.cliente.trim(),
+      cliente: canonico(r.cliente.trim()),
       detalle: r.detalle.trim(),
     }))
     if (parsed.length === 0 || parsed.some((r) => !r.monto || r.monto <= 0 || !r.cliente)) {
@@ -749,22 +771,17 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           persona se juntan, y se puede cobrar una por una o todas juntas.
         </p>
         <form onSubmit={handleAddPendiente} className="worker-form">
-          <datalist id="clientes-fiado">
-            {agruparPorCliente(pendientes).map((g) => (
-              <option key={g.key} value={g.nombre} />
-            ))}
-          </datalist>
           {pendienteRows.map((r, i) => (
             <div key={i} className="report-row">
-              <label className="chat-input">
-                Cliente
-                <input
-                  list="clientes-fiado"
+              <div className="chat-input">
+                <span className="campo-etiqueta">Cliente</span>
+                <ClienteSugerido
                   value={r.cliente}
-                  onChange={(e) => updatePendienteRow(i, 'cliente', e.target.value)}
+                  onChange={(v) => updatePendienteRow(i, 'cliente', v)}
+                  opciones={clientesConocidos}
                   placeholder="Ej: Juan, depto 202"
                 />
-              </label>
+              </div>
               <label className="chat-input">
                 Detalle (opcional)
                 <input

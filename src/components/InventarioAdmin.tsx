@@ -229,6 +229,21 @@ export function InventarioAdmin() {
     }
   }
 
+  /** Foto rapida desde la lista: en el celular ofrece camara o galeria. */
+  async function handleFotoFila(p: Producto, file: File | undefined) {
+    if (!file || uploadingId) return
+    setUploadingId(p.id)
+    setError(null)
+    try {
+      await uploadProductoFoto(p.id, file)
+      await runSearch()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error subiendo la foto')
+    } finally {
+      setUploadingId(null)
+    }
+  }
+
   async function handleFoto(file: File | undefined) {
     if (!file || !editing) return
     setUploadingId(editing.id)
@@ -389,6 +404,19 @@ export function InventarioAdmin() {
               <td>{p.por_peso ? 'Por peso' : p.stock}</td>
               <td>
                 <div className="table-controls">
+                  <label className="btn btn-secondary btn-small foto-btn">
+                    {uploadingId === p.id ? 'Subiendo...' : p.foto_path ? '📷 Cambiar foto' : '📷 Foto'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      disabled={uploadingId !== null}
+                      onChange={(e) => {
+                        handleFotoFila(p, e.target.files?.[0])
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
                   <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
                     Editar
                   </button>

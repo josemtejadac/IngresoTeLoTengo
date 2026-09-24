@@ -719,3 +719,63 @@ textarea {
   font-family: inherit;
   resize: vertical;
 }
+
+.cliente-sugerido {
+  position: relative;
+}
+
+.cliente-sugerido input {
+  width: 100%;
+}
+
+.campo-etiqueta {
+  font-size: 0.9rem;
+  color: #334155;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.cliente-sugerencias {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: 2px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.cliente-sugerencias button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.cliente-sugerencias button:hover {
+  background: #f1f5f9;
+}
+
+.cliente-sugerencias .subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.foto-btn {
+  cursor: pointer;
+  display: inline-block;
+}

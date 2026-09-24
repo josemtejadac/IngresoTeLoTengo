@@ -171,7 +171,17 @@ export async function uploadProductoFoto(productoId: string, file: File): Promis
     .from('ingreso-productos-fotos')
     .upload(path, compressed, { contentType: 'image/jpeg' })
   if (uploadError) throw uploadError
+  // Foto anterior (si habia): se borra para no acumular archivos sin uso.
+  const { data: previo } = await supabase
+    .from('ingreso_productos')
+    .select('foto_path')
+    .eq('id', productoId)
+    .single()
   await updateProducto(productoId, { foto_path: path })
+  const anterior = (previo as { foto_path: string | null } | null)?.foto_path
+  if (anterior && anterior !== path) {
+    await supabase.storage.from('ingreso-productos-fotos').remove([anterior])
+  }
   return path
 }
 

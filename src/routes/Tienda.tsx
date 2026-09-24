@@ -5,10 +5,11 @@ import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
 import {
   crearPedidoTienda,
-  loadDatosTransferencia,
+  guardarPedidoIdLocal,
+  loadMisPedidos,
   METODO_PAGO_LABEL,
-  subirComprobante,
   type MetodoPago,
+  type MiPedido,
   loadCatalogoTienda,
   loadCategoriasTienda,
   productoFotoUrl,
@@ -65,11 +66,8 @@ export function Tienda() {
     metodo: MetodoPago
   } | null>(null)
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
-  const [datosTransf, setDatosTransf] = useState('')
-  const [comprobante, setComprobante] = useState<File | null>(null)
-  const [comprobanteBusy, setComprobanteBusy] = useState(false)
-  const [comprobanteOk, setComprobanteOk] = useState(false)
-  const [comprobanteError, setComprobanteError] = useState<string | null>(null)
+  const [verHistorial, setVerHistorial] = useState(false)
+  const [misPedidos, setMisPedidos] = useState<MiPedido[] | null>(null)
 
   useEffect(() => {
     loadCategoriasTienda().then(setCategorias).catch(() => {})
@@ -188,11 +186,8 @@ export function Tienda() {
         setGuardado(c)
         if (c) setDirSel(c.ultima)
       }
+      guardarPedidoIdLocal(result.pedido_id)
       setConfirmacion({ total: result.total, pedidoId: result.pedido_id, metodo })
-      setComprobante(null)
-      setComprobanteOk(false)
-      setComprobanteError(null)
-      if (metodo === 'transferencia') loadDatosTransferencia().then(setDatosTransf).catch(() => {})
       setCart([])
       setShowCheckout(false)
       if (!guardarDatos) {
@@ -208,17 +203,14 @@ export function Tienda() {
     }
   }
 
-  async function handleSubirComprobante() {
-    if (!confirmacion || !comprobante || comprobanteBusy) return
-    setComprobanteBusy(true)
-    setComprobanteError(null)
+  async function abrirHistorial() {
+    setVerHistorial(true)
+    setMisPedidos(null)
     try {
-      await subirComprobante(confirmacion.pedidoId, comprobante)
-      setComprobanteOk(true)
+      setMisPedidos(await loadMisPedidos())
     } catch (err) {
-      setComprobanteError(err instanceof Error ? err.message : 'No se pudo subir el comprobante')
-    } finally {
-      setComprobanteBusy(false)
+      setMisPedidos([])
+      setError(err instanceof Error ? err.message : 'Error cargando tus pedidos')
     }
   }
 
@@ -234,39 +226,6 @@ export function Tienda() {
             Total: <strong>{formatCLP(confirmacion.total)}</strong> · Pago:{' '}
             {METODO_PAGO_LABEL[confirmacion.metodo]} al recibir
           </p>
-          {confirmacion.metodo === 'transferencia' && (
-            <>
-              <p>Transfiere el total a:</p>
-              <p className="pago-datos">{datosTransf || 'Te enviaremos los datos por WhatsApp.'}</p>
-              {comprobanteOk ? (
-                <p className="info-text">
-                  ¡Comprobante recibido! Lo revisaremos y confirmaremos tu pago.
-                </p>
-              ) : (
-                <>
-                  <label>
-                    Sube la captura de tu transferencia
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  {comprobanteError && <p className="error-text">{comprobanteError}</p>}
-                  <button
-                    className="btn btn-primary"
-                    disabled={!comprobante || comprobanteBusy}
-                    onClick={handleSubirComprobante}
-                  >
-                    {comprobanteBusy ? 'Subiendo...' : 'Enviar comprobante'}
-                  </button>
-                  <p className="subtitle">
-                    Puedes subirlo ahora o pagar al recibir tu pedido.
-                  </p>
-                </>
-              )}
-            </>
-          )}
           <p>Un vecino de Te Lo Tengo Market te va a escribir por WhatsApp cuando esté abajo.</p>
           <button className="btn btn-primary" onClick={() => setConfirmacion(null)}>
             Hacer otro pedido
@@ -286,6 +245,9 @@ export function Tienda() {
             <p className="subtitle">Delivery dentro del condominio</p>
           </div>
         </div>
+        <button className="btn btn-secondary" onClick={abrirHistorial}>
+          Mis pedidos
+        </button>
       </header>
 
       {error && <p className="error-text">{error}</p>}
@@ -455,7 +417,7 @@ export function Tienda() {
               )}
               <fieldset className="pago-metodos">
                 <legend>¿Cómo pagas?</legend>
-                {(['efectivo', 'transferencia', 'tarjeta'] as MetodoPago[]).map((m) => (
+                {(['efectivo', 'tarjeta'] as MetodoPago[]).map((m) => (
                   <label key={m} className="checkbox-label">
                     <input
                       type="radio"
@@ -565,6 +527,54 @@ export function Tienda() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {verHistorial && (
+        <div className="camera-overlay">
+          <div className="camera-modal">
+            <h2>Mis pedidos</h2>
+            {misPedidos === null && <p className="subtitle">Cargando...</p>}
+            {misPedidos !== null && misPedidos.length === 0 && (
+              <p className="subtitle">
+                Todavía no tienes pedidos en este teléfono. Aquí verás los que hagas desde ahora.
+              </p>
+            )}
+            {(misPedidos ?? []).map((p) => (
+              <div key={p.id} className="pedido-tienda-item">
+                <p>
+                  <strong>
+                    {new Date(p.created_at).toLocaleString('es-CL', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </strong>{' '}
+                  · {p.estado === 'entregado' ? 'Entregado' : p.estado === 'cancelado' ? 'Cancelado' : 'En camino'}
+                </p>
+                <p className="subtitle">
+                  {p.items
+                    .map((it) =>
+                      it.es_peso
+                        ? `${it.nombre_producto} (${it.unidades ? `${it.unidades} un, ` : ''}${it.aprox ? '≈ ' : ''}${formatGramos(it.cantidad)})`
+                        : `${it.cantidad}x ${it.nombre_producto}`,
+                    )
+                    .join(', ')}
+                </p>
+                <p>
+                  Total: <strong>{formatCLP(p.total)}</strong>
+                  {p.metodo_pago ? ` · ${METODO_PAGO_LABEL[p.metodo_pago]}` : ''}
+                  {p.pago_estado === 'pagado' ? ' · Pagado' : ' · Pago pendiente'}
+                </p>
+              </div>
+            ))}
+            <div className="camera-actions">
+              <button className="btn btn-secondary" onClick={() => setVerHistorial(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

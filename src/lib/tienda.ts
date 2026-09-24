@@ -1,6 +1,5 @@
 import { supabase } from './supabase'
 import { productoFotoUrl } from './inventario'
-import { compressImageFile } from './compressImage'
 
 export interface ProductoTienda {
   id: string
@@ -32,11 +31,10 @@ export async function loadCategoriasTienda(): Promise<string[]> {
   return ((data as { categoria: string }[]) ?? []).map((r) => r.categoria)
 }
 
-export type MetodoPago = 'efectivo' | 'transferencia' | 'tarjeta' | 'online'
+export type MetodoPago = 'efectivo' | 'tarjeta' | 'online'
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
   efectivo: 'Efectivo',
-  transferencia: 'Transferencia',
   tarjeta: 'Tarjeta',
   online: 'Pago online',
 }
@@ -91,8 +89,6 @@ export interface PedidoTienda {
   estado: 'pendiente' | 'entregado' | 'cancelado'
   metodo_pago: MetodoPago | null
   pago_estado: 'pendiente' | 'comprobante_subido' | 'pagado'
-  comprobante_path: string | null
-  comprobante_at: string | null
   created_at: string
 }
 
@@ -149,38 +145,69 @@ export async function ajustarPesoItem(itemId: string, gramos: number): Promise<n
   return Number(data)
 }
 
-export async function loadDatosTransferencia(): Promise<string> {
-  const { data, error } = await supabase.rpc('ingreso_datos_transferencia')
-  if (error) throw error
-  return (data as string | null) ?? ''
-}
-
-/** Comprime la captura, la sube y avisa al personal (el pedido pasa a "comprobante subido"). */
-export async function subirComprobante(pedidoId: string, file: File) {
-  const compressed = await compressImageFile(file, 1200, 0.75)
-  const path = `${pedidoId}/${Date.now()}.jpg`
-  const { error: uploadError } = await supabase.storage
-    .from('ingreso-comprobantes')
-    .upload(path, compressed, { contentType: 'image/jpeg' })
-  if (uploadError) throw uploadError
-  const { error } = await supabase.rpc('ingreso_subir_comprobante', { p_pedido: pedidoId, p_path: path })
-  if (error) throw error
-}
-
-export async function comprobanteUrl(path: string): Promise<string | null> {
-  const { data, error } = await supabase.storage.from('ingreso-comprobantes').createSignedUrl(path, 300)
-  if (error || !data) return null
-  return data.signedUrl
-}
-
 export async function marcarPedidoPagado(pedidoId: string) {
   const { error } = await supabase.rpc('ingreso_marcar_pedido_pagado', { p_pedido: pedidoId })
   if (error) throw error
 }
 
-export async function saveDatosTransferencia(valor: string) {
-  const { error } = await supabase
-    .from('ingreso_config')
-    .upsert({ clave: 'transferencia', valor, updated_at: new Date().toISOString() })
+/** Pedidos de la tienda de un dia (cualquier estado), para el historial del personal. */
+export async function loadPedidosTiendaDelDia(date: string): Promise<PedidoTienda[]> {
+  const start = new Date(`${date}T00:00:00`)
+  const end = new Date(start)
+  end.setDate(end.getDate() + 1)
+  const { data, error } = await supabase
+    .from('ingreso_pedidos_tienda')
+    .select('*')
+    .gte('created_at', start.toISOString())
+    .lt('created_at', end.toISOString())
+    .order('created_at', { ascending: false })
   if (error) throw error
+  return (data as PedidoTienda[]) ?? []
+}
+
+// ---- Historial del cliente (sin cuenta): los IDs de sus pedidos quedan en su telefono.
+const MIS_PEDIDOS_KEY = 'tlt_pedidos'
+
+export function guardarPedidoIdLocal(id: string) {
+  try {
+    const ids = leerPedidoIdsLocal()
+    localStorage.setItem(MIS_PEDIDOS_KEY, JSON.stringify([id, ...ids.filter((x) => x !== id)].slice(0, 50)))
+  } catch {
+    // sin almacenamiento: el pedido igual se envio
+  }
+}
+
+function leerPedidoIdsLocal(): string[] {
+  try {
+    const raw = localStorage.getItem(MIS_PEDIDOS_KEY)
+    const ids = raw ? (JSON.parse(raw) as unknown) : []
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export interface MiPedido {
+  id: string
+  created_at: string
+  total: number
+  estado: 'pendiente' | 'entregado' | 'cancelado'
+  metodo_pago: MetodoPago | null
+  pago_estado: 'pendiente' | 'comprobante_subido' | 'pagado'
+  items: {
+    nombre_producto: string
+    cantidad: number
+    es_peso: boolean
+    unidades: number | null
+    aprox: boolean
+    subtotal: number
+  }[]
+}
+
+export async function loadMisPedidos(): Promise<MiPedido[]> {
+  const ids = leerPedidoIdsLocal()
+  if (ids.length === 0) return []
+  const { data, error } = await supabase.rpc('ingreso_pedidos_tienda_por_ids', { p_ids: ids })
+  if (error) throw error
+  return (data as MiPedido[]) ?? []
 }

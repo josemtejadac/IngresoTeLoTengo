@@ -5,6 +5,7 @@ import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
+import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PedidosTienda } from '../../components/PedidosTienda'
@@ -635,7 +636,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
       {activeTab === 'productos' && <ProductosScanner />}
 
-      {activeTab === 'pedidos' && <PedidosTienda />}
+      {activeTab === 'pedidos' && (
+        <>
+          <PedidosTienda />
+          <HistorialPedidosTienda />
+        </>
+      )}
 
       {activeTab === 'limpieza' && <ReporteLimpieza workerId={profile.id} />}
 

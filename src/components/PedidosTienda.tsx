@@ -4,7 +4,6 @@ import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import {
   ajustarPesoItem,
-  comprobanteUrl,
   marcarPedidoPagado,
   METODO_PAGO_LABEL,
   loadPedidosTiendaPendientes,
@@ -101,16 +100,9 @@ export function PedidosTienda() {
     }
   }
 
-  async function verComprobante(path: string) {
-    const url = await comprobanteUrl(path)
-    if (url) window.open(url, '_blank', 'noopener,noreferrer')
-    else setError('No se pudo abrir el comprobante')
-  }
-
   function textoPago(p: PedidoTienda): string {
     const metodo = p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'
     if (p.pago_estado === 'pagado') return `${metodo} · Pagado`
-    if (p.pago_estado === 'comprobante_subido') return `${metodo} · Comprobante recibido, falta revisar`
     return `${metodo} · Pago pendiente (cobrar al entregar)`
   }
 
@@ -171,7 +163,7 @@ export function PedidosTienda() {
           <p>
             Total: <strong>{formatCLP(p.total)}</strong>
           </p>
-          <p className={p.pago_estado === 'comprobante_subido' ? 'info-text' : 'subtitle'}>
+          <p className="subtitle">
             {textoPago(p)}
           </p>
           <div className="report-row">
@@ -195,14 +187,6 @@ export function PedidosTienda() {
               </>
             ) : (
               <span className="subtitle">Entregado — falta confirmar el pago</span>
-            )}
-            {p.comprobante_path && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => verComprobante(p.comprobante_path as string)}
-              >
-                Ver comprobante
-              </button>
             )}
             {p.pago_estado !== 'pagado' && (
               <button

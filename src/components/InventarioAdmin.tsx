@@ -26,6 +26,7 @@ export function InventarioAdmin() {
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
+  const [totalModo, setTotalModo] = useState<number | null>(null)
   const [editing, setEditing] = useState<Producto | null>(null)
   const [editNombre, setEditNombre] = useState('')
   const [editBarra, setEditBarra] = useState('')
@@ -57,6 +58,11 @@ export function InventarioAdmin() {
         limit: 300,
       })
       setProductos(rows)
+      const { count } = await supabase
+        .from('ingreso_productos')
+        .select('id', { count: 'exact', head: true })
+        .eq('active', !catalogoOculto)
+      setTotalModo(count)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando productos')
     }
@@ -281,9 +287,14 @@ export function InventarioAdmin() {
   return (
     <section className="card">
       <div className="section-header">
-        <h2>
-          Inventario ({productos.length}
-          {productos.length >= 100 ? '+' : ''} de la búsqueda)
+        <h2 className="titulo-compacto">
+          Inventario{' '}
+          <span className="titulo-conteo">
+            {totalModo !== null
+              ? `· ${totalModo} ${catalogoOculto ? 'ocultos' : 'activos'}`
+              : ''}
+            {` · mostrando ${productos.length}`}
+          </span>
         </h2>
         <button className="btn btn-secondary" onClick={() => setOpen(false)}>
           Cerrar

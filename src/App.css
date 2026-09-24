@@ -779,3 +779,14 @@ textarea {
   cursor: pointer;
   display: inline-block;
 }
+
+/* Titulo de seccion mas pequeno, con el conteo en texto chico y discreto. */
+.titulo-compacto {
+  font-size: 1.05rem;
+}
+
+.titulo-conteo {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #64748b;
+}

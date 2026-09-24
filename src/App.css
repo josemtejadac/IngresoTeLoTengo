@@ -1144,3 +1144,124 @@ textarea {
 .tienda-grid {
   padding-bottom: 80px;
 }
+
+/* ---------- Carrito (ventana Tu pedido) ---------- */
+.camera-modal {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+.carrito-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.carrito-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.carrito-foto {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 10px;
+}
+
+.carrito-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  opacity: 0.4;
+  background: #e2e8f0;
+}
+
+.carrito-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.carrito-nombre {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.carrito-precio {
+  margin: 2px 0 6px;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.carrito-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.carrito-item {
+  position: relative;
+}
+
+.carrito-quitar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: 0;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.carrito-quitar:hover {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+.carrito-info {
+  padding-right: 22px;
+}
+
+/* Las ventanas nunca se desplazan de lado: todo se ajusta al ancho. */
+.camera-modal {
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+.camera-modal > *,
+.camera-modal form,
+.camera-modal label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.camera-modal input,
+.camera-modal select,
+.camera-modal textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.camera-modal .pago-metodos {
+  min-width: 0;
+  box-sizing: border-box;
+}

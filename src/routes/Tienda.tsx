@@ -79,6 +79,17 @@ export function Tienda() {
   const [retorno, setRetorno] = useState<{ pago: string; pedido: MiPedido | null } | null>(null)
   const [misPedidos, setMisPedidos] = useState<MiPedido[] | null>(null)
 
+  // Con una ventana abierta, la pagina de atras no debe moverse al hacer scroll.
+  const hayModal = showCheckout || detalle !== null || pesoSel !== null || verHistorial
+  useEffect(() => {
+    if (!hayModal) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [hayModal])
+
   useAtrasCierra(detalle !== null, () => setDetalle(null))
   useAtrasCierra(showCheckout, () => setShowCheckout(false))
   useAtrasCierra(pesoSel !== null, () => setPesoSel(null))
@@ -519,21 +530,37 @@ export function Tienda() {
               </button>
               <h2>Tu pedido</h2>
             </div>
-            <table className="table">
-              <tbody>
-                {cart.map((l) => (
-                  <tr key={l.producto.id}>
-                    <td className="col-nombre">{l.producto.nombre}</td>
-                    <td>
+            <div className="carrito-lista">
+              {cart.map((l) => (
+                <div key={l.producto.id} className="carrito-item">
+                  <button
+                    type="button"
+                    className="carrito-quitar"
+                    aria-label={`Quitar ${l.producto.nombre}`}
+                    title="Quitar del carrito"
+                    onClick={() => updateCantidad(l.producto.id, 0)}
+                  >
+                    ✕
+                  </button>
+                  {l.producto.foto_path ? (
+                    <img src={productoFotoUrl(l.producto.foto_path)} alt="" className="carrito-foto" />
+                  ) : (
+                    <div className="carrito-foto carrito-foto-vacia">🛒</div>
+                  )}
+                  <div className="carrito-info">
+                    <p className="carrito-nombre">{l.producto.nombre}</p>
+                    <p className="carrito-precio">
+                      {l.producto.por_peso && l.modo === 'unidades' ? '≈ ' : ''}
+                      {formatCLP(totalLinea(l))}
+                    </p>
+                    <div className="carrito-acciones">
                       {l.producto.por_peso ? (
-                        <>
+                        <button type="button" className="btn btn-secondary btn-small" onClick={() => abrirPeso(l.producto)}>
                           {l.modo === 'unidades'
                             ? `${l.cantidad} un (≈ ${formatGramos(gramosLinea(l))})`
                             : formatGramos(l.cantidad)}{' '}
-                          <button className="btn-link" onClick={() => abrirPeso(l.producto)}>
-                            Cambiar
-                          </button>
-                        </>
+                          · Cambiar
+                        </button>
                       ) : (
                         <Stepper
                           value={l.cantidad}
@@ -542,20 +569,12 @@ export function Tienda() {
                           onChange={(v) => updateCantidad(l.producto.id, v)}
                         />
                       )}
-                    </td>
-                    <td>
-                      {l.producto.por_peso && l.modo === 'unidades' ? '≈ ' : ''}
-                      {formatCLP(totalLinea(l))}
-                    </td>
-                    <td>
-                      <button className="btn-link" onClick={() => updateCantidad(l.producto.id, 0)}>
-                        Quitar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {cart.length === 0 && <p className="subtitle">Tu carrito está vacío.</p>}
+            </div>
             <p>
               Total: <strong>{hayAprox ? '≈ ' : ''}{formatCLP(total)}</strong>
             </p>

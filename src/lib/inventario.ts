@@ -18,24 +18,38 @@ export interface Producto {
   gramos_unidad: number | null
 }
 
+/** Variantes de un codigo de barras: tal cual, sin ceros a la izquierda y con un cero delante. */
+export function variantesCodigo(codigo: string): string[] {
+  const c = codigo.trim()
+  const sinCeros = c.replace(/^0+/, '')
+  return [...new Set([c, sinCeros, `0${sinCeros}`].filter((v) => v !== ''))]
+}
+
 export async function loadProductos(params: {
   categoria?: string
   search?: string
   limit?: number
   /** Solo para el admin: incluir el catalogo maestro oculto (productos no activados). */
   soloInactivos?: boolean
+  /** Solo para el admin: mostrar activos y ocultos juntos (ej. al buscar por codigo). */
+  incluirInactivos?: boolean
+  /** 'reciente' = lo ultimo modificado primero (util al ir escaneando el inventario). */
+  orden?: 'nombre' | 'reciente'
 }): Promise<Producto[]> {
-  let query = supabase
-    .from('ingreso_productos')
-    .select('*')
-    .eq('active', !params.soloInactivos)
-    .order('nombre')
-    .limit(params.limit ?? 100)
+  let query = supabase.from('ingreso_productos').select('*')
+  if (!params.incluirInactivos) query = query.eq('active', !params.soloInactivos)
+  query = (
+    params.orden === 'reciente'
+      ? query.order('updated_at', { ascending: false })
+      : query.order('nombre')
+  ).limit(params.limit ?? 100)
 
   if (params.categoria) query = query.eq('categoria', params.categoria)
   if (params.search) {
     const term = params.search.trim()
-    query = query.or(`nombre.ilike.%${term}%,codigo_barras.eq.${term}`)
+    const codigos = variantesCodigo(term).filter((v) => /^\d+$/.test(v))
+    const porCodigo = codigos.length > 0 ? `,codigo_barras.in.(${codigos.join(',')})` : ''
+    query = query.or(`nombre.ilike.%${term}%${porCodigo}`)
   }
 
   const { data, error } = await query
@@ -47,11 +61,11 @@ export async function loadProductoPorBarra(codigoBarras: string): Promise<Produc
   const { data, error } = await supabase
     .from('ingreso_productos')
     .select('*')
-    .eq('codigo_barras', codigoBarras.trim())
+    .in('codigo_barras', variantesCodigo(codigoBarras))
     .eq('active', true)
-    .maybeSingle()
+    .limit(1)
   if (error) throw error
-  return (data as Producto | null) ?? null
+  return ((data as Producto[] | null)?.[0]) ?? null
 }
 
 export type ResultadoEscaneoAdmin =
@@ -68,12 +82,15 @@ export async function activarProductoPorBarra(
   codigoBarras: string,
   sumarStock: boolean,
 ): Promise<ResultadoEscaneoAdmin> {
-  const { data, error } = await supabase
+  // limit(1) en vez de maybeSingle: si un codigo estuviera repetido no debe fallar la busqueda.
+  const { data: rows, error } = await supabase
     .from('ingreso_productos')
     .select('*')
-    .eq('codigo_barras', codigoBarras.trim())
-    .maybeSingle()
+    .in('codigo_barras', variantesCodigo(codigoBarras))
+    .order('active', { ascending: false })
+    .limit(1)
   if (error) throw error
+  const data = rows?.[0]
   if (!data) return { tipo: 'no_encontrado' }
 
   const producto = data as Producto
@@ -138,7 +155,7 @@ export async function loadCategorias(incluirInactivos = false): Promise<string[]
 
 export async function updateProducto(
   id: string,
-  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active' | 'por_peso' | 'gramos_unidad'>>,
+  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active' | 'por_peso' | 'gramos_unidad' | 'codigo_barras'>>,
 ) {
   const { error } = await supabase
     .from('ingreso_productos')

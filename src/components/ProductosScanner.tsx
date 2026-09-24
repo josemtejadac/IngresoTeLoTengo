@@ -187,8 +187,8 @@ export function ProductosScanner() {
         <tbody>
           {resultados.map((p) => (
             <tr key={p.id}>
-              <td>{p.nombre}</td>
-              <td>{p.categoria ?? '—'}</td>
+              <td className="col-nombre">{p.nombre}</td>
+              <td className="col-nombre">{p.categoria ?? '—'}</td>
               <td>{p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}</td>
               <td>{p.por_peso ? '—' : p.stock}</td>
               <td>
@@ -220,7 +220,7 @@ export function ProductosScanner() {
             <tbody>
               {cart.map((l) => (
                 <tr key={l.producto.id}>
-                  <td>{l.producto.nombre}</td>
+                  <td className="col-nombre">{l.producto.nombre}</td>
                   <td>
                     <input
                       type="number"

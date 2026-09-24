@@ -291,7 +291,7 @@ select {
 
 .tienda-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
   margin-top: 16px;
 }
@@ -300,11 +300,12 @@ select {
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   text-align: center;
+  min-width: 0;
 }
 
 .tienda-foto {
@@ -319,16 +320,58 @@ select {
   display: block;
 }
 
+/* El nombre se muestra completo (sin cortar) y la tarjeta crece si hace falta. */
 .tienda-nombre {
   font-size: 0.85rem;
+  line-height: 1.25;
   margin: 0;
-  min-height: 2.4em;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .tienda-precio {
   font-weight: 700;
   color: #14532d;
   margin: 0;
+  margin-top: auto;
+  font-size: 0.9rem;
+}
+
+.tienda-card .btn {
+  width: 100%;
+}
+
+/* Telefonos: 3 productos por fila, tarjetas mas compactas. */
+@media (max-width: 640px) {
+  .tienda-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .tienda-card {
+    padding: 6px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  .tienda-nombre {
+    font-size: 0.72rem;
+  }
+
+  .tienda-precio {
+    font-size: 0.78rem;
+  }
+
+  .tienda-card .btn-small {
+    padding: 5px 4px;
+    font-size: 0.72rem;
+  }
+}
+
+.col-nombre {
+  white-space: normal !important;
+  min-width: 150px;
+  overflow-wrap: anywhere;
 }
 
 .tienda-cart-bar {

@@ -27,6 +27,9 @@ export function InventarioAdmin() {
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [editing, setEditing] = useState<Producto | null>(null)
+  const [editNombre, setEditNombre] = useState('')
+  const [editBarra, setEditBarra] = useState('')
+  const [editCategoria, setEditCategoria] = useState('')
   const [editPrecio, setEditPrecio] = useState('')
   const [editStock, setEditStock] = useState('0')
   const [editPorPeso, setEditPorPeso] = useState(false)
@@ -42,10 +45,16 @@ export function InventarioAdmin() {
 
   const runSearch = useCallback(async () => {
     try {
+      // Al buscar se muestran activos y ocultos juntos (un codigo de un producto sin activar
+      // tambien aparece). Sin busqueda, lo ultimo escaneado/modificado queda arriba.
+      const buscando = search.trim() !== ''
       const rows = await loadProductos({
         categoria: categoria || undefined,
         search: search || undefined,
         soloInactivos: catalogoOculto,
+        incluirInactivos: buscando && !catalogoOculto,
+        orden: buscando ? 'nombre' : 'reciente',
+        limit: 300,
       })
       setProductos(rows)
     } catch (err) {
@@ -145,6 +154,9 @@ export function InventarioAdmin() {
 
   function openEdit(p: Producto) {
     setEditing(p)
+    setEditNombre(p.nombre)
+    setEditBarra(p.codigo_barras ?? '')
+    setEditCategoria(p.categoria ?? '')
     setEditPrecio(p.precio?.toString() ?? '')
     setEditStock(p.stock.toString())
     setEditPorPeso(p.por_peso)
@@ -152,33 +164,66 @@ export function InventarioAdmin() {
     setError(null)
   }
 
+  /** Normaliza la categoria y reutiliza la ya existente si solo cambian mayusculas/espacios. */
+  function normalizarCategoria(valor: string): string | null {
+    const limpia = valor.replace(/\s+/g, ' ').trim()
+    if (!limpia) return null
+    const clave = (c: string) => c.replace(/\s+/g, ' ').trim().toLowerCase()
+    const existente = categorias.find((c) => clave(c) === clave(limpia))
+    return existente ?? limpia.toUpperCase()
+  }
+
   async function handleSave() {
     if (!editing) return
+    const nombre = editNombre.replace(/\s+/g, ' ').trim()
+    if (!nombre) {
+      setError('El nombre no puede quedar vacío')
+      return
+    }
+    const barra = editBarra.trim()
+    if (barra !== '' && !/^\d+$/.test(barra)) {
+      setError('El código de barras solo lleva números')
+      return
+    }
     const precio = editPrecio === '' ? null : Number(editPrecio)
     const stock = Number(editStock)
     if ((precio !== null && Number.isNaN(precio)) || Number.isNaN(stock)) {
       setError('Precio o stock inválido')
       return
     }
+    if (precio !== null && precio < 0) {
+      setError('El precio no puede ser negativo')
+      return
+    }
+    const gramosUnidad = editPorPeso && editGramosUnidad !== '' ? Number(editGramosUnidad) : null
+    if (gramosUnidad !== null && (!Number.isInteger(gramosUnidad) || gramosUnidad <= 0)) {
+      setError('Los gramos por unidad deben ser un número entero mayor a 0')
+      return
+    }
     setSavingId(editing.id)
     setError(null)
     try {
-      const gramosUnidad = editPorPeso && editGramosUnidad !== '' ? Number(editGramosUnidad) : null
-      if (gramosUnidad !== null && (!Number.isInteger(gramosUnidad) || gramosUnidad <= 0)) {
-        setError('Los gramos por unidad deben ser un número entero mayor a 0')
-        setSavingId(null)
-        return
-      }
       await updateProducto(editing.id, {
+        nombre,
+        codigo_barras: barra === '' ? null : barra,
+        categoria: normalizarCategoria(editCategoria),
         precio,
-        stock,
+        stock: Math.round(stock),
         por_peso: editPorPeso,
         gramos_unidad: gramosUnidad,
       })
       await runSearch()
+      loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
       setEditing(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error guardando el producto')
+      const code = (err as { code?: string } | null)?.code
+      setError(
+        code === '23505'
+          ? 'Ese código de barras ya pertenece a otro producto.'
+          : err instanceof Error
+            ? err.message
+            : 'Error guardando el producto',
+      )
     } finally {
       setSavingId(null)
     }
@@ -190,10 +235,13 @@ export function InventarioAdmin() {
     setError(null)
     try {
       await uploadProductoFoto(editing.id, file)
-      const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined })
-      setProductos(rows)
-      const updated = rows.find((r) => r.id === editing.id)
-      if (updated) setEditing(updated)
+      await runSearch()
+      const { data: updated } = await supabase
+        .from('ingreso_productos')
+        .select('*')
+        .eq('id', editing.id)
+        .single()
+      if (updated) setEditing(updated as Producto)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error subiendo la foto')
     } finally {
@@ -332,25 +380,28 @@ export function InventarioAdmin() {
                   '—'
                 )}
               </td>
-              <td>{p.nombre}</td>
-              <td>{p.categoria ?? '—'}</td>
+              <td className="col-nombre">
+                {p.nombre}
+                {!p.active && <span className="subtitle"> (oculto)</span>}
+              </td>
+              <td className="col-nombre">{p.categoria ?? '—'}</td>
               <td>{p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}</td>
               <td>{p.por_peso ? 'Por peso' : p.stock}</td>
               <td>
-                {catalogoOculto ? (
-                  <button className="btn btn-primary btn-small" onClick={() => handleActivar(p)}>
-                    Activar
+                <div className="table-controls">
+                  <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
+                    Editar
                   </button>
-                ) : (
-                  <div className="table-controls">
-                    <button className="btn btn-secondary btn-small" onClick={() => openEdit(p)}>
-                      Editar
-                    </button>
+                  {p.active ? (
                     <button className="btn btn-danger btn-small" onClick={() => handleOcultar(p)}>
                       Desactivar
                     </button>
-                  </div>
-                )}
+                  ) : (
+                    <button className="btn btn-primary btn-small" onClick={() => handleActivar(p)}>
+                      Activar
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
@@ -360,10 +411,34 @@ export function InventarioAdmin() {
       {editing && (
         <div className="camera-overlay">
           <div className="camera-modal">
-            <h2>{editing.nombre}</h2>
-            <p className="subtitle">
-              {editing.categoria ?? '—'} · Código: {editing.codigo_barras ?? '—'}
-            </p>
+            <h2>Editar producto</h2>
+            <label>
+              Nombre
+              <input value={editNombre} onChange={(e) => setEditNombre(e.target.value)} />
+            </label>
+            <label>
+              Código de barras
+              <input
+                value={editBarra}
+                onChange={(e) => setEditBarra(e.target.value)}
+                inputMode="numeric"
+                placeholder="Sin código"
+              />
+            </label>
+            <label>
+              Categoría
+              <input
+                list="categorias-inventario"
+                value={editCategoria}
+                onChange={(e) => setEditCategoria(e.target.value)}
+                placeholder="Elige una existente o escribe una nueva"
+              />
+              <datalist id="categorias-inventario">
+                {categorias.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </label>
 
             {editing.foto_path ? (
               <img

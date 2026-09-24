@@ -268,7 +268,7 @@ export function Tienda() {
             <option value="">Todas</option>
             {categorias.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {c.replace(/\s+/g, ' ').trim()}
               </option>
             ))}
           </select>
@@ -319,7 +319,7 @@ export function Tienda() {
               <tbody>
                 {cart.map((l) => (
                   <tr key={l.producto.id}>
-                    <td>{l.producto.nombre}</td>
+                    <td className="col-nombre">{l.producto.nombre}</td>
                     <td>
                       {l.producto.por_peso ? (
                         <>

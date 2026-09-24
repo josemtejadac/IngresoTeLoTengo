@@ -31,6 +31,7 @@ import {
   loadArqueoForWorkerDay,
   loadWeeklySalesTotal,
   submitArqueo,
+  updateArqueo,
   ventaTotal,
   WEEKLY_SALES_GOAL,
   type ArqueoEntry,
@@ -94,6 +95,15 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [credito, setCredito] = useState('')
   const [transferencia, setTransferencia] = useState('')
   const [arqueoBusy, setArqueoBusy] = useState(false)
+  const [editandoArqueo, setEditandoArqueo] = useState<ArqueoEntry | null>(null)
+  const [editArqueoValores, setEditArqueoValores] = useState({
+    efectivo: '',
+    debito: '',
+    credito: '',
+    transferencia: '',
+  })
+  const [editArqueoBusy, setEditArqueoBusy] = useState(false)
+  const [editArqueoError, setEditArqueoError] = useState<string | null>(null)
   const [arqueoMessage, setArqueoMessage] = useState<string | null>(null)
   const [arqueoError, setArqueoError] = useState<string | null>(null)
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
@@ -384,6 +394,43 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     transferencia: Number(transferencia) || 0,
   }
   const arqueoVentaTotal = ventaTotal(arqueoValues)
+
+  function abrirEditarArqueo(a: ArqueoEntry) {
+    setEditandoArqueo(a)
+    setEditArqueoError(null)
+    setEditArqueoValores({
+      efectivo: String(a.efectivo),
+      debito: String(a.debito),
+      credito: String(a.credito),
+      transferencia: String(a.transferencia),
+    })
+  }
+
+  async function handleGuardarEdicionArqueo() {
+    if (!editandoArqueo || editArqueoBusy) return
+    const valores = {
+      efectivo: Number(editArqueoValores.efectivo) || 0,
+      debito: Number(editArqueoValores.debito) || 0,
+      credito: Number(editArqueoValores.credito) || 0,
+      transferencia: Number(editArqueoValores.transferencia) || 0,
+    }
+    if (Object.values(valores).some((v) => v < 0)) {
+      setEditArqueoError('Los montos no pueden ser negativos.')
+      return
+    }
+    setEditArqueoBusy(true)
+    setEditArqueoError(null)
+    try {
+      await updateArqueo(editandoArqueo.id, valores)
+      setEditandoArqueo(null)
+      await loadTodayArqueo()
+      await loadWeeklySales()
+    } catch (err) {
+      setEditArqueoError(err instanceof Error ? err.message : 'Error guardando los cambios')
+    } finally {
+      setEditArqueoBusy(false)
+    }
+  }
 
   async function handleSubmitArqueo(e: React.FormEvent) {
     e.preventDefault()
@@ -743,6 +790,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                   <th>Crédito</th>
                   <th>Transferencia</th>
                   <th>Venta total</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -753,14 +801,86 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     <td>{formatCLP(a.credito)}</td>
                     <td>{formatCLP(a.transferencia)}</td>
                     <td>{formatCLP(ventaTotal(a))}</td>
+                    <td>
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => abrirEditarArqueo(a)}
+                      >
+                        Editar
+                      </button>
+                      {a.editado_at && <span className="subtitle"> (editado)</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </>
         )}
+        <p className="subtitle">
+          Puedes corregir tu arqueo solo durante el mismo día; después ya no se puede editar.
+        </p>
           </section>
         </>
+      )}
+
+      {editandoArqueo && (
+        <div className="camera-overlay">
+          <div className="camera-modal">
+            <div className="modal-top">
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={() => setEditandoArqueo(null)}
+                disabled={editArqueoBusy}
+              >
+                ← Cancelar
+              </button>
+              <h2>Editar arqueo</h2>
+            </div>
+            {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((campo) => (
+              <label key={campo}>
+                {campo === 'efectivo'
+                  ? 'Efectivo'
+                  : campo === 'debito'
+                    ? 'Débito'
+                    : campo === 'credito'
+                      ? 'Crédito'
+                      : 'Transferencia'}
+                <input
+                  type="number"
+                  min={0}
+                  value={editArqueoValores[campo]}
+                  onChange={(e) =>
+                    setEditArqueoValores({ ...editArqueoValores, [campo]: e.target.value })
+                  }
+                />
+              </label>
+            ))}
+            <p>
+              Venta total:{' '}
+              <strong>
+                {formatCLP(
+                  ventaTotal({
+                    efectivo: Number(editArqueoValores.efectivo) || 0,
+                    debito: Number(editArqueoValores.debito) || 0,
+                    credito: Number(editArqueoValores.credito) || 0,
+                    transferencia: Number(editArqueoValores.transferencia) || 0,
+                  }),
+                )}
+              </strong>
+            </p>
+            {editArqueoError && <p className="error-text">{editArqueoError}</p>}
+            <div className="camera-actions">
+              <button
+                className="btn btn-primary"
+                onClick={handleGuardarEdicionArqueo}
+                disabled={editArqueoBusy}
+              >
+                {editArqueoBusy ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {activeTab === 'pendientes' && (

@@ -12,6 +12,8 @@ export interface ArqueoEntry {
   debito: number
   credito: number
   transferencia: number
+  /** Fecha de la ultima correccion (null si nunca se edito). */
+  editado_at?: string | null
 }
 
 export interface ArqueoRowWithWorker extends ArqueoEntry {
@@ -40,6 +42,19 @@ export async function submitArqueo(workerId: string, date: string, values: Arque
     ...values,
   })
   if (error) throw error
+}
+
+/** Corrige un arqueo propio. La base de datos solo lo permite el mismo dia. */
+export async function updateArqueo(id: string, values: ArqueoInput) {
+  const { data, error } = await supabase
+    .from('ingreso_arqueo')
+    .update(values)
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data || data.length === 0) {
+    throw new Error('Este arqueo ya no se puede editar: solo se corrige el mismo día.')
+  }
 }
 
 export async function loadArqueoForWorkerDay(

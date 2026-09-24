@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
+import { formatGramos, montoPorPeso } from '../lib/peso'
 import {
   crearPedido,
   loadCategorias,
@@ -10,7 +11,13 @@ import {
 
 interface CartLine {
   producto: Producto
+  /** Unidades, o gramos si el producto es por peso. */
   cantidad: number
+}
+
+function subtotalLinea(l: CartLine): number {
+  const precio = l.producto.precio ?? 0
+  return l.producto.por_peso ? montoPorPeso(precio, l.cantidad) : precio * l.cantidad
 }
 
 export function ProductosScanner() {
@@ -22,6 +29,8 @@ export function ProductosScanner() {
   const [scanError, setScanError] = useState<string | null>(null)
   const [pedidoBusy, setPedidoBusy] = useState(false)
   const [pedidoMessage, setPedidoMessage] = useState<string | null>(null)
+  const [pesoProducto, setPesoProducto] = useState<Producto | null>(null)
+  const [pesoGramos, setPesoGramos] = useState('')
   const barraInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -42,6 +51,12 @@ export function ProductosScanner() {
   }, [runSearch])
 
   function addToCart(producto: Producto) {
+    if (producto.por_peso) {
+      // Los productos por peso piden los gramos (lo que marca la balanza).
+      setPesoProducto(producto)
+      setPesoGramos('')
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((l) => l.producto.id === producto.id)
       if (existing) {
@@ -51,6 +66,18 @@ export function ProductosScanner() {
       }
       return [...prev, { producto, cantidad: 1 }]
     })
+  }
+
+  function confirmarPeso() {
+    const gramos = Math.round(Number(pesoGramos))
+    if (!pesoProducto || !gramos || gramos < 10) return
+    setCart((prev) => {
+      const sinEste = prev.filter((l) => l.producto.id !== pesoProducto.id)
+      return [...sinEste, { producto: pesoProducto, cantidad: gramos }]
+    })
+    setPesoProducto(null)
+    setPesoGramos('')
+    barraInputRef.current?.focus()
   }
 
   function updateCantidad(productoId: string, cantidad: number) {
@@ -86,7 +113,7 @@ export function ProductosScanner() {
     }
   }
 
-  const total = cart.reduce((sum, l) => sum + (l.producto.precio ?? 0) * l.cantidad, 0)
+  const total = cart.reduce((sum, l) => sum + subtotalLinea(l), 0)
 
   async function handleGenerarPedido() {
     if (cart.length === 0) return
@@ -94,7 +121,11 @@ export function ProductosScanner() {
     setPedidoMessage(null)
     try {
       const { total: pedidoTotal } = await crearPedido(
-        cart.map((l) => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
+        cart.map((l) =>
+          l.producto.por_peso
+            ? { producto_id: l.producto.id, gramos: l.cantidad }
+            : { producto_id: l.producto.id, cantidad: l.cantidad },
+        ),
       )
       setPedidoMessage(`Pedido generado: ${formatCLP(pedidoTotal)}`)
       setCart([])
@@ -158,8 +189,8 @@ export function ProductosScanner() {
             <tr key={p.id}>
               <td>{p.nombre}</td>
               <td>{p.categoria ?? '—'}</td>
-              <td>{p.precio !== null ? formatCLP(p.precio) : 'Sin precio'}</td>
-              <td>{p.stock}</td>
+              <td>{p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}</td>
+              <td>{p.por_peso ? '—' : p.stock}</td>
               <td>
                 <button
                   className="btn-link"
@@ -194,12 +225,14 @@ export function ProductosScanner() {
                     <input
                       type="number"
                       min={1}
+                      step={l.producto.por_peso ? 10 : 1}
                       value={l.cantidad}
                       onChange={(e) => updateCantidad(l.producto.id, Number(e.target.value))}
                       className="qty-input"
                     />
+                    {l.producto.por_peso && <span className="subtitle"> g ({formatGramos(l.cantidad)})</span>}
                   </td>
-                  <td>{formatCLP((l.producto.precio ?? 0) * l.cantidad)}</td>
+                  <td>{formatCLP(subtotalLinea(l))}</td>
                   <td>
                     <button className="btn-link" onClick={() => updateCantidad(l.producto.id, 0)}>
                       Quitar
@@ -224,6 +257,48 @@ export function ProductosScanner() {
             {pedidoBusy ? 'Generando...' : 'Generar pedido'}
           </button>
         </>
+      )}
+
+      {pesoProducto && (
+        <div className="camera-overlay">
+          <form
+            className="camera-modal"
+            onSubmit={(e) => {
+              e.preventDefault()
+              confirmarPeso()
+            }}
+          >
+            <h2>{pesoProducto.nombre}</h2>
+            <p className="subtitle">
+              {formatCLP(pesoProducto.precio ?? 0)} el kilo. Escribe los gramos que marca la balanza.
+            </p>
+            <label>
+              Gramos
+              <input
+                type="number"
+                min={10}
+                step={1}
+                value={pesoGramos}
+                onChange={(e) => setPesoGramos(e.target.value)}
+                autoFocus
+              />
+            </label>
+            <p>
+              Monto:{' '}
+              <strong>
+                {formatCLP(montoPorPeso(pesoProducto.precio ?? 0, Math.round(Number(pesoGramos)) || 0))}
+              </strong>
+            </p>
+            <div className="camera-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setPesoProducto(null)}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={!(Number(pesoGramos) >= 10)}>
+                Agregar al pedido
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </section>
   )

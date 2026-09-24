@@ -638,3 +638,41 @@ select {
 .deuda-cliente-head p {
   margin: 2px 0 0;
 }
+
+.pago-metodos {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pago-metodos legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  padding: 0 4px;
+}
+
+.pago-disabled {
+  color: #94a3b8;
+}
+
+.pago-datos {
+  white-space: pre-wrap;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+textarea {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  resize: vertical;
+}

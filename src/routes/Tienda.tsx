@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { formatCLP } from '../lib/payroll'
+import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
 import {
   crearPedidoTienda,
+  loadDatosTransferencia,
+  METODO_PAGO_LABEL,
+  subirComprobante,
+  type MetodoPago,
   loadCatalogoTienda,
   loadCategoriasTienda,
   productoFotoUrl,
@@ -12,8 +17,23 @@ import {
 
 interface CartLine {
   producto: ProductoTienda
+  /** Unidades normales, o (por peso) unidades aproximadas / gramos segun el modo. */
   cantidad: number
+  modo?: 'unidades' | 'gramos'
 }
+
+function gramosLinea(l: CartLine): number {
+  if (!l.producto.por_peso) return 0
+  return l.modo === 'unidades' ? l.cantidad * (l.producto.gramos_unidad ?? 0) : l.cantidad
+}
+
+function totalLinea(l: CartLine): number {
+  return l.producto.por_peso
+    ? montoPorPeso(l.producto.precio, gramosLinea(l))
+    : l.producto.precio * l.cantidad
+}
+
+const GRAMOS_RAPIDOS = [100, 250, 500, 1000]
 
 export function Tienda() {
   const [search, setSearch] = useState('')
@@ -22,6 +42,11 @@ export function Tienda() {
   const [productos, setProductos] = useState<ProductoTienda[]>([])
   const [cart, setCart] = useState<CartLine[]>([])
   const [showCheckout, setShowCheckout] = useState(false)
+  const [pesoSel, setPesoSel] = useState<{
+    producto: ProductoTienda
+    modo: 'unidades' | 'gramos'
+    valor: string
+  } | null>(null)
   const [guardado, setGuardado] = useState(loadClienteGuardado)
   const [nombre, setNombre] = useState(guardado?.nombre ?? '')
   const [telefono, setTelefono] = useState(guardado?.telefono ?? '')
@@ -34,7 +59,17 @@ export function Tienda() {
   const [guardarDatos, setGuardarDatos] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [confirmacion, setConfirmacion] = useState<{ total: number } | null>(null)
+  const [confirmacion, setConfirmacion] = useState<{
+    total: number
+    pedidoId: string
+    metodo: MetodoPago
+  } | null>(null)
+  const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
+  const [datosTransf, setDatosTransf] = useState('')
+  const [comprobante, setComprobante] = useState<File | null>(null)
+  const [comprobanteBusy, setComprobanteBusy] = useState(false)
+  const [comprobanteOk, setComprobanteOk] = useState(false)
+  const [comprobanteError, setComprobanteError] = useState<string | null>(null)
 
   useEffect(() => {
     loadCategoriasTienda().then(setCategorias).catch(() => {})
@@ -56,7 +91,33 @@ export function Tienda() {
     runSearch()
   }, [runSearch])
 
+  function abrirPeso(producto: ProductoTienda) {
+    const existente = cart.find((l) => l.producto.id === producto.id)
+    const modo = existente?.modo ?? (producto.gramos_unidad ? 'unidades' : 'gramos')
+    setPesoSel({
+      producto,
+      modo,
+      valor: existente ? String(existente.cantidad) : modo === 'unidades' ? '1' : '250',
+    })
+  }
+
+  function confirmarPeso() {
+    if (!pesoSel) return
+    const n = Math.round(Number(pesoSel.valor))
+    const minimo = pesoSel.modo === 'gramos' ? 50 : 1
+    if (!n || n < minimo) return
+    setCart((prev) => [
+      ...prev.filter((l) => l.producto.id !== pesoSel.producto.id),
+      { producto: pesoSel.producto, cantidad: n, modo: pesoSel.modo },
+    ])
+    setPesoSel(null)
+  }
+
   function addToCart(producto: ProductoTienda) {
+    if (producto.por_peso) {
+      abrirPeso(producto)
+      return
+    }
     setCart((prev) => {
       const existing = prev.find((l) => l.producto.id === producto.id)
       if (existing) {
@@ -99,7 +160,8 @@ export function Tienda() {
     setDepto('')
   }
 
-  const total = cart.reduce((sum, l) => sum + l.producto.precio * l.cantidad, 0)
+  const total = cart.reduce((sum, l) => sum + totalLinea(l), 0)
+  const hayAprox = cart.some((l) => l.producto.por_peso && l.modo === 'unidades')
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
@@ -112,7 +174,13 @@ export function Tienda() {
         telefono,
         torre,
         depto,
-        items: cart.map((l) => ({ producto_id: l.producto.id, cantidad: l.cantidad })),
+        metodo,
+        items: cart.map((l) => {
+          if (!l.producto.por_peso) return { producto_id: l.producto.id, cantidad: l.cantidad }
+          return l.modo === 'unidades'
+            ? { producto_id: l.producto.id, unidades: l.cantidad }
+            : { producto_id: l.producto.id, gramos: l.cantidad }
+        }),
       })
       if (guardarDatos) {
         guardarCliente({ nombre, telefono, torre, depto })
@@ -120,7 +188,11 @@ export function Tienda() {
         setGuardado(c)
         if (c) setDirSel(c.ultima)
       }
-      setConfirmacion({ total: result.total })
+      setConfirmacion({ total: result.total, pedidoId: result.pedido_id, metodo })
+      setComprobante(null)
+      setComprobanteOk(false)
+      setComprobanteError(null)
+      if (metodo === 'transferencia') loadDatosTransferencia().then(setDatosTransf).catch(() => {})
       setCart([])
       setShowCheckout(false)
       if (!guardarDatos) {
@@ -136,6 +208,20 @@ export function Tienda() {
     }
   }
 
+  async function handleSubirComprobante() {
+    if (!confirmacion || !comprobante || comprobanteBusy) return
+    setComprobanteBusy(true)
+    setComprobanteError(null)
+    try {
+      await subirComprobante(confirmacion.pedidoId, comprobante)
+      setComprobanteOk(true)
+    } catch (err) {
+      setComprobanteError(err instanceof Error ? err.message : 'No se pudo subir el comprobante')
+    } finally {
+      setComprobanteBusy(false)
+    }
+  }
+
   if (confirmacion) {
     return (
       <div className="page-center">
@@ -145,8 +231,42 @@ export function Tienda() {
             <h1>¡Pedido recibido!</h1>
           </div>
           <p className="subtitle">
-            Total: <strong>{formatCLP(confirmacion.total)}</strong>
+            Total: <strong>{formatCLP(confirmacion.total)}</strong> · Pago:{' '}
+            {METODO_PAGO_LABEL[confirmacion.metodo]} al recibir
           </p>
+          {confirmacion.metodo === 'transferencia' && (
+            <>
+              <p>Transfiere el total a:</p>
+              <p className="pago-datos">{datosTransf || 'Te enviaremos los datos por WhatsApp.'}</p>
+              {comprobanteOk ? (
+                <p className="info-text">
+                  ¡Comprobante recibido! Lo revisaremos y confirmaremos tu pago.
+                </p>
+              ) : (
+                <>
+                  <label>
+                    Sube la captura de tu transferencia
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {comprobanteError && <p className="error-text">{comprobanteError}</p>}
+                  <button
+                    className="btn btn-primary"
+                    disabled={!comprobante || comprobanteBusy}
+                    onClick={handleSubirComprobante}
+                  >
+                    {comprobanteBusy ? 'Subiendo...' : 'Enviar comprobante'}
+                  </button>
+                  <p className="subtitle">
+                    Puedes subirlo ahora o pagar al recibir tu pedido.
+                  </p>
+                </>
+              )}
+            </>
+          )}
           <p>Un vecino de Te Lo Tengo Market te va a escribir por WhatsApp cuando esté abajo.</p>
           <button className="btn btn-primary" onClick={() => setConfirmacion(null)}>
             Hacer otro pedido
@@ -202,7 +322,10 @@ export function Tienda() {
               <div className="tienda-foto tienda-foto-placeholder" />
             )}
             <p className="tienda-nombre">{p.nombre}</p>
-            <p className="tienda-precio">{formatCLP(p.precio)}</p>
+            <p className="tienda-precio">
+              {formatCLP(p.precio)}
+              {p.por_peso ? ' /kg' : ''}
+            </p>
             <button
               className="btn btn-primary btn-small"
               disabled={!p.disponible}
@@ -217,7 +340,8 @@ export function Tienda() {
       {cart.length > 0 && (
         <div className="tienda-cart-bar">
           <span>
-            {cart.reduce((n, l) => n + l.cantidad, 0)} producto(s) · {formatCLP(total)}
+            {cart.length} producto(s) · {hayAprox ? '≈ ' : ''}
+            {formatCLP(total)}
           </span>
           <button className="btn btn-primary" onClick={() => setShowCheckout(true)}>
             Ver pedido
@@ -235,15 +359,29 @@ export function Tienda() {
                   <tr key={l.producto.id}>
                     <td>{l.producto.nombre}</td>
                     <td>
-                      <input
-                        type="number"
-                        min={1}
-                        value={l.cantidad}
-                        onChange={(e) => updateCantidad(l.producto.id, Number(e.target.value))}
-                        className="qty-input"
-                      />
+                      {l.producto.por_peso ? (
+                        <>
+                          {l.modo === 'unidades'
+                            ? `${l.cantidad} un (≈ ${formatGramos(gramosLinea(l))})`
+                            : formatGramos(l.cantidad)}{' '}
+                          <button className="btn-link" onClick={() => abrirPeso(l.producto)}>
+                            Cambiar
+                          </button>
+                        </>
+                      ) : (
+                        <input
+                          type="number"
+                          min={1}
+                          value={l.cantidad}
+                          onChange={(e) => updateCantidad(l.producto.id, Number(e.target.value))}
+                          className="qty-input"
+                        />
+                      )}
                     </td>
-                    <td>{formatCLP(l.producto.precio * l.cantidad)}</td>
+                    <td>
+                      {l.producto.por_peso && l.modo === 'unidades' ? '≈ ' : ''}
+                      {formatCLP(totalLinea(l))}
+                    </td>
                     <td>
                       <button className="btn-link" onClick={() => updateCantidad(l.producto.id, 0)}>
                         Quitar
@@ -254,8 +392,14 @@ export function Tienda() {
               </tbody>
             </table>
             <p>
-              Total: <strong>{formatCLP(total)}</strong>
+              Total: <strong>{hayAprox ? '≈ ' : ''}{formatCLP(total)}</strong>
             </p>
+            {hayAprox && (
+              <p className="subtitle">
+                Lo pedido por unidad es aproximado: se pesa al armar tu pedido y el valor final se
+                ajusta al peso real.
+              </p>
+            )}
 
             <form onSubmit={handleCheckout} className="worker-form">
               <label>
@@ -309,6 +453,24 @@ export function Tienda() {
                   Borrar mis datos guardados
                 </button>
               )}
+              <fieldset className="pago-metodos">
+                <legend>¿Cómo pagas?</legend>
+                {(['efectivo', 'transferencia', 'tarjeta'] as MetodoPago[]).map((m) => (
+                  <label key={m} className="checkbox-label">
+                    <input
+                      type="radio"
+                      name="metodo"
+                      checked={metodo === m}
+                      onChange={() => setMetodo(m)}
+                    />
+                    {METODO_PAGO_LABEL[m]} al recibir
+                  </label>
+                ))}
+                <label className="checkbox-label pago-disabled">
+                  <input type="radio" name="metodo" disabled />
+                  Pago online (Flow) — próximamente
+                </label>
+              </fieldset>
               {error && <p className="error-text">{error}</p>}
               <div className="report-row">
                 <button
@@ -324,6 +486,85 @@ export function Tienda() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {pesoSel && (
+        <div className="camera-overlay">
+          <form
+            className="camera-modal"
+            onSubmit={(e) => {
+              e.preventDefault()
+              confirmarPeso()
+            }}
+          >
+            <h2>{pesoSel.producto.nombre}</h2>
+            <p className="subtitle">{formatCLP(pesoSel.producto.precio)} el kilo</p>
+            {pesoSel.producto.gramos_unidad && (
+              <div className="action-row">
+                <button
+                  type="button"
+                  className={pesoSel.modo === 'unidades' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                  onClick={() => setPesoSel({ ...pesoSel, modo: 'unidades', valor: '1' })}
+                >
+                  Por unidad
+                </button>
+                <button
+                  type="button"
+                  className={pesoSel.modo === 'gramos' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                  onClick={() => setPesoSel({ ...pesoSel, modo: 'gramos', valor: '500' })}
+                >
+                  Por gramos
+                </button>
+              </div>
+            )}
+            {pesoSel.modo === 'gramos' && (
+              <div className="action-row">
+                {GRAMOS_RAPIDOS.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    onClick={() => setPesoSel({ ...pesoSel, valor: String(g) })}
+                  >
+                    {formatGramos(g)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <label>
+              {pesoSel.modo === 'unidades' ? 'Cantidad de unidades' : 'Gramos (mínimo 50)'}
+              <input
+                type="number"
+                min={pesoSel.modo === 'gramos' ? 50 : 1}
+                value={pesoSel.valor}
+                onChange={(e) => setPesoSel({ ...pesoSel, valor: e.target.value })}
+                autoFocus
+              />
+            </label>
+            {(() => {
+              const n = Math.round(Number(pesoSel.valor)) || 0
+              const g = pesoSel.modo === 'unidades' ? n * (pesoSel.producto.gramos_unidad ?? 0) : n
+              return (
+                <p>
+                  {pesoSel.modo === 'unidades' && <>≈ {formatGramos(g)} · </>}
+                  {pesoSel.modo === 'unidades' ? 'Aprox: ' : 'Monto: '}
+                  <strong>{formatCLP(montoPorPeso(pesoSel.producto.precio, g))}</strong>
+                </p>
+              )
+            })()}
+            {pesoSel.modo === 'unidades' && (
+              <p className="subtitle">El peso real se mide al armar el pedido; el valor final se ajusta.</p>
+            )}
+            <div className="camera-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setPesoSel(null)}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Agregar al pedido
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

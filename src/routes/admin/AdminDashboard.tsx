@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
+import { DatosTransferenciaAdmin } from '../../components/DatosTransferenciaAdmin'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
@@ -1294,7 +1295,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       </>
       )}
 
-      {activeTab === 'pedidos' && <PedidosTienda />}
+      {activeTab === 'pedidos' && (
+        <>
+          <PedidosTienda />
+          <DatosTransferenciaAdmin />
+        </>
+      )}
 
       {activeTab === 'inventario' && <InventarioAdmin />}
 

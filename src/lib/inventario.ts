@@ -12,6 +12,10 @@ export interface Producto {
   foto_path: string | null
   stock: number
   active: boolean
+  /** Se vende por peso: precio = por kilo, stock y cantidades en gramos. */
+  por_peso: boolean
+  /** Gramos aproximados de una unidad (ej. un tomate); null = solo se vende por gramos. */
+  gramos_unidad: number | null
 }
 
 export async function loadProductos(params: {
@@ -134,7 +138,7 @@ export async function loadCategorias(incluirInactivos = false): Promise<string[]
 
 export async function updateProducto(
   id: string,
-  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active'>>,
+  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active' | 'por_peso' | 'gramos_unidad'>>,
 ) {
   const { error } = await supabase
     .from('ingreso_productos')
@@ -161,7 +165,10 @@ export function productoFotoUrl(fotoPath: string): string {
 
 export interface PedidoItemInput {
   producto_id: string
-  cantidad: number
+  /** Unidades (productos normales). */
+  cantidad?: number
+  /** Gramos (productos por peso). */
+  gramos?: number
 }
 
 export async function crearPedido(items: PedidoItemInput[]): Promise<{

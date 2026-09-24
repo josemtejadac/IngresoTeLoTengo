@@ -29,6 +29,8 @@ export function InventarioAdmin() {
   const [editing, setEditing] = useState<Producto | null>(null)
   const [editPrecio, setEditPrecio] = useState('')
   const [editStock, setEditStock] = useState('0')
+  const [editPorPeso, setEditPorPeso] = useState(false)
+  const [editGramosUnidad, setEditGramosUnidad] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -145,6 +147,8 @@ export function InventarioAdmin() {
     setEditing(p)
     setEditPrecio(p.precio?.toString() ?? '')
     setEditStock(p.stock.toString())
+    setEditPorPeso(p.por_peso)
+    setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
     setError(null)
   }
 
@@ -159,7 +163,18 @@ export function InventarioAdmin() {
     setSavingId(editing.id)
     setError(null)
     try {
-      await updateProducto(editing.id, { precio, stock })
+      const gramosUnidad = editPorPeso && editGramosUnidad !== '' ? Number(editGramosUnidad) : null
+      if (gramosUnidad !== null && (!Number.isInteger(gramosUnidad) || gramosUnidad <= 0)) {
+        setError('Los gramos por unidad deben ser un número entero mayor a 0')
+        setSavingId(null)
+        return
+      }
+      await updateProducto(editing.id, {
+        precio,
+        stock,
+        por_peso: editPorPeso,
+        gramos_unidad: gramosUnidad,
+      })
       await runSearch()
       setEditing(null)
     } catch (err) {
@@ -319,8 +334,8 @@ export function InventarioAdmin() {
               </td>
               <td>{p.nombre}</td>
               <td>{p.categoria ?? '—'}</td>
-              <td>{p.precio !== null ? formatCLP(p.precio) : 'Sin precio'}</td>
-              <td>{p.stock}</td>
+              <td>{p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}</td>
+              <td>{p.por_peso ? 'Por peso' : p.stock}</td>
               <td>
                 {catalogoOculto ? (
                   <button className="btn btn-primary btn-small" onClick={() => handleActivar(p)}>
@@ -369,8 +384,28 @@ export function InventarioAdmin() {
               />
             </label>
 
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={editPorPeso}
+                onChange={(e) => setEditPorPeso(e.target.checked)}
+              />
+              Se vende por peso (el precio es por kilo)
+            </label>
+            {editPorPeso && (
+              <label>
+                Gramos aprox. de una unidad (vacío = solo se vende por gramos)
+                <input
+                  type="number"
+                  min={1}
+                  value={editGramosUnidad}
+                  onChange={(e) => setEditGramosUnidad(e.target.value)}
+                  placeholder="Ej: 150"
+                />
+              </label>
+            )}
             <label>
-              Precio
+              {editPorPeso ? 'Precio por kilo' : 'Precio'}
               <input
                 type="number"
                 min={0}
@@ -378,10 +413,12 @@ export function InventarioAdmin() {
                 onChange={(e) => setEditPrecio(e.target.value)}
               />
             </label>
-            <label>
-              Stock
-              <input type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
-            </label>
+            {!editPorPeso && (
+              <label>
+                Stock
+                <input type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+              </label>
+            )}
 
             {error && <p className="error-text">{error}</p>}
 

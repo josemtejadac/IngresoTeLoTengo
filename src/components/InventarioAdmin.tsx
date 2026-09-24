@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { FotoProductoModal } from './FotoProductoModal'
 import { formatCLP } from '../lib/payroll'
 import {
   activarProductoPorBarra,
@@ -9,6 +10,7 @@ import {
   productoFotoUrl,
   updateProducto,
   uploadProductoFoto,
+  uploadProductoFotoBlob,
   type Producto,
 } from '../lib/inventario'
 
@@ -37,6 +39,7 @@ export function InventarioAdmin() {
   const [editGramosUnidad, setEditGramosUnidad] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -235,34 +238,31 @@ export function InventarioAdmin() {
     }
   }
 
-  /** Foto rapida desde la lista: en el celular ofrece camara o galeria. */
-  async function handleFotoFila(p: Producto, file: File | undefined) {
+  /** Al elegir una foto se abre la vista previa (original y con fondo blanco) antes de guardar. */
+  function elegirFoto(p: Producto, file: File | undefined) {
     if (!file || uploadingId) return
-    setUploadingId(p.id)
     setError(null)
-    try {
-      await uploadProductoFoto(p.id, file)
-      await runSearch()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error subiendo la foto')
-    } finally {
-      setUploadingId(null)
-    }
+    setFotoPendiente({ producto: p, file })
   }
 
-  async function handleFoto(file: File | undefined) {
-    if (!file || !editing) return
-    setUploadingId(editing.id)
+  async function guardarFoto(resultado: Blob | null) {
+    if (!fotoPendiente) return
+    const { producto, file } = fotoPendiente
+    setUploadingId(producto.id)
     setError(null)
     try {
-      await uploadProductoFoto(editing.id, file)
+      if (resultado) await uploadProductoFotoBlob(producto.id, resultado)
+      else await uploadProductoFoto(producto.id, file)
       await runSearch()
-      const { data: updated } = await supabase
-        .from('ingreso_productos')
-        .select('*')
-        .eq('id', editing.id)
-        .single()
-      if (updated) setEditing(updated as Producto)
+      if (editing?.id === producto.id) {
+        const { data: updated } = await supabase
+          .from('ingreso_productos')
+          .select('*')
+          .eq('id', producto.id)
+          .single()
+        if (updated) setEditing(updated as Producto)
+      }
+      setFotoPendiente(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error subiendo la foto')
     } finally {
@@ -423,7 +423,7 @@ export function InventarioAdmin() {
                       hidden
                       disabled={uploadingId !== null}
                       onChange={(e) => {
-                        handleFotoFila(p, e.target.files?.[0])
+                        elegirFoto(p, e.target.files?.[0])
                         e.target.value = ''
                       }}
                     />
@@ -494,7 +494,10 @@ export function InventarioAdmin() {
                 type="file"
                 accept="image/*"
                 disabled={uploadingId === editing.id}
-                onChange={(e) => handleFoto(e.target.files?.[0])}
+                onChange={(e) => {
+                  elegirFoto(editing, e.target.files?.[0])
+                  e.target.value = ''
+                }}
               />
             </label>
 
@@ -553,6 +556,15 @@ export function InventarioAdmin() {
             </div>
           </div>
         </div>
+      )}
+
+      {fotoPendiente && (
+        <FotoProductoModal
+          nombre={fotoPendiente.producto.nombre}
+          file={fotoPendiente.file}
+          onUsar={guardarFoto}
+          onCancelar={() => setFotoPendiente(null)}
+        />
       )}
     </section>
   )

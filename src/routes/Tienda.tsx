@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
+import { Stepper } from '../components/Stepper'
+import { useAtrasCierra } from '../lib/atras'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
@@ -43,6 +45,8 @@ export function Tienda() {
   const [productos, setProductos] = useState<ProductoTienda[]>([])
   const [cart, setCart] = useState<CartLine[]>([])
   const [showCheckout, setShowCheckout] = useState(false)
+  const [detalle, setDetalle] = useState<ProductoTienda | null>(null)
+  const [detalleCant, setDetalleCant] = useState(1)
   const [pesoSel, setPesoSel] = useState<{
     producto: ProductoTienda
     modo: 'unidades' | 'gramos'
@@ -68,6 +72,11 @@ export function Tienda() {
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [verHistorial, setVerHistorial] = useState(false)
   const [misPedidos, setMisPedidos] = useState<MiPedido[] | null>(null)
+
+  useAtrasCierra(detalle !== null, () => setDetalle(null))
+  useAtrasCierra(showCheckout, () => setShowCheckout(false))
+  useAtrasCierra(pesoSel !== null, () => setPesoSel(null))
+  useAtrasCierra(verHistorial, () => setVerHistorial(false))
 
   useEffect(() => {
     loadCategoriasTienda().then(setCategorias).catch(() => {})
@@ -111,20 +120,37 @@ export function Tienda() {
     setPesoSel(null)
   }
 
-  function addToCart(producto: ProductoTienda) {
+  function enCarrito(productoId: string): number {
+    return cart.find((l) => l.producto.id === productoId)?.cantidad ?? 0
+  }
+
+  function addToCart(producto: ProductoTienda, cantidad = 1) {
     if (producto.por_peso) {
       abrirPeso(producto)
       return
     }
+    const max = producto.stock_max ?? Infinity
+    if (enCarrito(producto.id) >= max) {
+      setError(`Solo hay ${max} unidad(es) disponible(s) de ${producto.nombre}.`)
+      return
+    }
+    setError(null)
     setCart((prev) => {
       const existing = prev.find((l) => l.producto.id === producto.id)
       if (existing) {
         return prev.map((l) =>
-          l.producto.id === producto.id ? { ...l, cantidad: l.cantidad + 1 } : l,
+          l.producto.id === producto.id
+            ? { ...l, cantidad: Math.min(max, l.cantidad + cantidad) }
+            : l,
         )
       }
-      return [...prev, { producto, cantidad: 1 }]
+      return [...prev, { producto, cantidad: Math.min(max, cantidad) }]
     })
+  }
+
+  function abrirDetalle(producto: ProductoTienda) {
+    setDetalle(producto)
+    setDetalleCant(1)
   }
 
   function updateCantidad(productoId: string, cantidad: number) {
@@ -278,12 +304,14 @@ export function Tienda() {
       <div className="tienda-grid">
         {productos.map((p) => (
           <div key={p.id} className="tienda-card">
-            {p.foto_path ? (
-              <img src={productoFotoUrl(p.foto_path)} alt={p.nombre} className="tienda-foto" />
-            ) : (
-              <div className="tienda-foto tienda-foto-placeholder" />
-            )}
-            <p className="tienda-nombre">{p.nombre}</p>
+            <button type="button" className="tienda-abrir" onClick={() => abrirDetalle(p)}>
+              {p.foto_path ? (
+                <img src={productoFotoUrl(p.foto_path)} alt={p.nombre} className="tienda-foto" />
+              ) : (
+                <div className="tienda-foto tienda-foto-placeholder" />
+              )}
+              <p className="tienda-nombre">{p.nombre}</p>
+            </button>
             <p className="tienda-precio">
               {formatCLP(p.precio)}
               {p.por_peso ? ' /kg' : ''}
@@ -314,7 +342,12 @@ export function Tienda() {
       {showCheckout && (
         <div className="camera-overlay">
           <div className="camera-modal">
-            <h2>Tu pedido</h2>
+            <div className="modal-top">
+              <button type="button" className="btn btn-secondary btn-small" onClick={() => setShowCheckout(false)}>
+                ← Volver
+              </button>
+              <h2>Tu pedido</h2>
+            </div>
             <table className="table">
               <tbody>
                 {cart.map((l) => (
@@ -331,12 +364,11 @@ export function Tienda() {
                           </button>
                         </>
                       ) : (
-                        <input
-                          type="number"
-                          min={1}
+                        <Stepper
                           value={l.cantidad}
-                          onChange={(e) => updateCantidad(l.producto.id, Number(e.target.value))}
-                          className="qty-input"
+                          min={1}
+                          max={l.producto.stock_max}
+                          onChange={(v) => updateCantidad(l.producto.id, v)}
                         />
                       )}
                     </td>
@@ -460,7 +492,12 @@ export function Tienda() {
               confirmarPeso()
             }}
           >
-            <h2>{pesoSel.producto.nombre}</h2>
+            <div className="modal-top">
+              <button type="button" className="btn btn-secondary btn-small" onClick={() => setPesoSel(null)}>
+                ← Volver
+              </button>
+              <h2>{pesoSel.producto.nombre}</h2>
+            </div>
             <p className="subtitle">{formatCLP(pesoSel.producto.precio)} el kilo</p>
             {pesoSel.producto.gramos_unidad && (
               <div className="action-row">
@@ -494,16 +531,30 @@ export function Tienda() {
                 ))}
               </div>
             )}
-            <label>
+            <p className="campo-etiqueta">
               {pesoSel.modo === 'unidades' ? 'Cantidad de unidades' : 'Gramos (mínimo 50)'}
+            </p>
+            <div className="peso-controles">
+              <Stepper
+                value={Math.round(Number(pesoSel.valor)) || 0}
+                min={pesoSel.modo === 'gramos' ? 50 : 1}
+                step={pesoSel.modo === 'gramos' ? 50 : 1}
+                label={
+                  pesoSel.modo === 'gramos'
+                    ? formatGramos(Math.round(Number(pesoSel.valor)) || 0)
+                    : undefined
+                }
+                onChange={(v) => setPesoSel({ ...pesoSel, valor: String(v) })}
+              />
               <input
                 type="number"
                 min={pesoSel.modo === 'gramos' ? 50 : 1}
                 value={pesoSel.valor}
                 onChange={(e) => setPesoSel({ ...pesoSel, valor: e.target.value })}
-                autoFocus
+                aria-label="Cantidad exacta"
+                className="peso-input"
               />
-            </label>
+            </div>
             {(() => {
               const n = Math.round(Number(pesoSel.valor)) || 0
               const g = pesoSel.modo === 'unidades' ? n * (pesoSel.producto.gramos_unidad ?? 0) : n
@@ -519,9 +570,6 @@ export function Tienda() {
               <p className="subtitle">El peso real se mide al armar el pedido; el valor final se ajusta.</p>
             )}
             <div className="camera-actions">
-              <button type="button" className="btn btn-secondary" onClick={() => setPesoSel(null)}>
-                Cancelar
-              </button>
               <button type="submit" className="btn btn-primary">
                 Agregar al pedido
               </button>
@@ -533,7 +581,12 @@ export function Tienda() {
       {verHistorial && (
         <div className="camera-overlay">
           <div className="camera-modal">
-            <h2>Mis pedidos</h2>
+            <div className="modal-top">
+              <button type="button" className="btn btn-secondary btn-small" onClick={() => setVerHistorial(false)}>
+                ← Volver
+              </button>
+              <h2>Mis pedidos</h2>
+            </div>
             {misPedidos === null && <p className="subtitle">Cargando...</p>}
             {misPedidos !== null && misPedidos.length === 0 && (
               <p className="subtitle">
@@ -574,6 +627,63 @@ export function Tienda() {
                 Cerrar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {detalle && (
+        <div className="camera-overlay" onClick={() => setDetalle(null)}>
+          <div className="camera-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-top">
+              <button type="button" className="btn btn-secondary btn-small" onClick={() => setDetalle(null)}>
+                ← Volver
+              </button>
+            </div>
+            {detalle.foto_path ? (
+              <img src={productoFotoUrl(detalle.foto_path)} alt={detalle.nombre} className="detalle-foto" />
+            ) : (
+              <div className="detalle-foto detalle-foto-vacia">Sin foto</div>
+            )}
+            <h2 className="detalle-nombre">{detalle.nombre}</h2>
+            <p className="detalle-precio">
+              {formatCLP(detalle.precio)}
+              {detalle.por_peso ? ' el kilo' : ''}
+            </p>
+            {enCarrito(detalle.id) > 0 && !detalle.por_peso && (
+              <p className="subtitle">Ya tienes {enCarrito(detalle.id)} en tu pedido.</p>
+            )}
+            {detalle.por_peso ? (
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  const p = detalle
+                  setDetalle(null)
+                  abrirPeso(p)
+                }}
+              >
+                Elegir cantidad
+              </button>
+            ) : (
+              <>
+                <div className="detalle-cantidad">
+                  <Stepper
+                    value={detalleCant}
+                    min={1}
+                    max={detalle.stock_max !== null ? Math.max(1, detalle.stock_max - enCarrito(detalle.id)) : null}
+                    onChange={setDetalleCant}
+                  />
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    addToCart(detalle, detalleCant)
+                    setDetalle(null)
+                  }}
+                >
+                  Agregar · {formatCLP(detalle.precio * detalleCant)}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

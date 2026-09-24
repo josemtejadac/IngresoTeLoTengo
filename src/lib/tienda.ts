@@ -11,6 +11,8 @@ export interface ProductoTienda {
   /** Precio por kilo; la cantidad se pide en unidades aproximadas o en gramos. */
   por_peso: boolean
   gramos_unidad: number | null
+  /** Unidades disponibles (null en productos por peso). */
+  stock_max: number | null
 }
 
 export async function loadCatalogoTienda(params: {

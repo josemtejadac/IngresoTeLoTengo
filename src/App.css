@@ -311,9 +311,9 @@ select {
 .tienda-foto {
   width: 100%;
   aspect-ratio: 1;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
-  background: #f1f5f9;
+  background: #fff;
 }
 
 .tienda-foto-placeholder {
@@ -789,4 +789,150 @@ textarea {
   font-size: 0.75rem;
   font-weight: 400;
   color: #64748b;
+}
+
+/* Foto y nombre del producto son un boton que abre el detalle. */
+.tienda-abrir {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tienda-foto-placeholder {
+  background: #f1f5f9;
+}
+
+.modal-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-top h2 {
+  font-size: 1.1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detalle-foto {
+  width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 10px;
+}
+
+.detalle-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.detalle-nombre {
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.detalle-precio {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.detalle-cantidad {
+  display: flex;
+  justify-content: center;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 2px;
+  background: #fff;
+}
+
+.stepper-btn {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #1e293b;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepper-valor {
+  min-width: 52px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.peso-controles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.peso-input {
+  width: 100px;
+}
+
+.foto-comparar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.foto-comparar figure {
+  margin: 0;
+  text-align: center;
+}
+
+.foto-comparar img,
+.foto-espera {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f1f5f9;
+}
+
+.foto-comparar .foto-blanca {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+
+.foto-espera {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.85rem;
+  padding: 8px;
+}
+
+.foto-comparar figcaption {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 4px;
 }

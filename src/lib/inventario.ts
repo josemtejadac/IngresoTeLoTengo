@@ -166,10 +166,15 @@ export async function updateProducto(
 
 export async function uploadProductoFoto(productoId: string, file: File): Promise<string> {
   const compressed = await compressImageFile(file)
+  return uploadProductoFotoBlob(productoId, compressed)
+}
+
+/** Sube una imagen ya lista (JPEG) como foto del producto y borra la anterior. */
+export async function uploadProductoFotoBlob(productoId: string, blob: Blob): Promise<string> {
   const path = `${productoId}/${Date.now()}.jpg`
   const { error: uploadError } = await supabase.storage
     .from('ingreso-productos-fotos')
-    .upload(path, compressed, { contentType: 'image/jpeg' })
+    .upload(path, blob, { contentType: 'image/jpeg' })
   if (uploadError) throw uploadError
   // Foto anterior (si habia): se borra para no acumular archivos sin uso.
   const { data: previo } = await supabase

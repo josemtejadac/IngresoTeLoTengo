@@ -49,14 +49,13 @@ export function InventarioAdmin() {
 
   const runSearch = useCallback(async () => {
     try {
-      // Al buscar se muestran activos y ocultos juntos (un codigo de un producto sin activar
-      // tambien aparece). Sin busqueda, lo ultimo escaneado/modificado queda arriba.
+      // Solo activos, salvo que este marcado "Ver catalogo oculto". Sin busqueda, lo ultimo
+      // escaneado/modificado queda arriba.
       const buscando = search.trim() !== ''
       const rows = await loadProductos({
         categoria: categoria || undefined,
         search: search || undefined,
         soloInactivos: catalogoOculto,
-        incluirInactivos: buscando && !catalogoOculto,
         orden: buscando ? 'nombre' : 'reciente',
         limit: 300,
       })
@@ -384,6 +383,12 @@ export function InventarioAdmin() {
         </label>
       </div>
       {error && !editing && <p className="error-text">{error}</p>}
+      {productos.length === 0 && search.trim() !== '' && !catalogoOculto && (
+        <p className="subtitle">
+          No hay productos activos con esa búsqueda. Para activar uno nuevo, escanéalo arriba o
+          marca &quot;Ver catálogo oculto&quot;.
+        </p>
+      )}
 
       <table className="table">
         <thead>

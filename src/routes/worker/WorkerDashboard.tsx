@@ -5,6 +5,7 @@ import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
+import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
@@ -100,7 +101,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<
-    'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'historial'
+    'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'limpieza' | 'historial'
   >('inicio')
 
   const loadRecords = useCallback(async () => {
@@ -511,6 +512,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           Pendientes
         </button>
         <button
+          className={activeTab === 'limpieza' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('limpieza')}
+        >
+          Limpieza
+        </button>
+        <button
           className={activeTab === 'historial' ? 'tab-btn active' : 'tab-btn'}
           onClick={() => setActiveTab('historial')}
         >
@@ -629,6 +636,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       {activeTab === 'productos' && <ProductosScanner />}
 
       {activeTab === 'pedidos' && <PedidosTienda />}
+
+      {activeTab === 'limpieza' && <ReporteLimpieza workerId={profile.id} />}
 
       {activeTab === 'arqueo' && (
         <>

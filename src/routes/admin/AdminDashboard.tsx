@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
+import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
@@ -187,7 +188,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [tiempoError, setTiempoError] = useState<string | null>(null)
   const [extensiones, setExtensiones] = useState<Record<string, number>>({})
   const [activeTab, setActiveTab] = useState<
-    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'registros'
+    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'limpieza' | 'registros'
   >('trabajadores')
 
   const loadLastStatuses = useCallback(async () => {
@@ -880,6 +881,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           Inventario
         </button>
         <button
+          className={activeTab === 'limpieza' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('limpieza')}
+        >
+          Limpieza
+        </button>
+        <button
           className={activeTab === 'registros' ? 'tab-btn active' : 'tab-btn'}
           onClick={() => setActiveTab('registros')}
         >
@@ -1290,6 +1297,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       {activeTab === 'pedidos' && <PedidosTienda />}
 
       {activeTab === 'inventario' && <InventarioAdmin />}
+
+      {activeTab === 'limpieza' && <ReporteLimpieza workerId={profile.id} isAdmin />}
 
       {activeTab === 'pendientes' && (
       <section className="card">

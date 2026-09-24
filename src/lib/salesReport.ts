@@ -41,6 +41,19 @@ export async function downloadSalesPdf({
 
   const rows = (data as ArqueoRowRaw[]) ?? []
 
+  // Dinero de deudas cobradas (abonos): cuenta en el dia en que se cobra, no cuando se fio.
+  const { data: abonosData, error: abonosError } = await supabase
+    .from('ingreso_abonos')
+    .select('monto, created_at')
+    .gte('created_at', new Date(start.getFullYear(), start.getMonth(), start.getDate()).toISOString())
+    .lt('created_at', new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1).toISOString())
+  if (abonosError) throw abonosError
+  const cobrosPorFecha = new Map<string, number>()
+  for (const a of (abonosData as { monto: number; created_at: string }[]) ?? []) {
+    const d = toISODate(new Date(a.created_at))
+    cobrosPorFecha.set(d, (cobrosPorFecha.get(d) ?? 0) + Number(a.monto))
+  }
+
   const byDate = new Map<
     string,
     { efectivo: number; debito: number; credito: number; transferencia: number }
@@ -59,10 +72,11 @@ export async function downloadSalesPdf({
     byDate.set(r.arqueo_date, entry)
   }
 
-  const dates = [...byDate.keys()].sort()
+  const dates = [...new Set([...byDate.keys(), ...cobrosPorFecha.keys()])].sort()
+  const emptyDay = { efectivo: 0, debito: 0, credito: 0, transferencia: 0 }
   const grandTotal = dates.reduce((sum, d) => {
-    const e = byDate.get(d)!
-    return sum + e.efectivo + e.debito + e.credito + e.transferencia
+    const e = byDate.get(d) ?? emptyDay
+    return sum + e.efectivo + e.debito + e.credito + e.transferencia + (cobrosPorFecha.get(d) ?? 0)
   }, 0)
 
   const doc = new jsPDF()
@@ -73,20 +87,22 @@ export async function downloadSalesPdf({
 
   autoTable(doc, {
     startY: 34,
-    head: [['Fecha', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Venta bruta']],
+    head: [['Fecha', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Deudas cobradas', 'Venta']],
     body: dates.map((d) => {
-      const e = byDate.get(d)!
-      const total = e.efectivo + e.debito + e.credito + e.transferencia
+      const e = byDate.get(d) ?? emptyDay
+      const cobros = cobrosPorFecha.get(d) ?? 0
+      const total = e.efectivo + e.debito + e.credito + e.transferencia + cobros
       return [
         d,
         formatCLP(e.efectivo),
         formatCLP(e.debito),
         formatCLP(e.credito),
         formatCLP(e.transferencia),
+        formatCLP(cobros),
         formatCLP(total),
       ]
     }),
-    foot: [['', '', '', '', 'Total', formatCLP(grandTotal)]],
+    foot: [['', '', '', '', '', 'Total', formatCLP(grandTotal)]],
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },
   })

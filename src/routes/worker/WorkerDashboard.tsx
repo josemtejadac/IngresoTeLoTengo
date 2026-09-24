@@ -454,7 +454,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   async function handleCobrar(ids: string[], busyKey: string) {
     setPayingId(busyKey)
     try {
-      await markPendientesPagados(ids, profile.id)
+      await markPendientesPagados(ids)
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
@@ -650,7 +650,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               <div className="goal-bar-fill" style={{ width: `${weeklySalesPct}%` }} />
             </div>
             <p>
-              Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> ({weeklySalesPct}%)
+              Venta de la semana (incluye deudas cobradas): <strong>{formatCLP(weeklySales)}</strong> ({weeklySalesPct}%)
             </p>
           </section>
 

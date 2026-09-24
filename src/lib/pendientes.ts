@@ -56,13 +56,10 @@ export async function addPendientes(
   if (error) throw error
 }
 
-export async function markPendientesPagados(ids: string[], paidByWorkerId: string) {
+/** Cobra todo el saldo de las deudas: queda registrado como dinero cobrado en la fecha de hoy. */
+export async function markPendientesPagados(ids: string[]) {
   if (ids.length === 0) return
-  const { error } = await supabase
-    .from('ingreso_pendientes')
-    .update({ pagado: true, paid_by: paidByWorkerId, paid_at: new Date().toISOString() })
-    .in('id', ids)
-    .eq('pagado', false)
+  const { error } = await supabase.rpc('ingreso_cobrar', { p_ids: ids })
   if (error) throw error
 }
 

@@ -719,7 +719,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     setPayingId(busyKey)
     setPendienteError(null)
     try {
-      await markPendientesPagados(ids, profile.id)
+      await markPendientesPagados(ids)
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
@@ -1221,7 +1221,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           />
         </div>
         <p>
-          Venta bruta de la semana: <strong>{formatCLP(weeklySales)}</strong> (
+          Venta de la semana (incluye deudas cobradas): <strong>{formatCLP(weeklySales)}</strong> (
           {Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))}%)
         </p>
         <div className="report-row">

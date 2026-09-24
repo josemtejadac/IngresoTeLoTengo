@@ -217,6 +217,7 @@ export interface MiPedido {
   metodo_pago: MetodoPago | null
   pago_estado: PagoEstado
   items: {
+    producto_id: string | null
     nombre_producto: string
     cantidad: number
     es_peso: boolean
@@ -244,4 +245,17 @@ export async function iniciarPagoFlow(pedidoId: string, email: string): Promise<
   const body = await res.json().catch(() => ({}))
   if (!res.ok || !body.url) throw new Error(body.error ?? 'No se pudo iniciar el pago online')
   return body.url as string
+}
+
+/** El cliente cancela su pedido online que aun no pago (se devuelve el stock). */
+export async function cancelarPedidoCliente(pedidoId: string) {
+  const { error } = await supabase.rpc('ingreso_cancelar_pedido_cliente', { p_pedido: pedidoId })
+  if (error) throw error
+}
+
+/** Productos vigentes del catalogo por id (para rearmar un carrito desde un pedido). */
+export async function loadProductosPorIds(ids: string[]): Promise<ProductoTienda[]> {
+  const { data, error } = await supabase.rpc('ingreso_tienda_productos_por_ids', { p_ids: ids })
+  if (error) throw error
+  return (data as ProductoTienda[]) ?? []
 }

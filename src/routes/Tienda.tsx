@@ -7,7 +7,9 @@ import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
 import {
   crearPedidoTienda,
+  cancelarPedidoCliente,
   guardarPedidoIdLocal,
+  loadProductosPorIds,
   iniciarPagoFlow,
   loadMisPedidos,
   METODO_PAGO_LABEL,
@@ -269,6 +271,76 @@ export function Tienda() {
     }
   }
 
+  const [busyPedido, setBusyPedido] = useState<string | null>(null)
+
+  async function pagarPedido(p: MiPedido) {
+    let correo = email.trim()
+    if (!correo) correo = (window.prompt('¿A qué correo te enviamos el comprobante de Flow?') ?? '').trim()
+    if (!correo) return
+    setBusyPedido(p.id)
+    try {
+      window.location.href = await iniciarPagoFlow(p.id, correo)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo iniciar el pago')
+      setBusyPedido(null)
+    }
+  }
+
+  async function cancelarPedido(p: MiPedido) {
+    if (!window.confirm('¿Cancelar este pedido? No se te cobrará nada.')) return
+    setBusyPedido(p.id)
+    try {
+      await cancelarPedidoCliente(p.id)
+      setMisPedidos(await loadMisPedidos())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cancelar el pedido')
+    } finally {
+      setBusyPedido(null)
+    }
+  }
+
+  /** Editar = cancelar el pedido sin pagar y devolver sus productos al carrito para agregar mas. */
+  async function editarPedido(p: MiPedido) {
+    const sinPagar = p.estado !== 'cancelado'
+    if (
+      sinPagar &&
+      !window.confirm('Se cancela este pedido y sus productos vuelven a tu carrito para que puedas agregar más. ¿Seguimos?')
+    ) {
+      return
+    }
+    setBusyPedido(p.id)
+    try {
+      if (sinPagar) await cancelarPedidoCliente(p.id)
+      const ids = p.items.map((it) => it.producto_id).filter((x): x is string => !!x)
+      const prods = new Map((await loadProductosPorIds(ids)).map((x) => [x.id, x]))
+      const lineas: CartLine[] = []
+      let faltan = 0
+      for (const it of p.items) {
+        const prod = it.producto_id ? prods.get(it.producto_id) : undefined
+        if (!prod) {
+          faltan++
+          continue
+        }
+        if (!prod.por_peso) {
+          lineas.push({ producto: prod, cantidad: Math.min(it.cantidad, prod.stock_max ?? it.cantidad) })
+        } else if (it.aprox && it.unidades) {
+          lineas.push({ producto: prod, cantidad: it.unidades, modo: 'unidades' })
+        } else {
+          lineas.push({ producto: prod, cantidad: it.cantidad, modo: 'gramos' })
+        }
+      }
+      setCart(lineas)
+      setMetodo('online')
+      setVerHistorial(false)
+      setShowCheckout(true)
+      setError(faltan > 0 ? `${faltan} producto(s) del pedido ya no están disponibles.` : null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo editar el pedido')
+    } finally {
+      setBusyPedido(null)
+    }
+  }
+
   async function abrirHistorial() {
     setVerHistorial(true)
     setMisPedidos(null)
@@ -303,7 +375,7 @@ export function Tienda() {
             </p>
           )}
           {!pagado && retorno.pago === 'fallo' && (
-            <p>No se realizó el cobro. Puedes hacer el pedido de nuevo y elegir otro método de pago.</p>
+            <p>No se realizó el cobro. Tu pedido aparece en «Mis pedidos», desde ahí puedes volver a pedirlo.</p>
           )}
           {!pagado && retorno.pago !== 'fallo' && (
             <p className="subtitle">Estamos esperando la confirmación de Flow. Esto tarda unos segundos.</p>
@@ -730,7 +802,7 @@ export function Tienda() {
                         ? 'Pago no completado'
                         : 'Cancelado'
                       : p.pago_estado === 'esperando_pago'
-                        ? 'Esperando el pago'
+                        ? 'Sin pagar'
                         : 'En curso'}
                 </p>
                 <p className="subtitle">
@@ -754,6 +826,42 @@ export function Tienda() {
                     <span className="badge-pendiente">Pago pendiente</span>
                   )}
                 </p>
+                {p.metodo_pago === 'online' && p.pago_estado === 'esperando_pago' && p.estado !== 'cancelado' && (
+                  <div className="report-row">
+                    <button
+                      className="btn btn-primary btn-small"
+                      disabled={busyPedido === p.id}
+                      onClick={() => pagarPedido(p)}
+                    >
+                      Pagar ahora
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      disabled={busyPedido === p.id}
+                      onClick={() => editarPedido(p)}
+                    >
+                      Editar / agregar más
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      disabled={busyPedido === p.id}
+                      onClick={() => cancelarPedido(p)}
+                    >
+                      Cancelar pedido
+                    </button>
+                  </div>
+                )}
+                {p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && p.estado === 'cancelado' && (
+                  <div className="report-row">
+                    <button
+                      className="btn btn-primary btn-small"
+                      disabled={busyPedido === p.id}
+                      onClick={() => editarPedido(p)}
+                    >
+                      Volver a pedir
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
             <div className="camera-actions">

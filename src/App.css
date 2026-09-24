@@ -1128,3 +1128,19 @@ textarea {
     font-size: 0.85rem;
   }
 }
+
+/* Carrito siempre visible abajo, por encima de todo lo demas. */
+.tienda-cart-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 12px;
+  width: min(920px, calc(100% - 24px));
+  box-sizing: border-box;
+  z-index: 50;
+  margin-top: 0;
+}
+
+.tienda-grid {
+  padding-bottom: 80px;
+}

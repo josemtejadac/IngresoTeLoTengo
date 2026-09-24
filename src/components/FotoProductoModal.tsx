@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { componerFondoBlanco, quitarFondo } from '../lib/fondoBlanco'
+import {
+  componerFondoBlanco,
+  quitarFondo,
+  reactivarRecorte,
+  recorteActivo,
+  revisarCaidaPrevia,
+} from '../lib/fondoBlanco'
 
 interface Props {
   nombre: string
@@ -12,34 +18,40 @@ interface Props {
 /** Muestra la foto original y la version con fondo blanco para elegir cual guardar. */
 export function FotoProductoModal({ nombre, file, onUsar, onCancelar }: Props) {
   const [original] = useState(() => URL.createObjectURL(file))
+  // Debe evaluarse antes de cualquier intento nuevo: detecta si el anterior cerro la pagina.
+  const [activo, setActivo] = useState(() => {
+    revisarCaidaPrevia()
+    return recorteActivo()
+  })
   const [resultado, setResultado] = useState<Blob | null>(null)
   const [resultadoUrl, setResultadoUrl] = useState<string | null>(null)
   const [progreso, setProgreso] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
-  const activo = useRef(true)
+  const vivo = useRef(true)
 
   useEffect(() => {
-    activo.current = true
+    if (!activo) return
+    vivo.current = true
     ;(async () => {
       try {
         const recorte = await quitarFondo(file, (p) => {
-          if (activo.current) setProgreso(p)
+          if (vivo.current) setProgreso(p)
         })
         const compuesta = await componerFondoBlanco(recorte)
-        if (!activo.current) return
+        if (!vivo.current) return
         setResultado(compuesta)
         setResultadoUrl(URL.createObjectURL(compuesta))
       } catch (err) {
-        if (activo.current) {
+        if (vivo.current) {
           setError(err instanceof Error ? err.message : 'No se pudo quitar el fondo')
         }
       }
     })()
     return () => {
-      activo.current = false
+      vivo.current = false
     }
-  }, [file])
+  }, [file, activo])
 
   useEffect(() => {
     return () => {
@@ -63,7 +75,7 @@ export function FotoProductoModal({ nombre, file, onUsar, onCancelar }: Props) {
     }
   }
 
-  const procesando = resultado === null && error === null
+  const procesando = activo && resultado === null && error === null
 
   return (
     <div className="camera-overlay">
@@ -96,6 +108,22 @@ export function FotoProductoModal({ nombre, file, onUsar, onCancelar }: Props) {
           <p className="subtitle">
             {progreso > 0 ? `Preparando… ${progreso}%. ` : ''}La primera vez tarda más porque
             descarga el programa de recorte (queda guardado después).
+          </p>
+        )}
+        {!activo && (
+          <p className="subtitle">
+            El recorte automático está desactivado en este teléfono, porque la página se cerraba
+            al procesar la foto. Puedes usar la foto original.{' '}
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                reactivarRecorte()
+                setActivo(true)
+              }}
+            >
+              Volver a intentarlo
+            </button>
           </p>
         )}
         {error && (

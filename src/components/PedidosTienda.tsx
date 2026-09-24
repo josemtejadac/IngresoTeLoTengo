@@ -2,8 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
+import { FiltroPagoBotones } from './FiltroPagoBotones'
 import {
   ajustarPesoItem,
+  cambiarMetodoPedido,
+  coincideFiltroPago,
+  type FiltroPago,
   marcarPedidoPagado,
   METODO_PAGO_LABEL,
   loadPedidosTiendaPendientes,
@@ -19,6 +23,7 @@ export function PedidosTienda() {
   const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState<FiltroPago>('todos')
   const [ajustando, setAjustando] = useState<string | null>(null)
   const [ajusteGramos, setAjusteGramos] = useState('')
 
@@ -100,11 +105,43 @@ export function PedidosTienda() {
     }
   }
 
-  function textoPago(p: PedidoTienda): string {
-    const metodo = p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'
-    if (p.pago_estado === 'pagado') return `${metodo} · Pagado`
-    return `${metodo} · Pago pendiente (cobrar al entregar)`
+  async function handleCambiarMetodo(p: PedidoTienda) {
+    const nuevo = p.metodo_pago === 'tarjeta' ? 'efectivo' : 'tarjeta'
+    if (!window.confirm(`¿Cambiar el pago de ${p.nombre_cliente} a ${METODO_PAGO_LABEL[nuevo]}?`)) return
+    setBusyId(p.id)
+    setError(null)
+    try {
+      await cambiarMetodoPedido(p.id, nuevo)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error cambiando el método de pago')
+    } finally {
+      setBusyId(null)
+    }
   }
+
+  function etiquetaPago(p: PedidoTienda) {
+    const metodo = p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'
+    if (p.pago_estado === 'pagado') {
+      return (
+        <>
+          {metodo} · <span className="badge-pagado">PAGADO</span>
+        </>
+      )
+    }
+    return (
+      <>
+        {metodo} · <span className="badge-pendiente">Pago pendiente</span> (cobrar al entregar)
+      </>
+    )
+  }
+
+  const cuentas: Record<FiltroPago, number> = {
+    todos: pedidos.length,
+    online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
+    contraentrega: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'contraentrega')).length,
+  }
+  const visibles = pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
 
   if (pedidos.length === 0) return null
 
@@ -114,9 +151,14 @@ export function PedidosTienda() {
       <p className="subtitle">
         Pedidos de vecinos por entregar o por confirmar su pago.
       </p>
+      <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
       {error && <p className="error-text">{error}</p>}
-      {pedidos.map((p) => (
-        <div key={p.id} className="pedido-tienda-item">
+      {visibles.length === 0 && <p className="subtitle">No hay pedidos con este filtro.</p>}
+      {visibles.map((p) => (
+        <div
+          key={p.id}
+          className={p.pago_estado === 'pagado' ? 'pedido-tienda-item pedido-pagado' : 'pedido-tienda-item'}
+        >
           <p>
             <strong>{p.nombre_cliente}</strong> — Torre {p.torre}, Depto {p.depto}
           </p>
@@ -163,9 +205,7 @@ export function PedidosTienda() {
           <p>
             Total: <strong>{formatCLP(p.total)}</strong>
           </p>
-          <p className="subtitle">
-            {textoPago(p)}
-          </p>
+          <p>{etiquetaPago(p)}</p>
           <div className="report-row">
             {p.estado === 'pendiente' ? (
               <>
@@ -187,6 +227,15 @@ export function PedidosTienda() {
               </>
             ) : (
               <span className="subtitle">Entregado — falta confirmar el pago</span>
+            )}
+            {p.metodo_pago !== 'online' && (
+              <button
+                className="btn btn-secondary"
+                disabled={busyId === p.id}
+                onClick={() => handleCambiarMetodo(p)}
+              >
+                Cambiar a {p.metodo_pago === 'tarjeta' ? 'efectivo' : 'tarjeta'}
+              </button>
             )}
             {p.pago_estado !== 'pagado' && (
               <button

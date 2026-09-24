@@ -8,6 +8,7 @@ import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clie
 import {
   crearPedidoTienda,
   guardarPedidoIdLocal,
+  iniciarPagoFlow,
   loadMisPedidos,
   METODO_PAGO_LABEL,
   type MetodoPago,
@@ -62,6 +63,7 @@ export function Tienda() {
     guardado && guardado.direcciones.length > 0 ? guardado.ultima : 'nueva',
   )
   const [guardarDatos, setGuardarDatos] = useState(true)
+  const [email, setEmail] = useState(guardado?.email ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmacion, setConfirmacion] = useState<{
@@ -71,12 +73,40 @@ export function Tienda() {
   } | null>(null)
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
   const [verHistorial, setVerHistorial] = useState(false)
+  // Vuelta desde Flow: ?pago=ok|pendiente|fallo&pedido=<id>
+  const [retorno, setRetorno] = useState<{ pago: string; pedido: MiPedido | null } | null>(null)
   const [misPedidos, setMisPedidos] = useState<MiPedido[] | null>(null)
 
   useAtrasCierra(detalle !== null, () => setDetalle(null))
   useAtrasCierra(showCheckout, () => setShowCheckout(false))
   useAtrasCierra(pesoSel !== null, () => setPesoSel(null))
   useAtrasCierra(verHistorial, () => setVerHistorial(false))
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const pago = q.get('pago')
+    const pedidoId = q.get('pedido')
+    if (!pago || !pedidoId) return
+    window.history.replaceState(null, '', window.location.pathname)
+    let vivo = true
+    let intentos = 0
+    async function cargar() {
+      try {
+        const lista = await loadMisPedidos()
+        const ped = lista.find((x) => x.id === pedidoId) ?? null
+        if (!vivo) return
+        setRetorno({ pago: ped?.pago_estado === 'pagado' ? 'ok' : (pago as string), pedido: ped })
+        // Flow puede tardar unos segundos en avisar: se reintenta un rato.
+        if (ped && ped.pago_estado === 'esperando_pago' && intentos++ < 12) setTimeout(cargar, 4000)
+      } catch {
+        if (vivo) setRetorno({ pago: pago as string, pedido: null })
+      }
+    }
+    cargar()
+    return () => {
+      vivo = false
+    }
+  }, [])
 
   useEffect(() => {
     loadCategoriasTienda().then(setCategorias).catch(() => {})
@@ -180,6 +210,7 @@ export function Tienda() {
     setDirSel('nueva')
     setNombre('')
     setTelefono('')
+    setEmail('')
     setTorre('')
     setDepto('')
   }
@@ -190,6 +221,10 @@ export function Tienda() {
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
     if (cart.length === 0) return
+    if (metodo === 'online' && total < 350) {
+      setError('El pago online requiere un mínimo de $350.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -207,12 +242,17 @@ export function Tienda() {
         }),
       })
       if (guardarDatos) {
-        guardarCliente({ nombre, telefono, torre, depto })
+        guardarCliente({ nombre, telefono, email, torre, depto })
         const c = loadClienteGuardado()
         setGuardado(c)
         if (c) setDirSel(c.ultima)
       }
       guardarPedidoIdLocal(result.pedido_id)
+      if (metodo === 'online') {
+        // Se lleva al cliente a Flow; al pagar vuelve a la tienda con el pedido.
+        window.location.href = await iniciarPagoFlow(result.pedido_id, email.trim())
+        return
+      }
       setConfirmacion({ total: result.total, pedidoId: result.pedido_id, metodo })
       setCart([])
       setShowCheckout(false)
@@ -240,6 +280,52 @@ export function Tienda() {
     }
   }
 
+  if (retorno) {
+    const ped = retorno.pedido
+    const pagado = ped?.pago_estado === 'pagado'
+    return (
+      <div className="page-center">
+        <div className={pagado ? 'card login-form retorno-pago' : 'card login-form'}>
+          <div className="login-brand">
+            <Logo size={72} />
+            {pagado ? (
+              <h1>¡Pago recibido!</h1>
+            ) : retorno.pago === 'fallo' ? (
+              <h1>Pago no completado</h1>
+            ) : (
+              <h1>Confirmando tu pago...</h1>
+            )}
+          </div>
+          {pagado && (
+            <p>
+              <span className="badge-pagado">PAGADO</span> · Tu pedido está <strong>en curso</strong>. Un
+              vecino de Te Lo Tengo Market te va a escribir por WhatsApp cuando esté abajo.
+            </p>
+          )}
+          {!pagado && retorno.pago === 'fallo' && (
+            <p>No se realizó el cobro. Puedes hacer el pedido de nuevo y elegir otro método de pago.</p>
+          )}
+          {!pagado && retorno.pago !== 'fallo' && (
+            <p className="subtitle">Estamos esperando la confirmación de Flow. Esto tarda unos segundos.</p>
+          )}
+          {ped && (
+            <p className="subtitle">
+              Total: <strong>{formatCLP(ped.total)}</strong> ·{' '}
+              {ped.items
+                .map((it) =>
+                  it.es_peso ? `${it.nombre_producto} (${formatGramos(it.cantidad)})` : `${it.cantidad}x ${it.nombre_producto}`,
+                )
+                .join(', ')}
+            </p>
+          )}
+          <button className="btn btn-primary" onClick={() => setRetorno(null)}>
+            Volver a la tienda
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (confirmacion) {
     return (
       <div className="page-center">
@@ -263,43 +349,56 @@ export function Tienda() {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <div className="brand-row">
-          <Logo size={48} />
-          <div>
-            <h1>Te Lo Tengo Market</h1>
-            <p className="subtitle">Delivery dentro del condominio</p>
+      <header className="tienda-hero">
+        <div className="tienda-hero-top">
+          <div className="brand-row">
+            <Logo size={52} />
+            <div>
+              <h1>Te Lo Tengo Market</h1>
+              <p>Delivery dentro del condominio</p>
+            </div>
           </div>
+          <button className="tienda-pedidos-btn" onClick={abrirHistorial}>
+            🧾 Mis pedidos
+          </button>
         </div>
-        <button className="btn btn-secondary" onClick={abrirHistorial}>
-          Mis pedidos
-        </button>
+        <div className="tienda-beneficios">
+          <span>🚚 Te lo llevamos a tu depto</span>
+          <span>💳 Paga online o al recibir</span>
+        </div>
+        <input
+          type="search"
+          className="tienda-buscar"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="🔍  ¿Qué necesitas? Ej: coca cola"
+          aria-label="Buscar producto"
+        />
       </header>
 
       {error && <p className="error-text">{error}</p>}
 
-      <div className="report-row">
-        <label className="chat-input">
-          Buscar producto
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Escribe el nombre, ej: coca cola"
-          />
-        </label>
-        <label>
-          Categoría
-          <select value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-            <option value="">Todas</option>
-            {categorias.map((c) => (
-              <option key={c} value={c}>
-                {c.replace(/\s+/g, ' ').trim()}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="tienda-chips" role="tablist" aria-label="Categorías">
+        <button
+          type="button"
+          className={categoria === '' ? 'tienda-chip activo' : 'tienda-chip'}
+          onClick={() => setCategoria('')}
+        >
+          Todas
+        </button>
+        {categorias.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={categoria === c ? 'tienda-chip activo' : 'tienda-chip'}
+            onClick={() => setCategoria(c)}
+          >
+            {c.replace(/\s+/g, ' ').trim()}
+          </button>
+        ))}
       </div>
+
+      {productos.length === 0 && <p className="subtitle">No encontramos productos con esa búsqueda.</p>}
 
       <div className="tienda-grid">
         {productos.map((p) => (
@@ -308,7 +407,7 @@ export function Tienda() {
               {p.foto_path ? (
                 <img src={productoFotoUrl(p.foto_path)} alt={p.nombre} className="tienda-foto" />
               ) : (
-                <div className="tienda-foto tienda-foto-placeholder" />
+                <div className="tienda-foto tienda-foto-placeholder">🛒</div>
               )}
               <p className="tienda-nombre">{p.nombre}</p>
             </button>
@@ -321,7 +420,7 @@ export function Tienda() {
               disabled={!p.disponible}
               onClick={() => addToCart(p)}
             >
-              {p.disponible ? 'Agregar' : 'Sin stock'}
+              {p.disponible ? '+ Agregar' : 'Sin stock'}
             </button>
           </div>
         ))}
@@ -434,6 +533,18 @@ export function Tienda() {
                   </label>
                 </>
               )}
+              {metodo === 'online' && (
+                <label>
+                  Correo (Flow te envía el comprobante)
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tucorreo@ejemplo.com"
+                    required
+                  />
+                </label>
+              )}
               <label className="checkbox-label">
                 <input
                   type="checkbox"
@@ -460,9 +571,14 @@ export function Tienda() {
                     {METODO_PAGO_LABEL[m]} al recibir
                   </label>
                 ))}
-                <label className="checkbox-label pago-disabled">
-                  <input type="radio" name="metodo" disabled />
-                  Pago online (Flow) — próximamente
+                <label className="checkbox-label">
+                  <input
+                    type="radio"
+                    name="metodo"
+                    checked={metodo === 'online'}
+                    onChange={() => setMetodo('online')}
+                  />
+                  Pago online (Flow) — tarjeta o transferencia
                 </label>
               </fieldset>
               {error && <p className="error-text">{error}</p>}
@@ -475,7 +591,7 @@ export function Tienda() {
                   Seguir comprando
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={busy}>
-                  {busy ? 'Enviando...' : 'Confirmar pedido'}
+                  {busy ? 'Enviando...' : metodo === 'online' ? 'Ir a pagar' : 'Confirmar pedido'}
                 </button>
               </div>
             </form>
@@ -594,7 +710,10 @@ export function Tienda() {
               </p>
             )}
             {(misPedidos ?? []).map((p) => (
-              <div key={p.id} className="pedido-tienda-item">
+              <div
+                key={p.id}
+                className={p.pago_estado === 'pagado' ? 'pedido-tienda-item pedido-pagado' : 'pedido-tienda-item'}
+              >
                 <p>
                   <strong>
                     {new Date(p.created_at).toLocaleString('es-CL', {
@@ -604,7 +723,15 @@ export function Tienda() {
                       minute: '2-digit',
                     })}
                   </strong>{' '}
-                  · {p.estado === 'entregado' ? 'Entregado' : p.estado === 'cancelado' ? 'Cancelado' : 'En camino'}
+                  · {p.estado === 'entregado'
+                    ? 'Entregado'
+                    : p.estado === 'cancelado'
+                      ? p.metodo_pago === 'online' && p.pago_estado !== 'pagado'
+                        ? 'Pago no completado'
+                        : 'Cancelado'
+                      : p.pago_estado === 'esperando_pago'
+                        ? 'Esperando el pago'
+                        : 'En curso'}
                 </p>
                 <p className="subtitle">
                   {p.items
@@ -618,7 +745,14 @@ export function Tienda() {
                 <p>
                   Total: <strong>{formatCLP(p.total)}</strong>
                   {p.metodo_pago ? ` · ${METODO_PAGO_LABEL[p.metodo_pago]}` : ''}
-                  {p.pago_estado === 'pagado' ? ' · Pagado' : ' · Pago pendiente'}
+                  {' · '}
+                  {p.pago_estado === 'pagado' ? (
+                    <span className="badge-pagado">PAGADO</span>
+                  ) : p.pago_estado === 'esperando_pago' ? (
+                    <span className="badge-pendiente">Esperando pago</span>
+                  ) : (
+                    <span className="badge-pendiente">Pago pendiente</span>
+                  )}
                 </p>
               </div>
             ))}

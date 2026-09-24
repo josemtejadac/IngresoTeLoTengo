@@ -936,3 +936,195 @@ textarea {
   color: #64748b;
   margin-top: 4px;
 }
+
+/* Etiqueta verde de pedido pagado y botones de filtro de pago. */
+.badge-pagado {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.badge-pendiente {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.filtro-pago {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+
+.pedido-pagado {
+  border-left: 4px solid #16a34a;
+  padding-left: 10px;
+}
+
+.retorno-pago {
+  border: 2px solid #16a34a;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f0fdf4;
+}
+
+/* ---------- Tienda: aspecto para clientes ---------- */
+.tienda-hero {
+  background: linear-gradient(135deg, #14532d 0%, #16a34a 100%);
+  color: #fff;
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 18px rgba(20, 83, 45, 0.25);
+}
+
+.tienda-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tienda-hero h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.tienda-hero p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 0.9rem;
+}
+
+.tienda-pedidos-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tienda-pedidos-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.tienda-beneficios {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  font-size: 0.8rem;
+}
+
+.tienda-beneficios span {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.tienda-buscar {
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-size: 1rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.tienda-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  scrollbar-width: thin;
+}
+
+.tienda-chip {
+  flex: 0 0 auto;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tienda-chip.activo {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  font-weight: 700;
+}
+
+.tienda-card {
+  border: 0;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.tienda-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.14);
+}
+
+.tienda-foto-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  opacity: 0.35;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+}
+
+.tienda-precio {
+  font-size: 1.05rem;
+  color: #15803d;
+}
+
+.tienda-card .btn-primary {
+  background: #16a34a;
+  border-radius: 999px;
+}
+
+.tienda-card .btn-primary:disabled {
+  background: #cbd5e1;
+}
+
+.tienda-cart-bar {
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  padding: 10px 12px 10px 20px;
+  font-weight: 700;
+}
+
+.tienda-cart-bar .btn-primary {
+  border-radius: 999px;
+}
+
+@media (max-width: 640px) {
+  .tienda-hero h1 {
+    font-size: 1.2rem;
+  }
+
+  .tienda-precio {
+    font-size: 0.85rem;
+  }
+}

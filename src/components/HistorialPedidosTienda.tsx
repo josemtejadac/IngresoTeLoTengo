@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
+import { FiltroPagoBotones } from './FiltroPagoBotones'
 import {
+  coincideFiltroPago,
+  type FiltroPago,
   loadPedidosTiendaDelDia,
   loadPedidoTiendaItems,
   METODO_PAGO_LABEL,
@@ -26,6 +29,7 @@ export function HistorialPedidosTienda() {
   const [pedidos, setPedidos] = useState<PedidoTienda[]>([])
   const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
   const [error, setError] = useState<string | null>(null)
+  const [filtro, setFiltro] = useState<FiltroPago>('todos')
 
   const load = useCallback(async () => {
     try {
@@ -56,7 +60,13 @@ export function HistorialPedidosTienda() {
     }
   }, [load])
 
-  const total = pedidos.filter((p) => p.estado !== 'cancelado').reduce((sum, p) => sum + p.total, 0)
+  const filtrados = pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
+  const cuentas: Record<FiltroPago, number> = {
+    todos: pedidos.length,
+    online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
+    contraentrega: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'contraentrega')).length,
+  }
+  const total = filtrados.filter((p) => p.estado !== 'cancelado').reduce((sum, p) => sum + p.total, 0)
 
   return (
     <section className="card">
@@ -64,13 +74,17 @@ export function HistorialPedidosTienda() {
         <h2>Historial de pedidos de la tienda</h2>
         <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
       </div>
+      <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
       {error && <p className="error-text">{error}</p>}
       <p className="subtitle">
-        {pedidos.length} pedido(s) · Total: <strong>{formatCLP(total)}</strong>
+        {filtrados.length} pedido(s) · Total: <strong>{formatCLP(total)}</strong>
       </p>
-      {pedidos.length === 0 && <p className="subtitle">No hubo pedidos este día.</p>}
-      {pedidos.map((p) => (
-        <div key={p.id} className="pedido-tienda-item">
+      {filtrados.length === 0 && <p className="subtitle">No hubo pedidos con este filtro.</p>}
+      {filtrados.map((p) => (
+        <div
+          key={p.id}
+          className={p.pago_estado === 'pagado' ? 'pedido-tienda-item pedido-pagado' : 'pedido-tienda-item'}
+        >
           <p>
             <strong>{p.nombre_cliente}</strong> — Torre {p.torre}, Depto {p.depto} ·{' '}
             {new Date(p.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
@@ -80,7 +94,14 @@ export function HistorialPedidosTienda() {
             {formatCLP(p.total)} ·{' '}
             {p.estado === 'entregado' ? 'Entregado' : p.estado === 'cancelado' ? 'Cancelado' : 'Por entregar'} ·{' '}
             {p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'}
-            {p.pago_estado === 'pagado' ? ' · Pagado' : ' · Pago pendiente'}
+            {p.pago_estado === 'pagado' ? (
+              <>
+                {' · '}
+                <span className="badge-pagado">PAGADO</span>
+              </>
+            ) : (
+              ' · Pago pendiente'
+            )}
           </p>
         </div>
       ))}

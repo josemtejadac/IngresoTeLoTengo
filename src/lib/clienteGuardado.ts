@@ -6,6 +6,7 @@ export interface Direccion {
 export interface ClienteGuardado {
   nombre: string
   telefono: string
+  email?: string
   direcciones: Direccion[]
   /** Indice de la direccion usada en el ultimo pedido. */
   ultima: number
@@ -29,6 +30,7 @@ export function loadClienteGuardado(): ClienteGuardado | null {
 export function guardarCliente(params: {
   nombre: string
   telefono: string
+  email?: string
   torre: string
   depto: string
 }) {
@@ -47,6 +49,7 @@ export function guardarCliente(params: {
     const c: ClienteGuardado = {
       nombre: params.nombre.trim(),
       telefono: params.telefono.trim(),
+      email: params.email?.trim() || prev?.email,
       direcciones,
       ultima: idx,
     }

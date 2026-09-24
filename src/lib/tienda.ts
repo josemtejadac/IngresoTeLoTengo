@@ -33,6 +33,17 @@ export async function loadCategoriasTienda(): Promise<string[]> {
   return ((data as { categoria: string }[]) ?? []).map((r) => r.categoria)
 }
 
+export type PagoEstado = 'pendiente' | 'comprobante_subido' | 'pagado' | 'esperando_pago'
+
+export type FiltroPago = 'todos' | 'online' | 'contraentrega'
+
+/** Pago online = Flow; contra entrega = efectivo o tarjeta al recibir. */
+export function coincideFiltroPago(metodo: MetodoPago | null, filtro: FiltroPago): boolean {
+  if (filtro === 'todos') return true
+  if (filtro === 'online') return metodo === 'online'
+  return metodo !== 'online'
+}
+
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'online'
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
@@ -90,7 +101,7 @@ export interface PedidoTienda {
   total: number
   estado: 'pendiente' | 'entregado' | 'cancelado'
   metodo_pago: MetodoPago | null
-  pago_estado: 'pendiente' | 'comprobante_subido' | 'pagado'
+  pago_estado: PagoEstado
   created_at: string
 }
 
@@ -99,6 +110,8 @@ export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {
     .from('ingreso_pedidos_tienda')
     .select('*')
     .neq('estado', 'cancelado')
+    // Un pedido online aparece solo cuando Flow confirma el pago.
+    .neq('pago_estado', 'esperando_pago')
     // Se muestran los pedidos por entregar y los ya entregados que aun no estan pagados.
     .or('estado.eq.pendiente,pago_estado.neq.pagado')
     .order('created_at', { ascending: true })
@@ -152,6 +165,12 @@ export async function marcarPedidoPagado(pedidoId: string) {
   if (error) throw error
 }
 
+/** El personal cambia efectivo <-> tarjeta en un pedido contra entrega (online no se puede cambiar). */
+export async function cambiarMetodoPedido(pedidoId: string, metodo: 'efectivo' | 'tarjeta') {
+  const { error } = await supabase.rpc('ingreso_cambiar_metodo_pedido', { p_pedido: pedidoId, p_metodo: metodo })
+  if (error) throw error
+}
+
 /** Pedidos de la tienda de un dia (cualquier estado), para el historial del personal. */
 export async function loadPedidosTiendaDelDia(date: string): Promise<PedidoTienda[]> {
   const start = new Date(`${date}T00:00:00`)
@@ -162,6 +181,7 @@ export async function loadPedidosTiendaDelDia(date: string): Promise<PedidoTiend
     .select('*')
     .gte('created_at', start.toISOString())
     .lt('created_at', end.toISOString())
+    .neq('pago_estado', 'esperando_pago')
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data as PedidoTienda[]) ?? []
@@ -195,7 +215,7 @@ export interface MiPedido {
   total: number
   estado: 'pendiente' | 'entregado' | 'cancelado'
   metodo_pago: MetodoPago | null
-  pago_estado: 'pendiente' | 'comprobante_subido' | 'pagado'
+  pago_estado: PagoEstado
   items: {
     nombre_producto: string
     cantidad: number
@@ -212,4 +232,16 @@ export async function loadMisPedidos(): Promise<MiPedido[]> {
   const { data, error } = await supabase.rpc('ingreso_pedidos_tienda_por_ids', { p_ids: ids })
   if (error) throw error
   return (data as MiPedido[]) ?? []
+}
+
+/** Crea el pago en Flow para un pedido online y devuelve la direccion a la que hay que llevar al cliente. */
+export async function iniciarPagoFlow(pedidoId: string, email: string): Promise<string> {
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingreso-flow-crear-pago`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pedido_id: pedidoId, email }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok || !body.url) throw new Error(body.error ?? 'No se pudo iniciar el pago online')
+  return body.url as string
 }

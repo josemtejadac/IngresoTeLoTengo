@@ -1729,3 +1729,63 @@ textarea {
   line-height: 18px;
   text-align: center;
 }
+
+/* ---------- Detalle de pedidos (personal) ---------- */
+.pedido-direccion,
+.pedido-hora {
+  margin: 2px 0;
+  font-size: 0.9rem;
+}
+
+.pedido-hora {
+  color: #475569;
+}
+
+.pedido-detalle {
+  margin: 6px 0;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.pedido-detalle-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.pedido-detalle-item:last-child {
+  border-bottom: 0;
+}
+
+.pedido-detalle-foto {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.pedido-detalle-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  opacity: 0.6;
+}
+
+.pedido-detalle-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pedido-detalle-nombre {
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

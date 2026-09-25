@@ -84,6 +84,7 @@ export { productoFotoUrl }
 
 export interface PedidoTiendaItem {
   id: string
+  producto_id: string | null
   nombre_producto: string
   precio_unitario: number
   /** Unidades, o gramos si es_peso. */
@@ -120,6 +121,14 @@ export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {
     .order('created_at', { ascending: true })
   if (error) throw error
   return (data as PedidoTienda[]) ?? []
+}
+
+/** Fotos de varios productos a la vez (id -> ruta de la foto), para mostrarlas en el detalle de un pedido. */
+export async function loadFotosProductos(ids: string[]): Promise<Record<string, string | null>> {
+  if (ids.length === 0) return {}
+  const { data, error } = await supabase.from('ingreso_productos').select('id, foto_path').in('id', ids)
+  if (error) throw error
+  return Object.fromEntries(((data as { id: string; foto_path: string | null }[]) ?? []).map((r) => [r.id, r.foto_path]))
 }
 
 export async function loadPedidoTiendaItems(pedidoId: string): Promise<PedidoTiendaItem[]> {

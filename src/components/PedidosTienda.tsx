@@ -12,7 +12,9 @@ import {
   marcarPedidoPagado,
   METODO_PAGO_LABEL,
   loadPedidosTiendaPendientes,
+  loadFotosProductos,
   loadPedidoTiendaItems,
+  productoFotoUrl,
   marcarPedidoTiendaEntregado,
   whatsappEnCaminoUrl,
   type PedidoTienda,
@@ -27,6 +29,24 @@ export function PedidosTienda() {
   const [filtro, setFiltro] = useState<FiltroPago>('todos')
   const [ajustando, setAjustando] = useState<string | null>(null)
   const [ajusteGramos, setAjusteGramos] = useState('')
+  const [fotos, setFotos] = useState<Record<string, string | null>>({})
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
+  // Reloj para el "hace X min" de cada pedido.
+  const [ahora, setAhora] = useState(() => Date.now())
+
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  function alternarDetalle(id: string) {
+    setAbiertos((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const load = useCallback(async () => {
     try {
@@ -36,6 +56,8 @@ export function PedidosTienda() {
         rows.map(async (p) => [p.id, await loadPedidoTiendaItems(p.id)] as const),
       )
       setItems(Object.fromEntries(entries))
+      const idsProductos = [...new Set(entries.flatMap(([, its]) => its.map((i) => i.producto_id).filter((x): x is string => !!x)))]
+      setFotos(await loadFotosProductos(idsProductos))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando pedidos de la tienda')
     }
@@ -121,6 +143,19 @@ export function PedidosTienda() {
     }
   }
 
+  function horaLlegada(iso: string): string {
+    return new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  function haceCuanto(iso: string, actual: number): string {
+    const min = Math.max(0, Math.round((actual - new Date(iso).getTime()) / 60000))
+    if (min < 1) return 'recién llegó'
+    if (min < 60) return `hace ${min} min`
+    const h = Math.floor(min / 60)
+    if (h < 24) return `hace ${h} h ${min % 60} min`
+    return `hace ${Math.floor(h / 24)} día(s)`
+  }
+
   function etiquetaPago(p: PedidoTienda) {
     const metodo = p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'
     if (p.pago_estado === 'pagado') {
@@ -161,13 +196,52 @@ export function PedidosTienda() {
           >
             <div className="pedido-fila-top">
               <strong className="pedido-cliente">{p.nombre_cliente}</strong>
-              <span className="pedido-dir">
-                T{p.torre} · D{p.depto}
-              </span>
               <strong className="pedido-total">{formatCLP(p.total)}</strong>
             </div>
+            <p className="pedido-direccion">
+              🏢 Torre <strong>{p.torre}</strong> · Depto <strong>{p.depto}</strong>
+            </p>
+            <p className="pedido-hora">
+              🕒 Llegó a las <strong>{horaLlegada(p.created_at)}</strong> · {haceCuanto(p.created_at, ahora)}
+            </p>
             <div className="pedido-meta">{etiquetaPago(p)}</div>
-            <p className="pedido-items">{(items[p.id] ?? []).map(textoItem).join(', ')}</p>
+            <p className="pedido-items">
+              {(items[p.id] ?? []).length} producto(s):{' '}
+              {(items[p.id] ?? []).map(textoItem).join(', ')}
+            </p>
+            <button type="button" className="btn-link" onClick={() => alternarDetalle(p.id)}>
+              {abiertos.has(p.id) ? 'Ocultar detalle ▴' : 'Ver detalle del pedido ▾'}
+            </button>
+            {abiertos.has(p.id) && (
+              <div className="pedido-detalle">
+                <p className="subtitle">
+                  📞 <a href={`tel:${p.telefono_cliente}`}>{p.telefono_cliente}</a> · Hecho el{' '}
+                  {new Date(p.created_at).toLocaleString('es-CL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+                {(items[p.id] ?? []).map((it) => {
+                  const foto = it.producto_id ? fotos[it.producto_id] : null
+                  return (
+                    <div key={it.id} className="pedido-detalle-item">
+                      {foto ? (
+                        <img src={productoFotoUrl(foto)} alt="" className="pedido-detalle-foto" />
+                      ) : (
+                        <span className="pedido-detalle-foto pedido-detalle-foto-vacia">🛒</span>
+                      )}
+                      <span className="pedido-detalle-info">
+                        <span className="pedido-detalle-nombre">{it.nombre_producto}</span>
+                        <span className="subtitle">{textoItem(it).replace(it.nombre_producto, '').trim() || `${it.cantidad} un`}</span>
+                      </span>
+                      <strong>{formatCLP(it.subtotal)}</strong>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             {(items[p.id] ?? [])
               .filter((it) => it.aprox)
               .map((it) => (

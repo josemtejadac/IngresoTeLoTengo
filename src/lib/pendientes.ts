@@ -57,9 +57,9 @@ export async function addPendientes(
 }
 
 /** Cobra todo el saldo de las deudas: queda registrado como dinero cobrado en la fecha de hoy. */
-export async function markPendientesPagados(ids: string[]) {
+export async function markPendientesPagados(ids: string[], metodo: MetodoAbono) {
   if (ids.length === 0) return
-  const { error } = await supabase.rpc('ingreso_cobrar', { p_ids: ids })
+  const { error } = await supabase.rpc('ingreso_cobrar', { p_ids: ids, p_metodo: metodo })
   if (error) throw error
 }
 
@@ -110,7 +110,17 @@ export function totalPendiente(rows: PendienteEntry[]): number {
 }
 
 /** Abono parcial: se aplica primero a las deudas mas antiguas de la lista de ids. */
-export async function abonarPendientes(ids: string[], monto: number) {
-  const { error } = await supabase.rpc('ingreso_abonar', { p_ids: ids, p_monto: monto })
+export async function abonarPendientes(ids: string[], monto: number, metodo: MetodoAbono) {
+  const { error } = await supabase.rpc('ingreso_abonar', { p_ids: ids, p_monto: monto, p_metodo: metodo })
   if (error) throw error
+}
+
+/** Como pago el cliente un cobro o abono de deuda: define en que columna del arqueo entra el dinero. */
+export type MetodoAbono = 'efectivo' | 'debito' | 'credito' | 'transferencia'
+
+export const METODO_ABONO_LABEL: Record<MetodoAbono, string> = {
+  efectivo: 'Efectivo',
+  debito: 'Débito',
+  credito: 'Crédito',
+  transferencia: 'Transferencia',
 }

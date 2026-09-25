@@ -36,6 +36,7 @@ import {
   loadPendientes,
   markPendientesPagados,
   abonarPendientes,
+  type MetodoAbono,
   totalPendiente,
   type PendienteEntry,
 } from '../../lib/pendientes'
@@ -722,11 +723,11 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
-  async function handleAbonar(ids: string[], monto: number, busyKey: string): Promise<boolean> {
+  async function handleAbonar(ids: string[], monto: number, busyKey: string, metodo: MetodoAbono): Promise<boolean> {
     setPayingId(busyKey)
     setPendienteError(null)
     try {
-      await abonarPendientes(ids, monto)
+      await abonarPendientes(ids, monto, metodo)
       await loadPendientesRows()
       return true
     } catch (err) {
@@ -737,11 +738,11 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     }
   }
 
-  async function handleCobrar(ids: string[], busyKey: string) {
+  async function handleCobrar(ids: string[], busyKey: string, metodo: MetodoAbono) {
     setPayingId(busyKey)
     setPendienteError(null)
     try {
-      await markPendientesPagados(ids)
+      await markPendientesPagados(ids, metodo)
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
@@ -1326,7 +1327,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <td>{formatCLP(a.credito)}</td>
                 <td>{formatCLP(a.transferencia)}</td>
                 <td>{formatCLP(ventaTotal(a))}</td>
-                <td className="subtitle">{a.origen === 'pedido' ? 'Pedido de la tienda' : 'Arqueo manual'}</td>
+                <td className="subtitle">{a.origen === 'pedido' ? 'Pedido de la tienda' : a.origen === 'abono' ? 'Abono de deuda' : 'Arqueo manual'}</td>
               </tr>
             ))}
           </tbody>

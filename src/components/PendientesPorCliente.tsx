@@ -1,13 +1,20 @@
 import { useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { agruparPorCliente, clienteNombre, saldo, type PendienteEntry } from '../lib/pendientes'
+import {
+  agruparPorCliente,
+  clienteNombre,
+  METODO_ABONO_LABEL,
+  saldo,
+  type MetodoAbono,
+  type PendienteEntry,
+} from '../lib/pendientes'
 
 interface Props {
   pendientes: PendienteEntry[]
   nameDirectory: Record<string, string>
   busyKey: string | null
-  onCobrar: (ids: string[], busyKey: string) => void
-  onAbonar: (ids: string[], monto: number, busyKey: string) => Promise<boolean>
+  onCobrar: (ids: string[], busyKey: string, metodo: MetodoAbono) => void
+  onAbonar: (ids: string[], monto: number, busyKey: string, metodo: MetodoAbono) => Promise<boolean>
   /** Solo el admin puede eliminar registros. */
   onEliminar?: (id: string) => void
 }
@@ -21,6 +28,8 @@ export function PendientesPorCliente({
   onEliminar,
 }: Props) {
   const [abierto, setAbierto] = useState<string | null>(null)
+  // Como pago el cliente: el dinero entra al arqueo en esa columna.
+  const [metodo, setMetodo] = useState<MetodoAbono>('efectivo')
   const [abonando, setAbonando] = useState<string | null>(null)
   const [abonoMonto, setAbonoMonto] = useState('')
   const [abonandoDeuda, setAbonandoDeuda] = useState<string | null>(null)
@@ -30,6 +39,22 @@ export function PendientesPorCliente({
 
   return (
     <>
+      <fieldset className="pago-metodos">
+        <legend>Al cobrar o abonar, el cliente paga con</legend>
+        <div className="metodo-cambiar">
+          {(Object.keys(METODO_ABONO_LABEL) as MetodoAbono[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={metodo === m ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+              onClick={() => setMetodo(m)}
+            >
+              {METODO_ABONO_LABEL[m]}
+            </button>
+          ))}
+        </div>
+        <p className="subtitle">El dinero se suma solo al arqueo de hoy, en la columna de {METODO_ABONO_LABEL[metodo]}.</p>
+      </fieldset>
       {grupos.length === 0 && <p className="subtitle">No hay deudas por cobrar.</p>}
       {grupos.map((g) => (
         <div key={g.key} className="deuda-cliente">
@@ -63,12 +88,13 @@ export function PendientesPorCliente({
                 onClick={() => {
                   if (
                     window.confirm(
-                      `¿Cobrar las ${g.deudas.length} deudas de ${g.nombre} por ${formatCLP(g.total)}?`,
+                      `¿Cobrar las ${g.deudas.length} deudas de ${g.nombre} por ${formatCLP(g.total)} en ${METODO_ABONO_LABEL[metodo]}?`,
                     )
                   ) {
                     onCobrar(
                       g.deudas.map((d) => d.id),
                       `all-${g.key}`,
+                      metodo,
                     )
                   }
                 }}
@@ -98,6 +124,7 @@ export function PendientesPorCliente({
                     g.deudas.map((d) => d.id),
                     Number(abonoMonto),
                     `abono-${g.key}`,
+                    metodo,
                   )
                   if (ok) setAbonando(null)
                 }}
@@ -149,7 +176,7 @@ export function PendientesPorCliente({
                             className="btn btn-primary btn-small"
                             disabled={busyKey === `abono-${d.id}` || !Number(abonoDeudaMonto)}
                             onClick={async () => {
-                              const ok = await onAbonar([d.id], Number(abonoDeudaMonto), `abono-${d.id}`)
+                              const ok = await onAbonar([d.id], Number(abonoDeudaMonto), `abono-${d.id}`, metodo)
                               if (ok) setAbonandoDeuda(null)
                             }}
                           >
@@ -173,7 +200,7 @@ export function PendientesPorCliente({
                           <button
                             className="btn btn-secondary btn-small"
                             disabled={busyKey === d.id}
-                            onClick={() => onCobrar([d.id], d.id)}
+                            onClick={() => onCobrar([d.id], d.id, metodo)}
                           >
                             {busyKey === d.id ? 'Guardando...' : 'Cobrar'}
                           </button>

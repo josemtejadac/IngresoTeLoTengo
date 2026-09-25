@@ -15,7 +15,7 @@ export interface ArqueoEntry {
   /** Fecha de la ultima correccion (null si nunca se edito). */
   editado_at?: string | null
   /** 'pedido' = la sumo sola la app al entregar un pedido de la tienda; no se puede editar. */
-  origen?: 'manual' | 'pedido'
+  origen?: 'manual' | 'pedido' | 'abono'
   pedido_id?: string | null
 }
 

@@ -43,6 +43,7 @@ import {
   loadPendientes,
   markPendientesPagados,
   abonarPendientes,
+  type MetodoAbono,
   agruparPorCliente,
   clienteNombre,
   totalPendiente,
@@ -509,11 +510,11 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
-  async function handleAbonar(ids: string[], monto: number, busyKey: string): Promise<boolean> {
+  async function handleAbonar(ids: string[], monto: number, busyKey: string, metodo: MetodoAbono): Promise<boolean> {
     setPayingId(busyKey)
     setPendienteError(null)
     try {
-      await abonarPendientes(ids, monto)
+      await abonarPendientes(ids, monto, metodo)
       await loadPendientesRows()
       return true
     } catch (err) {
@@ -524,10 +525,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
-  async function handleCobrar(ids: string[], busyKey: string) {
+  async function handleCobrar(ids: string[], busyKey: string, metodo: MetodoAbono) {
     setPayingId(busyKey)
     try {
-      await markPendientesPagados(ids)
+      await markPendientesPagados(ids, metodo)
       await loadPendientesRows()
     } catch (err) {
       setPendienteError(err instanceof Error ? err.message : 'Error marcando como pagado')
@@ -801,8 +802,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     <td>{formatCLP(a.transferencia)}</td>
                     <td>{formatCLP(ventaTotal(a))}</td>
                     <td>
-                      {a.origen === 'pedido' ? (
-                        <span className="subtitle">Pedido de la tienda</span>
+                      {a.origen === 'pedido' || a.origen === 'abono' ? (
+                        <span className="subtitle">{a.origen === 'abono' ? 'Abono de deuda' : 'Pedido de la tienda'}</span>
                       ) : (
                         <>
                           <button

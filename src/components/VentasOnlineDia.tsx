@@ -16,6 +16,7 @@ const ETIQUETA: Record<string, string> = {
   efectivo: 'Efectivo',
   debito: 'Débito',
   credito: 'Crédito',
+  transferencia: 'Transferencia',
   tarjeta: 'Tarjeta',
 }
 

@@ -128,7 +128,7 @@ export function PedidosTienda() {
     }
   }
 
-  async function handleCambiarMetodo(p: PedidoTienda, nuevo: 'efectivo' | 'debito' | 'credito') {
+  async function handleCambiarMetodo(p: PedidoTienda, nuevo: 'efectivo' | 'debito' | 'credito' | 'transferencia') {
     if (p.metodo_pago === nuevo) return
     if (!window.confirm(`¿Cambiar el pago de ${p.nombre_cliente} a ${METODO_PAGO_LABEL[nuevo]}?`)) return
     setBusyId(p.id)
@@ -302,7 +302,7 @@ export function PedidosTienda() {
               )}
               {p.metodo_pago !== 'online' && p.estado === 'pendiente' && (
                 <div className="metodo-cambiar">
-                  {(['efectivo', 'debito', 'credito'] as const).map((m) => (
+                  {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => (
                     <button
                       key={m}
                       type="button"

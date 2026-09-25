@@ -37,7 +37,7 @@ export type PagoEstado = 'pendiente' | 'comprobante_subido' | 'pagado' | 'espera
 
 export type FiltroPago = 'todos' | 'online' | 'contraentrega'
 
-/** Pago online = Flow; contra entrega = efectivo, débito o crédito al recibir. */
+/** Pago online = Flow; contra entrega = efectivo, débito, crédito o transferencia al recibir. */
 export function coincideFiltroPago(metodo: MetodoPago | null, filtro: FiltroPago): boolean {
   if (filtro === 'todos') return true
   if (filtro === 'online') return metodo === 'online'
@@ -45,12 +45,14 @@ export function coincideFiltroPago(metodo: MetodoPago | null, filtro: FiltroPago
 }
 
 // 'tarjeta' solo aparece en pedidos viejos, de antes de separar debito/credito; ya no se genera.
-export type MetodoPago = 'efectivo' | 'debito' | 'credito' | 'tarjeta' | 'online'
+// 'transferencia' solo la marca el personal (el cliente no la elige en la tienda).
+export type MetodoPago = 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'tarjeta' | 'online'
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
   efectivo: 'Efectivo',
   debito: 'Débito',
   credito: 'Crédito',
+  transferencia: 'Transferencia',
   tarjeta: 'Tarjeta',
   online: 'Pago online',
 }
@@ -178,7 +180,7 @@ export async function marcarPedidoPagado(pedidoId: string) {
 }
 
 /** El personal cambia entre efectivo/debito/credito en un pedido contra entrega (online no se puede cambiar). */
-export async function cambiarMetodoPedido(pedidoId: string, metodo: 'efectivo' | 'debito' | 'credito') {
+export async function cambiarMetodoPedido(pedidoId: string, metodo: 'efectivo' | 'debito' | 'credito' | 'transferencia') {
   const { error } = await supabase.rpc('ingreso_cambiar_metodo_pedido', { p_pedido: pedidoId, p_metodo: metodo })
   if (error) throw error
 }

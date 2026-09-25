@@ -7,6 +7,7 @@ import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
+import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
@@ -190,7 +191,15 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [tiempoError, setTiempoError] = useState<string | null>(null)
   const [extensiones, setExtensiones] = useState<Record<string, number>>({})
   const [activeTab, setActiveTab] = useState<
-    'trabajadores' | 'reportes' | 'ventas' | 'pedidos' | 'pendientes' | 'inventario' | 'limpieza' | 'registros'
+    | 'trabajadores'
+    | 'reportes'
+    | 'ventas'
+    | 'pedidos'
+    | 'pendientes'
+    | 'inventario'
+    | 'limpieza'
+    | 'registros'
+    | 'estadisticas'
   >('trabajadores')
 
   const loadLastStatuses = useCallback(async () => {
@@ -894,6 +903,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         >
           Registros
         </button>
+        <button
+          className={activeTab === 'estadisticas' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('estadisticas')}
+        >
+          Estadísticas
+        </button>
       </nav>
 
       {activeTab === 'trabajadores' && (
@@ -1591,6 +1606,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </table>
       </section>
       )}
+
+      {activeTab === 'estadisticas' && <EstadisticasAdmin />}
       <AsistenteTienda />
     </div>
   )

@@ -297,6 +297,19 @@ export async function reactivarPedidoOnline(pedidoId: string) {
   if (error) throw error
 }
 
+export interface AbonoDia {
+  worker_id: string
+  nombre: string | null
+  monto: number
+}
+
+/** Abonos de deudas cobrados en un dia, por trabajador (el admin ve todos; un trabajador solo los suyos). */
+export async function loadAbonosDia(fecha: string): Promise<AbonoDia[]> {
+  const { data, error } = await supabase.rpc('ingreso_abonos_dia', { p_fecha: fecha })
+  if (error) throw error
+  return ((data as AbonoDia[]) ?? []).map((a) => ({ ...a, monto: Number(a.monto) }))
+}
+
 export interface VentaPedidos {
   worker_id: string
   nombre: string | null

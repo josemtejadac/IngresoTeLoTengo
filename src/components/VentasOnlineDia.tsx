@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { formatCLP } from '../lib/payroll'
-import { loadVentasPedidos, type VentaPedidos } from '../lib/tienda'
+import { loadAbonosDia, loadVentasPedidos, type AbonoDia, type VentaPedidos } from '../lib/tienda'
 
 interface Props {
   /** Dia en formato AAAA-MM-DD. */
@@ -27,11 +27,15 @@ const ETIQUETA: Record<string, string> = {
  */
 export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const [ventas, setVentas] = useState<VentaPedidos[]>([])
+  const [abonos, setAbonos] = useState<AbonoDia[]>([])
 
   const cargar = useCallback(() => {
     loadVentasPedidos(fecha, fecha)
       .then(setVentas)
       .catch(() => setVentas([]))
+    loadAbonosDia(fecha)
+      .then(setAbonos)
+      .catch(() => setAbonos([]))
   }, [fecha])
 
   useEffect(() => {
@@ -39,12 +43,13 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   }, [cargar])
 
   // Tiempo real: un pedido entregado o cancelado actualiza el bloque al instante.
-  useRealtimeRefresh(['ingreso_pedidos_tienda'], cargar)
+  useRealtimeRefresh(['ingreso_pedidos_tienda', 'ingreso_abonos'], cargar)
 
   const online = ventas.filter((v) => v.metodo === 'online')
   const contraEntrega = ventas.filter((v) => v.metodo !== 'online')
   const totalOnline = online.reduce((sum, v) => sum + v.monto, 0)
   const totalContraEntrega = contraEntrega.reduce((sum, v) => sum + v.monto, 0)
+  const totalAbonos = abonos.reduce((sum, a) => sum + a.monto, 0)
 
   return (
     <div className="ventas-online">
@@ -90,7 +95,19 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
         Arqueo del día (manual + pedidos contra entrega): <strong>{formatCLP(arqueoTotal)}</strong>
       </p>
       <p>
-        Venta total del día: <strong>{formatCLP(arqueoTotal + totalOnline)}</strong>
+        Abonos de deudas cobrados: <strong>{formatCLP(totalAbonos)}</strong>
+      </p>
+      {esAdmin && abonos.length > 0 && (
+        <div className="subtitle">
+          {abonos.map((a) => (
+            <p key={a.worker_id}>
+              {a.nombre ?? '—'} cobró {formatCLP(a.monto)} en abonos
+            </p>
+          ))}
+        </div>
+      )}
+      <p>
+        Venta total del día: <strong>{formatCLP(arqueoTotal + totalOnline + totalAbonos)}</strong>
       </p>
       <p className="subtitle">
         Un pedido contra entrega (efectivo, débito o crédito) se suma solo al arqueo del trabajador que lo marca
@@ -99,7 +116,8 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
       </p>
       <p className="subtitle">
         <strong>Ventas por fuera de la app</strong> (sin pedido en la tienda ni pedido manual) sí se anotan en tu
-        arqueo a mano, como siempre.
+        arqueo a mano, como siempre. Los <strong>abonos de deudas</strong> (fiado) que cobras se suman solos al total del
+        día: no los anotes en el arqueo.
       </p>
     </div>
   )

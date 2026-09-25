@@ -1789,3 +1789,47 @@ textarea {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+/* ---------- Cargar factura (admin) ---------- */
+.factura-lineas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.factura-linea {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.factura-linea.sin-elegir {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.factura-linea-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.factura-nombre {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.factura-linea select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}

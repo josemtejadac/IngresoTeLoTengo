@@ -20,6 +20,10 @@ export interface Profile {
   pay_frequency: 'weekly' | 'monthly' | null
   tuesday_bonus: number
   weekly_bonus_eligible: boolean
+  /** El admin decide quien puede cambiar precio, stock y fotos de los productos. */
+  puede_editar_productos: boolean
+  /** El admin decide quien puede subir facturas para sumar stock. */
+  puede_cargar_facturas: boolean
 }
 
 export interface Attendance {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { FotoProductoModal } from './FotoProductoModal'
 import { FiltroStockBotones } from './FiltroStockBotones'
+import { FacturaStock } from './FacturaStock'
 import { formatCLP } from '../lib/payroll'
 import {
   activarProductoPorBarra,
@@ -32,6 +33,7 @@ export function InventarioAdmin() {
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
   const [filtroStock, setFiltroStock] = useState<FiltroStock>('todos')
+  const [verFactura, setVerFactura] = useState(false)
   const [totalModo, setTotalModo] = useState<number | null>(null)
   const [editing, setEditing] = useState<Producto | null>(null)
   const [editNombre, setEditNombre] = useState('')
@@ -307,9 +309,14 @@ export function InventarioAdmin() {
             {` · mostrando ${productosVisibles.length}`}
           </span>
         </h2>
-        <button className="btn btn-secondary" onClick={() => setOpen(false)}>
-          Cerrar
-        </button>
+        <div className="table-controls">
+          <button className="btn btn-primary" onClick={() => setVerFactura(true)}>
+            🧾 Cargar factura
+          </button>
+          <button className="btn btn-secondary" onClick={() => setOpen(false)}>
+            Cerrar
+          </button>
+        </div>
       </div>
       <p className="subtitle">
         Aquí ves solo los productos que ya escaneaste (tu inventario real). Escanea con la pistola
@@ -580,6 +587,8 @@ export function InventarioAdmin() {
           </div>
         </div>
       )}
+
+      {verFactura && <FacturaStock onCerrar={() => setVerFactura(false)} onListo={() => runSearch()} />}
 
       {fotoPendiente && (
         <FotoProductoModal

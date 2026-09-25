@@ -68,6 +68,8 @@ interface ScheduleForm {
   pay_frequency: 'weekly' | 'monthly'
   tuesday_bonus: string
   weekly_bonus_eligible: boolean
+  puede_editar_productos: boolean
+  puede_cargar_facturas: boolean
 }
 
 function scheduleFormFromProfile(w: Profile): ScheduleForm {
@@ -86,6 +88,8 @@ function scheduleFormFromProfile(w: Profile): ScheduleForm {
     pay_frequency: w.pay_frequency ?? 'monthly',
     tuesday_bonus: w.tuesday_bonus ? w.tuesday_bonus.toString() : '',
     weekly_bonus_eligible: w.weekly_bonus_eligible,
+    puede_editar_productos: w.puede_editar_productos,
+    puede_cargar_facturas: w.puede_cargar_facturas,
   }
 }
 
@@ -95,7 +99,10 @@ function describeSchedule(w: Profile): string {
     ? `${formatCLP(w.pay_amount)} ${w.pay_frequency === 'monthly' ? 'mensual' : 'semanal'}`
     : 'sin sueldo configurado'
   const bonus = w.tuesday_bonus > 0 ? ` · Bono martes ${formatCLP(w.tuesday_bonus)}` : ''
-  const meta = w.weekly_bonus_eligible ? ' · Participa en bono de meta' : ' · No participa en bono de meta'
+  const meta =
+    (w.weekly_bonus_eligible ? ' · Participa en bono de meta' : ' · No participa en bono de meta') +
+    (w.puede_editar_productos ? ' · Puede editar productos' : '') +
+    (w.puede_cargar_facturas ? ' · Puede cargar facturas' : '')
 
   if (entries.length === 0) {
     return `Sin horario configurado · ${pay}${bonus}${meta}`
@@ -647,6 +654,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         pay_frequency: scheduleForm.pay_frequency,
         tuesday_bonus: tuesdayBonus,
         weekly_bonus_eligible: scheduleForm.weekly_bonus_eligible,
+        puede_editar_productos: scheduleForm.puede_editar_productos,
+        puede_cargar_facturas: scheduleForm.puede_cargar_facturas,
       })
       .eq('id', id)
     setScheduleBusy(false)
@@ -1195,6 +1204,26 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                       }
                     />
                     Participa en el bono de meta semanal ({formatCLP(WEEKLY_BONUS_AMOUNT)})
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.puede_editar_productos}
+                      onChange={(e) =>
+                        setScheduleForm((f) => f && { ...f, puede_editar_productos: e.target.checked })
+                      }
+                    />
+                    Puede editar precio, stock y fotos de los productos
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.puede_cargar_facturas}
+                      onChange={(e) =>
+                        setScheduleForm((f) => f && { ...f, puede_cargar_facturas: e.target.checked })
+                      }
+                    />
+                    Puede cargar facturas (sumar stock leyendo una factura)
                   </label>
                   {scheduleError && <p className="error-text">{scheduleError}</p>}
                   <div className="report-row">

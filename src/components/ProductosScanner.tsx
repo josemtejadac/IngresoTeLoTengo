@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
+import { supabase } from '../lib/supabase'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FotoProductoModal } from './FotoProductoModal'
+import { FacturaStock } from './FacturaStock'
 import {
   actualizarPrecioStock,
   coincideFiltroStock,
@@ -35,12 +37,22 @@ export function ProductosScanner() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '' })
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
+  // El admin decide quien puede editar; se consulta cada vez que se abre esta pestaña.
+  const [puedeEditar, setPuedeEditar] = useState(false)
+  const [puedeFacturas, setPuedeFacturas] = useState(false)
+  const [verFactura, setVerFactura] = useState(false)
   const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
   const [subiendoFotoId, setSubiendoFotoId] = useState<string | null>(null)
   const buscarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadCategorias().then(setCategorias).catch(() => {})
+    supabase
+      .rpc('ingreso_puede_editar_productos')
+      .then(({ data }) => setPuedeEditar(data === true))
+    supabase
+      .rpc('ingreso_puede_cargar_facturas')
+      .then(({ data }) => setPuedeFacturas(data === true))
   }, [])
 
   const runSearch = useCallback(async () => {
@@ -122,10 +134,19 @@ export function ProductosScanner() {
 
   return (
     <section className="card">
-      <h2>Productos</h2>
+      <div className="section-header">
+        <h2>Productos</h2>
+        {puedeFacturas && (
+          <button className="btn btn-primary btn-small" onClick={() => setVerFactura(true)}>
+            🧾 Cargar factura
+          </button>
+        )}
+      </div>
       <p className="subtitle">
-        Escanea con la pistola o busca por nombre para revisar el stock y el precio. Si algo está mal, toca Editar
-        en ese producto, corrígelo y luego toca Guardar.
+        Escanea con la pistola o busca por nombre para revisar el stock y el precio.{' '}
+        {puedeEditar
+          ? 'Si algo está mal, toca Editar en ese producto, corrígelo y luego toca Guardar.'
+          : 'Solo puedes consultar: el administrador decide quién puede editar precios, stock y fotos.'}
       </p>
 
       <label className="chat-input">
@@ -178,20 +199,22 @@ export function ProductosScanner() {
                   ) : (
                     '—'
                   )}
-                  <label className="btn btn-secondary btn-small foto-btn">
-                    {subiendoFotoId === p.id ? 'Subiendo...' : p.foto_path ? '📷 Cambiar' : '📷 Foto'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      disabled={subiendoFotoId !== null}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0]
-                        if (f) setFotoPendiente({ producto: p, file: f })
-                        e.target.value = ''
-                      }}
-                    />
-                  </label>
+                  {puedeEditar && (
+                    <label className="btn btn-secondary btn-small foto-btn">
+                      {subiendoFotoId === p.id ? 'Subiendo...' : p.foto_path ? '📷 Cambiar' : '📷 Foto'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        disabled={subiendoFotoId !== null}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0]
+                          if (f) setFotoPendiente({ producto: p, file: f })
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                  )}
                 </td>
                 <td className="col-nombre">{p.nombre}</td>
                 <td className="col-nombre">{p.categoria ?? '—'}</td>
@@ -248,13 +271,15 @@ export function ProductosScanner() {
                       </button>
                     </div>
                   ) : (
-                    <button
-                      className="btn btn-secondary btn-small"
-                      disabled={editandoId !== null}
-                      onClick={() => empezarEdicion(p)}
-                    >
-                      Editar
-                    </button>
+                    puedeEditar && (
+                      <button
+                        className="btn btn-secondary btn-small"
+                        disabled={editandoId !== null}
+                        onClick={() => empezarEdicion(p)}
+                      >
+                        Editar
+                      </button>
+                    )
                   )}
                 </td>
               </tr>
@@ -269,6 +294,7 @@ export function ProductosScanner() {
           )}
         </tbody>
       </table>
+      {verFactura && <FacturaStock onCerrar={() => setVerFactura(false)} onListo={() => runSearch()} />}
       {fotoPendiente && (
         <FotoProductoModal
           nombre={fotoPendiente.producto.nombre}

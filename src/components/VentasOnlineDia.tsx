@@ -50,6 +50,8 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const totalOnline = online.reduce((sum, v) => sum + v.monto, 0)
   const totalContraEntrega = contraEntrega.reduce((sum, v) => sum + v.monto, 0)
   const totalAbonos = abonos.reduce((sum, a) => sum + a.monto, 0)
+  // Los abonos con metodo ya estan dentro de las columnas del arqueo; solo los antiguos (sin metodo) se suman aparte.
+  const abonosAparte = abonos.reduce((sum, a) => sum + a.monto_aparte, 0)
 
   return (
     <div className="ventas-online">
@@ -95,7 +97,10 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
         Arqueo del día (manual + pedidos contra entrega): <strong>{formatCLP(arqueoTotal)}</strong>
       </p>
       <p>
-        Abonos de deudas cobrados: <strong>{formatCLP(totalAbonos)}</strong>
+        Cobrado en abonos de deudas hoy: <strong>{formatCLP(totalAbonos)}</strong>
+        {totalAbonos - abonosAparte > 0 && (
+          <span className="subtitle"> (ya sumado en su columna del arqueo)</span>
+        )}
       </p>
       {esAdmin && abonos.length > 0 && (
         <div className="subtitle">
@@ -107,7 +112,7 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
         </div>
       )}
       <p>
-        Venta total del día: <strong>{formatCLP(arqueoTotal + totalOnline + totalAbonos)}</strong>
+        Venta total del día: <strong>{formatCLP(arqueoTotal + totalOnline + abonosAparte)}</strong>
       </p>
       <p className="subtitle">
         Un pedido contra entrega (efectivo, débito o crédito) se suma solo al arqueo del trabajador que lo marca

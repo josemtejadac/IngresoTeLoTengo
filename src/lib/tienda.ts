@@ -300,14 +300,17 @@ export async function reactivarPedidoOnline(pedidoId: string) {
 export interface AbonoDia {
   worker_id: string
   nombre: string | null
+  /** Todo lo cobrado en abonos ese dia. */
   monto: number
+  /** Los abonos antiguos sin metodo: no estan dentro del arqueo, se suman aparte. */
+  monto_aparte: number
 }
 
 /** Abonos de deudas cobrados en un dia, por trabajador (el admin ve todos; un trabajador solo los suyos). */
 export async function loadAbonosDia(fecha: string): Promise<AbonoDia[]> {
   const { data, error } = await supabase.rpc('ingreso_abonos_dia', { p_fecha: fecha })
   if (error) throw error
-  return ((data as AbonoDia[]) ?? []).map((a) => ({ ...a, monto: Number(a.monto) }))
+  return ((data as AbonoDia[]) ?? []).map((a) => ({ ...a, monto: Number(a.monto), monto_aparte: Number(a.monto_aparte) }))
 }
 
 export interface VentaPedidos {

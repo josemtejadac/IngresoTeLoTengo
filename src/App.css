@@ -1670,3 +1670,62 @@ textarea {
   font-size: 0.85rem;
   color: #475569;
 }
+
+/* ---------- Aviso de pedido nuevo (personal) ---------- */
+.alerta-pedidos {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 20px));
+  box-sizing: border-box;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #16a34a;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: alerta-latido 1.2s ease-in-out 3;
+}
+
+.alerta-pedidos-texto {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.alerta-pedidos .btn-primary {
+  background: #fff;
+  color: #14532d;
+}
+
+.alerta-cerrar {
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+@keyframes alerta-latido {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.03); }
+}
+
+.tab-badge {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}

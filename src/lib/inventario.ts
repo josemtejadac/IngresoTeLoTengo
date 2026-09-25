@@ -204,7 +204,12 @@ export async function uploadProductoFotoBlob(productoId: string, blob: Blob): Pr
     .select('foto_path')
     .eq('id', productoId)
     .single()
-  await updateProducto(productoId, { foto_path: path })
+  // Por RPC: asi tambien lo pueden hacer los trabajadores, y solo cambia la foto.
+  const { error: fotoError } = await supabase.rpc('ingreso_worker_actualizar_foto', {
+    p_id: productoId,
+    p_path: path,
+  })
+  if (fotoError) throw fotoError
   const anterior = (previo as { foto_path: string | null } | null)?.foto_path
   if (anterior && anterior !== path) {
     await supabase.storage.from('ingreso-productos-fotos').remove([anterior])

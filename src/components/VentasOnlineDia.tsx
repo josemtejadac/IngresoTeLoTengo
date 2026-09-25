@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useRealtimeRefresh } from '../lib/realtime'
 import { formatCLP } from '../lib/payroll'
 import { loadVentasPedidos, type VentaPedidos } from '../lib/tienda'
 
@@ -26,15 +27,18 @@ const ETIQUETA: Record<string, string> = {
 export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const [ventas, setVentas] = useState<VentaPedidos[]>([])
 
-  useEffect(() => {
-    let vivo = true
+  const cargar = useCallback(() => {
     loadVentasPedidos(fecha, fecha)
-      .then((v) => vivo && setVentas(v))
-      .catch(() => vivo && setVentas([]))
-    return () => {
-      vivo = false
-    }
+      .then(setVentas)
+      .catch(() => setVentas([]))
   }, [fecha])
+
+  useEffect(() => {
+    cargar()
+  }, [cargar])
+
+  // Tiempo real: un pedido entregado o cancelado actualiza el bloque al instante.
+  useRealtimeRefresh(['ingreso_pedidos_tienda'], cargar)
 
   const online = ventas.filter((v) => v.metodo === 'online')
   const contraEntrega = ventas.filter((v) => v.metodo !== 'online')

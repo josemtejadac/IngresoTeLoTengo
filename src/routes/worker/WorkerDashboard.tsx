@@ -9,6 +9,7 @@ import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
+import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
@@ -114,6 +115,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [pendienteBusy, setPendienteBusy] = useState(false)
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
+  const [pedidosPendientes, setPedidosPendientes] = useState(0)
   const [activeTab, setActiveTab] = useState<
     'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'limpieza' | 'historial'
   >('inicio')
@@ -569,6 +571,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           onClick={() => setActiveTab('pedidos')}
         >
           Pedidos
+          {pedidosPendientes > 0 && <span className="tab-badge">{pedidosPendientes}</span>}
         </button>
         <button
           className={activeTab === 'arqueo' ? 'tab-btn active' : 'tab-btn'}
@@ -1039,6 +1042,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       </table>
         </section>
       )}
+      <AlertaPedidosNuevos onVerPedidos={() => setActiveTab('pedidos')} onCantidad={setPedidosPendientes} />
       <AsistenteTienda />
     </div>
   )

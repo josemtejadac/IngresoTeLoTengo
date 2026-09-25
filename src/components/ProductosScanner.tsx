@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
+import { useRealtimeRefresh } from '../lib/realtime'
 import { FiltroStockBotones } from './FiltroStockBotones'
+import { FotoProductoModal } from './FotoProductoModal'
 import {
   actualizarPrecioStock,
   coincideFiltroStock,
   loadCategorias,
   loadProductos,
+  productoFotoUrl,
+  uploadProductoFoto,
+  uploadProductoFotoBlob,
   type FiltroStock,
   type Producto,
 } from '../lib/inventario'
@@ -30,6 +35,8 @@ export function ProductosScanner() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '' })
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
+  const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
+  const [subiendoFotoId, setSubiendoFotoId] = useState<string | null>(null)
   const buscarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -50,10 +57,30 @@ export function ProductosScanner() {
     runSearch()
   }, [runSearch])
 
+  // Tiempo real: si otro trabajador o una venta cambia precio/stock, la lista se actualiza sola.
+  useRealtimeRefresh(['ingreso_productos'], runSearch)
+
   function empezarEdicion(p: Producto) {
     setError(null)
     setEditandoId(p.id)
     setBorrador(borradorDe(p))
+  }
+
+  async function guardarFoto(resultado: Blob | null) {
+    if (!fotoPendiente) return
+    const { producto, file } = fotoPendiente
+    setSubiendoFotoId(producto.id)
+    setError(null)
+    try {
+      if (resultado) await uploadProductoFotoBlob(producto.id, resultado)
+      else await uploadProductoFoto(producto.id, file)
+      await runSearch()
+      setFotoPendiente(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error subiendo la foto')
+    } finally {
+      setSubiendoFotoId(null)
+    }
   }
 
   function cancelarEdicion() {
@@ -132,6 +159,7 @@ export function ProductosScanner() {
       <table className="table">
         <thead>
           <tr>
+            <th>Foto</th>
             <th>Producto</th>
             <th>Categoría</th>
             <th>Precio</th>
@@ -144,6 +172,27 @@ export function ProductosScanner() {
             const editando = editandoId === p.id
             return (
               <tr key={p.id} className={editando ? 'fila-editando' : undefined}>
+                <td>
+                  {p.foto_path ? (
+                    <img src={productoFotoUrl(p.foto_path)} alt="" className="producto-thumb" />
+                  ) : (
+                    '—'
+                  )}
+                  <label className="btn btn-secondary btn-small foto-btn">
+                    {subiendoFotoId === p.id ? 'Subiendo...' : p.foto_path ? '📷 Cambiar' : '📷 Foto'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      disabled={subiendoFotoId !== null}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) setFotoPendiente({ producto: p, file: f })
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </td>
                 <td className="col-nombre">{p.nombre}</td>
                 <td className="col-nombre">{p.categoria ?? '—'}</td>
                 <td>
@@ -213,13 +262,21 @@ export function ProductosScanner() {
           })}
           {visibles.length === 0 && (
             <tr>
-              <td colSpan={5} className="subtitle">
+              <td colSpan={6} className="subtitle">
                 No hay productos con ese filtro.
               </td>
             </tr>
           )}
         </tbody>
       </table>
+      {fotoPendiente && (
+        <FotoProductoModal
+          nombre={fotoPendiente.producto.nombre}
+          file={fotoPendiente.file}
+          onUsar={guardarFoto}
+          onCancelar={() => setFotoPendiente(null)}
+        />
+      )}
       <p className="subtitle">
         Precio: el precio de venta al público (por kilo en los productos por peso). Stock: unidades disponibles
         (gramos en los productos por peso).

@@ -5,6 +5,7 @@ import { Logo } from '../../components/Logo'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
+import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
@@ -190,6 +191,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [tiempoBusy, setTiempoBusy] = useState(false)
   const [tiempoError, setTiempoError] = useState<string | null>(null)
   const [extensiones, setExtensiones] = useState<Record<string, number>>({})
+  const [pedidosPendientes, setPedidosPendientes] = useState(0)
   const [activeTab, setActiveTab] = useState<
     | 'trabajadores'
     | 'reportes'
@@ -878,6 +880,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           onClick={() => setActiveTab('pedidos')}
         >
           Pedidos
+          {pedidosPendientes > 0 && <span className="tab-badge">{pedidosPendientes}</span>}
         </button>
         <button
           className={activeTab === 'pendientes' ? 'tab-btn active' : 'tab-btn'}
@@ -1608,6 +1611,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       )}
 
       {activeTab === 'estadisticas' && <EstadisticasAdmin />}
+      <AlertaPedidosNuevos onVerPedidos={() => setActiveTab('pedidos')} onCantidad={setPedidosPendientes} />
       <AsistenteTienda />
     </div>
   )

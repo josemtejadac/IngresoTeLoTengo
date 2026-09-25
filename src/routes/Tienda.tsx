@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { Stepper } from '../components/Stepper'
+import { useRealtimeRefresh } from '../lib/realtime'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { useAtrasCierra } from '../lib/atras'
 import { formatCLP } from '../lib/payroll'
@@ -149,6 +150,9 @@ export function Tienda() {
   useEffect(() => {
     runSearch()
   }, [runSearch])
+
+  // Tiempo real: si un producto se agota o cambia de precio, el catalogo se actualiza solo.
+  useRealtimeRefresh(['ingreso_productos'], runSearch)
 
   function abrirPeso(producto: ProductoTienda) {
     const existente = cart.find((l) => l.producto.id === producto.id)

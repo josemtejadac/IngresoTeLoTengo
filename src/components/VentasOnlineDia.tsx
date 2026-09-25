@@ -11,7 +11,11 @@ interface Props {
   esAdmin?: boolean
 }
 
-const ETIQUETA: Record<string, string> = { online: 'Online (Flow)', efectivo: 'Efectivo', tarjeta: 'Tarjeta' }
+const ETIQUETA: Record<string, string> = {
+  online: 'Pago online (Flow, ya pagado en la app)',
+  efectivo: 'Pago en efectivo al recibir',
+  tarjeta: 'Pago con tarjeta al recibir',
+}
 
 /** Ventas de pedidos de la tienda del dia: se suman solas al trabajador que marca el pedido como entregado. */
 export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
@@ -35,9 +39,9 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
 
   return (
     <div className="ventas-online">
-      <h3>Pedidos de la tienda entregados — automático</h3>
+      <h3>Ventas de la tienda online (pedidos hechos en la app) — automático</h3>
       {ventas.length === 0 ? (
-        <p className="subtitle">Sin pedidos de la tienda entregados este día.</p>
+        <p className="subtitle">Sin pedidos de la tienda online entregados este día.</p>
       ) : (
         <>
           {porMetodo
@@ -65,14 +69,15 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
         Arqueo del día (lo que anotan los trabajadores): <strong>{formatCLP(arqueoTotal)}</strong>
       </p>
       <p>
-        Pedidos de la tienda entregados: <strong>{formatCLP(total)}</strong>
+        Total pedidos de la tienda online entregados: <strong>{formatCLP(total)}</strong>
       </p>
       <p>
         Venta total del día: <strong>{formatCLP(arqueoTotal + total)}</strong>
       </p>
       <p className="subtitle">
-        Se cuentan solos al trabajador que marca el pedido como entregado, según el método de pago. No los anotes
-        también en tu arqueo.
+        Son los pedidos que los clientes hicieron desde la tienda online (con pago online por Flow, o con efectivo/tarjeta al
+        recibir). Se cuentan solos al trabajador que marca el pedido como entregado, según cómo pagó el cliente. No los
+        anotes también en tu arqueo.
       </p>
     </div>
   )

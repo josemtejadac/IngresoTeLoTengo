@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { Stepper } from '../components/Stepper'
+import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { useAtrasCierra } from '../lib/atras'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos, montoPorPeso } from '../lib/peso'
@@ -362,6 +363,30 @@ export function Tienda() {
     }
   }
 
+  /** Agrega al carrito los productos que armo BotsitoMarket. */
+  async function agregarDesdeBot(itemsBot: ItemBot[]) {
+    const prods = new Map((await loadProductosPorIds(itemsBot.map((i) => i.producto_id))).map((x) => [x.id, x]))
+    setCart((prev) => {
+      let next = [...prev]
+      for (const it of itemsBot) {
+        const prod = prods.get(it.producto_id)
+        if (!prod) continue
+        if (prod.por_peso) {
+          if (!it.gramos) continue
+          next = [...next.filter((l) => l.producto.id !== prod.id), { producto: prod, cantidad: it.gramos, modo: 'gramos' }]
+        } else {
+          const max = prod.stock_max ?? Infinity
+          const ex = next.find((l) => l.producto.id === prod.id)
+          const cantidad = Math.min(max, (ex?.cantidad ?? 0) + (it.cantidad ?? 1))
+          next = ex
+            ? next.map((l) => (l.producto.id === prod.id ? { ...l, cantidad } : l))
+            : [...next, { producto: prod, cantidad }]
+        }
+      }
+      return next
+    })
+  }
+
   async function abrirHistorial() {
     setVerHistorial(true)
     setMisPedidos(null)
@@ -451,9 +476,23 @@ export function Tienda() {
               <p>Delivery dentro del condominio</p>
             </div>
           </div>
-          <button className="tienda-pedidos-btn" onClick={abrirHistorial}>
-            🧾 Mis pedidos
-          </button>
+          <div className="tienda-hero-botones">
+            <button className="tienda-pedidos-btn" onClick={abrirHistorial}>
+              🧾 Mis pedidos
+            </button>
+            <a
+              className="tienda-wsp"
+              href="https://wa.me/56971605299?text=Hola%2C%20necesito%20ayuda%20con%20la%20tienda"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Soporte por WhatsApp"
+              title="Soporte por WhatsApp"
+            >
+              <svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true">
+                <path d="M16.04 3C9.4 3 4 8.4 4 15.04c0 2.12.55 4.19 1.6 6.02L4 29l8.1-1.57a12 12 0 0 0 3.94.66C22.68 28.1 28 22.7 28 16.06 28 9.4 22.68 3 16.04 3zm0 22.1c-1.27 0-2.5-.34-3.6-.98l-.26-.15-4.8.93.95-4.68-.17-.27a9.9 9.9 0 0 1-1.5-5.2c0-5.5 4.47-9.97 9.98-9.97s9.98 4.47 9.98 9.97-4.47 9.35-9.98 9.35zm5.47-7.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.5h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.5s1.07 2.9 1.22 3.1c.15.2 2.1 3.2 5.08 4.5.71.3 1.26.49 1.7.63.71.22 1.36.19 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35z" />
+              </svg>
+            </a>
+          </div>
         </div>
         <div className="tienda-beneficios">
           <span>🚚 Te lo llevamos a tu depto</span>
@@ -519,6 +558,12 @@ export function Tienda() {
           </div>
         ))}
       </div>
+
+      <BotsitoCliente
+        hayCarrito={cart.length > 0}
+        onAgregar={agregarDesdeBot}
+        onVerCarrito={() => setShowCheckout(true)}
+      />
 
       {cart.length > 0 && (
         <div className="tienda-cart-bar">

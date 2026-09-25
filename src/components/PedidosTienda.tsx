@@ -13,7 +13,7 @@ import {
   loadPedidosTiendaPendientes,
   loadPedidoTiendaItems,
   marcarPedidoTiendaEntregado,
-  whatsappEstoyAbajoUrl,
+  whatsappEnCaminoUrl,
   type PedidoTienda,
   type PedidoTiendaItem,
 } from '../lib/tienda'
@@ -211,11 +211,11 @@ export function PedidosTienda() {
               <>
                 <a
                   className="btn btn-primary"
-                  href={whatsappEstoyAbajoUrl(p.telefono_cliente)}
+                  href={whatsappEnCaminoUrl(p.telefono_cliente)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Estoy abajo (WhatsApp)
+                  Estoy en camino (WhatsApp)
                 </a>
                 <button
                   className="btn btn-secondary"

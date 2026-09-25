@@ -144,9 +144,9 @@ export function telefonoParaWhatsapp(telefono: string): string {
   return `56${local}`
 }
 
-export function whatsappEstoyAbajoUrl(telefono: string): string {
+export function whatsappEnCaminoUrl(telefono: string): string {
   const numero = telefonoParaWhatsapp(telefono)
-  const mensaje = encodeURIComponent('Hola veci, estoy abajo')
+  const mensaje = encodeURIComponent('Hola veci, estoy en camino')
   return `https://wa.me/${numero}?text=${mensaje}`
 }
 
@@ -258,4 +258,18 @@ export async function loadProductosPorIds(ids: string[]): Promise<ProductoTienda
   const { data, error } = await supabase.rpc('ingreso_tienda_productos_por_ids', { p_ids: ids })
   if (error) throw error
   return (data as ProductoTienda[]) ?? []
+}
+
+export interface VentaOnline {
+  worker_id: string
+  nombre: string | null
+  fecha: string
+  monto: number
+}
+
+/** Ventas online pagadas y entregadas, por trabajador que las entrego (el admin ve todas). */
+export async function loadVentasOnline(desde: string, hasta: string): Promise<VentaOnline[]> {
+  const { data, error } = await supabase.rpc('ingreso_ventas_online', { p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return ((data as VentaOnline[]) ?? []).map((v) => ({ ...v, monto: Number(v.monto) }))
 }

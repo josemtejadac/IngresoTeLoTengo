@@ -10,6 +10,7 @@ import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PedidosTienda } from '../../components/PedidosTienda'
+import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
 import {
   annotateOvertime,
@@ -705,12 +706,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
       {activeTab === 'productos' && <ProductosScanner />}
 
-      {activeTab === 'pedidos' && (
-        <>
-          <PedidosTienda />
-          <HistorialPedidosTienda />
-        </>
-      )}
+      {activeTab === 'pedidos' && <PedidosTienda />}
 
       {activeTab === 'limpieza' && <ReporteLimpieza workerId={profile.id} />}
 
@@ -819,7 +815,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <p className="subtitle">
           Puedes corregir tu arqueo solo durante el mismo día; después ya no se puede editar.
         </p>
+        <VentasOnlineDia
+          fecha={currentDateValue()}
+          arqueoTotal={todayArqueo.reduce((sum, a) => sum + ventaTotal(a), 0)}
+        />
           </section>
+          <HistorialPedidosTienda />
         </>
       )}
 

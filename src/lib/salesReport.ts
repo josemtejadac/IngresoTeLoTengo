@@ -2,6 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from './supabase'
 import { formatCLP } from './payroll'
+import { loadVentasOnline } from './tienda'
 
 interface ArqueoRowRaw {
   arqueo_date: string
@@ -54,6 +55,11 @@ export async function downloadSalesPdf({
     cobrosPorFecha.set(d, (cobrosPorFecha.get(d) ?? 0) + Number(a.monto))
   }
 
+  const onlinePorFecha = new Map<string, number>()
+  for (const v of await loadVentasOnline(toISODate(start), toISODate(end))) {
+    onlinePorFecha.set(v.fecha, (onlinePorFecha.get(v.fecha) ?? 0) + v.monto)
+  }
+
   const byDate = new Map<
     string,
     { efectivo: number; debito: number; credito: number; transferencia: number }
@@ -72,11 +78,11 @@ export async function downloadSalesPdf({
     byDate.set(r.arqueo_date, entry)
   }
 
-  const dates = [...new Set([...byDate.keys(), ...cobrosPorFecha.keys()])].sort()
+  const dates = [...new Set([...byDate.keys(), ...cobrosPorFecha.keys(), ...onlinePorFecha.keys()])].sort()
   const emptyDay = { efectivo: 0, debito: 0, credito: 0, transferencia: 0 }
   const grandTotal = dates.reduce((sum, d) => {
     const e = byDate.get(d) ?? emptyDay
-    return sum + e.efectivo + e.debito + e.credito + e.transferencia + (cobrosPorFecha.get(d) ?? 0)
+    return sum + e.efectivo + e.debito + e.credito + e.transferencia + (cobrosPorFecha.get(d) ?? 0) + (onlinePorFecha.get(d) ?? 0)
   }, 0)
 
   const doc = new jsPDF()
@@ -87,11 +93,12 @@ export async function downloadSalesPdf({
 
   autoTable(doc, {
     startY: 34,
-    head: [['Fecha', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Deudas cobradas', 'Venta']],
+    head: [['Fecha', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Deudas cobradas', 'Online', 'Venta']],
     body: dates.map((d) => {
       const e = byDate.get(d) ?? emptyDay
       const cobros = cobrosPorFecha.get(d) ?? 0
-      const total = e.efectivo + e.debito + e.credito + e.transferencia + cobros
+      const online = onlinePorFecha.get(d) ?? 0
+      const total = e.efectivo + e.debito + e.credito + e.transferencia + cobros + online
       return [
         d,
         formatCLP(e.efectivo),
@@ -99,10 +106,11 @@ export async function downloadSalesPdf({
         formatCLP(e.credito),
         formatCLP(e.transferencia),
         formatCLP(cobros),
+        formatCLP(online),
         formatCLP(total),
       ]
     }),
-    foot: [['', '', '', '', '', 'Total', formatCLP(grandTotal)]],
+    foot: [['', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },
   })

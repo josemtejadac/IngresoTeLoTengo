@@ -8,6 +8,7 @@ import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
+import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
 import {
@@ -1291,16 +1292,17 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             </tr>
           </tfoot>
         </table>
+        <VentasOnlineDia
+          fecha={arqueoDate}
+          arqueoTotal={arqueoRows.reduce((sum, a) => sum + ventaTotal(a), 0)}
+          esAdmin
+        />
       </section>
+      <HistorialPedidosTienda />
       </>
       )}
 
-      {activeTab === 'pedidos' && (
-        <>
-          <PedidosTienda />
-          <HistorialPedidosTienda />
-        </>
-      )}
+      {activeTab === 'pedidos' && <PedidosTienda />}
 
       {activeTab === 'inventario' && <InventarioAdmin />}
 

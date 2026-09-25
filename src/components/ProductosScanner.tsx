@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { formatCLP } from '../lib/payroll'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import {
   actualizarPrecioStock,
@@ -25,7 +26,9 @@ export function ProductosScanner() {
   const [resultados, setResultados] = useState<Producto[]>([])
   const [filtroStock, setFiltroStock] = useState<FiltroStock>('todos')
   const [error, setError] = useState<string | null>(null)
-  const [borradores, setBorradores] = useState<Record<string, Borrador>>({})
+  // Solo se edita una fila a la vez: primero se toca Editar, recien ahi se pueden cambiar precio y stock.
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '' })
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
   const buscarInputRef = useRef<HTMLInputElement>(null)
 
@@ -38,11 +41,6 @@ export function ProductosScanner() {
       // Limite alto: para que los filtros de sin precio/sin stock/bajo stock vean todo el inventario activo.
       const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined, limit: 500 })
       setResultados(rows)
-      setBorradores((prev) => {
-        const next = { ...prev }
-        for (const p of rows) if (!next[p.id]) next[p.id] = borradorDe(p)
-        return next
-      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error buscando productos')
     }
@@ -52,22 +50,20 @@ export function ProductosScanner() {
     runSearch()
   }, [runSearch])
 
-  function setCampo(id: string, campo: keyof Borrador, valor: string) {
-    setBorradores((prev) => ({ ...prev, [id]: { ...prev[id], [campo]: valor } }))
+  function empezarEdicion(p: Producto) {
+    setError(null)
+    setEditandoId(p.id)
+    setBorrador(borradorDe(p))
   }
 
-  function esModificado(p: Producto): boolean {
-    const b = borradores[p.id]
-    if (!b) return false
-    const original = borradorDe(p)
-    return b.precio !== original.precio || b.stock !== original.stock
+  function cancelarEdicion() {
+    setEditandoId(null)
+    setError(null)
   }
 
   async function guardar(p: Producto) {
-    const b = borradores[p.id]
-    if (!b) return
-    const precio = b.precio.trim() === '' ? null : Number(b.precio)
-    const stock = Math.round(Number(b.stock))
+    const precio = borrador.precio.trim() === '' ? null : Number(borrador.precio)
+    const stock = Math.round(Number(borrador.stock))
     if (precio !== null && (Number.isNaN(precio) || precio < 0)) {
       setError(`Precio inválido para ${p.nombre}.`)
       return
@@ -81,6 +77,7 @@ export function ProductosScanner() {
     try {
       await actualizarPrecioStock(p.id, precio, stock)
       setResultados((prev) => prev.map((x) => (x.id === p.id ? { ...x, precio, stock } : x)))
+      setEditandoId(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error guardando el producto')
     } finally {
@@ -100,8 +97,8 @@ export function ProductosScanner() {
     <section className="card">
       <h2>Productos</h2>
       <p className="subtitle">
-        Escanea con la pistola o busca por nombre para revisar el stock y el precio. Si algo está mal, corrígelo
-        aquí mismo y toca Guardar.
+        Escanea con la pistola o busca por nombre para revisar el stock y el precio. Si algo está mal, toca Editar
+        en ese producto, corrígelo y luego toca Guardar.
       </p>
 
       <label className="chat-input">
@@ -144,41 +141,70 @@ export function ProductosScanner() {
         </thead>
         <tbody>
           {visibles.map((p) => {
-            const b = borradores[p.id] ?? borradorDe(p)
-            const modificado = esModificado(p)
+            const editando = editandoId === p.id
             return (
-              <tr key={p.id}>
+              <tr key={p.id} className={editando ? 'fila-editando' : undefined}>
                 <td className="col-nombre">{p.nombre}</td>
                 <td className="col-nombre">{p.categoria ?? '—'}</td>
                 <td>
-                  <input
-                    type="number"
-                    min={0}
-                    value={b.precio}
-                    onChange={(e) => setCampo(p.id, 'precio', e.target.value)}
-                    placeholder="Sin precio"
-                    className="qty-input"
-                  />
-                  {p.por_peso && <span className="subtitle"> /kg</span>}
+                  {editando ? (
+                    <>
+                      <input
+                        type="number"
+                        min={0}
+                        value={borrador.precio}
+                        onChange={(e) => setBorrador((b) => ({ ...b, precio: e.target.value }))}
+                        placeholder="Sin precio"
+                        className="qty-input"
+                        autoFocus
+                      />
+                      {p.por_peso && <span className="subtitle"> /kg</span>}
+                    </>
+                  ) : p.precio !== null ? (
+                    `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}`
+                  ) : (
+                    <span className="subtitle">Sin precio</span>
+                  )}
                 </td>
                 <td>
-                  <input
-                    type="number"
-                    min={0}
-                    value={b.stock}
-                    onChange={(e) => setCampo(p.id, 'stock', e.target.value)}
-                    className="qty-input"
-                  />
-                  {p.por_peso && <span className="subtitle"> g</span>}
+                  {editando ? (
+                    <>
+                      <input
+                        type="number"
+                        min={0}
+                        value={borrador.stock}
+                        onChange={(e) => setBorrador((b) => ({ ...b, stock: e.target.value }))}
+                        className="qty-input"
+                      />
+                      {p.por_peso && <span className="subtitle"> g</span>}
+                    </>
+                  ) : p.por_peso ? (
+                    `${p.stock} g`
+                  ) : (
+                    p.stock
+                  )}
                 </td>
                 <td>
-                  {modificado && (
+                  {editando ? (
+                    <div className="table-controls">
+                      <button
+                        className="btn btn-primary btn-small"
+                        disabled={guardandoId === p.id}
+                        onClick={() => guardar(p)}
+                      >
+                        {guardandoId === p.id ? 'Guardando...' : 'Guardar'}
+                      </button>
+                      <button className="btn btn-secondary btn-small" onClick={cancelarEdicion}>
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
                     <button
-                      className="btn btn-primary btn-small"
-                      disabled={guardandoId === p.id}
-                      onClick={() => guardar(p)}
+                      className="btn btn-secondary btn-small"
+                      disabled={editandoId !== null}
+                      onClick={() => empezarEdicion(p)}
                     >
-                      {guardandoId === p.id ? 'Guardando...' : 'Guardar'}
+                      Editar
                     </button>
                   )}
                 </td>

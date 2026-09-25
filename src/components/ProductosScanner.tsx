@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { actualizarPrecioStock, loadCategorias, loadProductos, type Producto } from '../lib/inventario'
+import { FiltroStockBotones } from './FiltroStockBotones'
+import {
+  actualizarPrecioStock,
+  coincideFiltroStock,
+  loadCategorias,
+  loadProductos,
+  type FiltroStock,
+  type Producto,
+} from '../lib/inventario'
 
 interface Borrador {
   precio: string
@@ -15,6 +23,7 @@ export function ProductosScanner() {
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
   const [resultados, setResultados] = useState<Producto[]>([])
+  const [filtroStock, setFiltroStock] = useState<FiltroStock>('todos')
   const [error, setError] = useState<string | null>(null)
   const [borradores, setBorradores] = useState<Record<string, Borrador>>({})
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
@@ -26,7 +35,8 @@ export function ProductosScanner() {
 
   const runSearch = useCallback(async () => {
     try {
-      const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined })
+      // Limite alto: para que los filtros de sin precio/sin stock/bajo stock vean todo el inventario activo.
+      const rows = await loadProductos({ categoria: categoria || undefined, search: search || undefined, limit: 500 })
       setResultados(rows)
       setBorradores((prev) => {
         const next = { ...prev }
@@ -78,6 +88,14 @@ export function ProductosScanner() {
     }
   }
 
+  const cuentas: Record<FiltroStock, number> = {
+    todos: resultados.length,
+    sinprecio: resultados.filter((p) => coincideFiltroStock(p, 'sinprecio')).length,
+    sinstock: resultados.filter((p) => coincideFiltroStock(p, 'sinstock')).length,
+    bajostock: resultados.filter((p) => coincideFiltroStock(p, 'bajostock')).length,
+  }
+  const visibles = resultados.filter((p) => coincideFiltroStock(p, filtroStock))
+
   return (
     <section className="card">
       <h2>Productos</h2>
@@ -112,6 +130,8 @@ export function ProductosScanner() {
         </label>
       </div>
 
+      <FiltroStockBotones value={filtroStock} onChange={setFiltroStock} cuentas={cuentas} />
+
       <table className="table">
         <thead>
           <tr>
@@ -123,7 +143,7 @@ export function ProductosScanner() {
           </tr>
         </thead>
         <tbody>
-          {resultados.map((p) => {
+          {visibles.map((p) => {
             const b = borradores[p.id] ?? borradorDe(p)
             const modificado = esModificado(p)
             return (
@@ -165,10 +185,10 @@ export function ProductosScanner() {
               </tr>
             )
           })}
-          {resultados.length === 0 && (
+          {visibles.length === 0 && (
             <tr>
               <td colSpan={5} className="subtitle">
-                No hay productos con esa búsqueda.
+                No hay productos con ese filtro.
               </td>
             </tr>
           )}

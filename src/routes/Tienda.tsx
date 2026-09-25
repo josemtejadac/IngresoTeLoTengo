@@ -709,7 +709,7 @@ export function Tienda() {
               )}
               <fieldset className="pago-metodos">
                 <legend>¿Cómo pagas?</legend>
-                {(['efectivo', 'tarjeta'] as MetodoPago[]).map((m) => (
+                {(['efectivo', 'debito', 'credito'] as MetodoPago[]).map((m) => (
                   <label key={m} className="checkbox-label">
                     <input
                       type="radio"

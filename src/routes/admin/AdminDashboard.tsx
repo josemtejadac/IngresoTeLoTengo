@@ -1267,6 +1267,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               <th>Crédito</th>
               <th>Transferencia</th>
               <th>Venta total</th>
+              <th>Origen</th>
             </tr>
           </thead>
           <tbody>
@@ -1278,6 +1279,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <td>{formatCLP(a.credito)}</td>
                 <td>{formatCLP(a.transferencia)}</td>
                 <td>{formatCLP(ventaTotal(a))}</td>
+                <td className="subtitle">{a.origen === 'pedido' ? 'Pedido de la tienda' : 'Arqueo manual'}</td>
               </tr>
             ))}
           </tbody>
@@ -1289,6 +1291,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               <td>
                 <strong>{formatCLP(arqueoRows.reduce((sum, a) => sum + ventaTotal(a), 0))}</strong>
               </td>
+              <td></td>
             </tr>
           </tfoot>
         </table>

@@ -798,13 +798,19 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     <td>{formatCLP(a.transferencia)}</td>
                     <td>{formatCLP(ventaTotal(a))}</td>
                     <td>
-                      <button
-                        className="btn btn-secondary btn-small"
-                        onClick={() => abrirEditarArqueo(a)}
-                      >
-                        Editar
-                      </button>
-                      {a.editado_at && <span className="subtitle"> (editado)</span>}
+                      {a.origen === 'pedido' ? (
+                        <span className="subtitle">Pedido de la tienda</span>
+                      ) : (
+                        <>
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => abrirEditarArqueo(a)}
+                          >
+                            Editar
+                          </button>
+                          {a.editado_at && <span className="subtitle"> (editado)</span>}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}

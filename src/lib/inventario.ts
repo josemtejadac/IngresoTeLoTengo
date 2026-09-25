@@ -18,6 +18,18 @@ export interface Producto {
   gramos_unidad: number | null
 }
 
+export type FiltroStock = 'todos' | 'sinprecio' | 'sinstock' | 'bajostock'
+
+/** A partir de este stock (o menos, y mayor que 0) un producto se considera "bajo stock". */
+export const BAJO_STOCK_LIMITE = 10
+
+export function coincideFiltroStock(p: Pick<Producto, 'precio' | 'stock'>, filtro: FiltroStock): boolean {
+  if (filtro === 'todos') return true
+  if (filtro === 'sinprecio') return p.precio === null
+  if (filtro === 'sinstock') return p.stock <= 0
+  return p.stock > 0 && p.stock <= BAJO_STOCK_LIMITE
+}
+
 /** Variantes de un codigo de barras: tal cual, sin ceros a la izquierda y con un cero delante. */
 export function variantesCodigo(codigo: string): string[] {
   const c = codigo.trim()

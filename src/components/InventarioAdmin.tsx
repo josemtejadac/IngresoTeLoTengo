@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { FotoProductoModal } from './FotoProductoModal'
+import { FiltroStockBotones } from './FiltroStockBotones'
 import { formatCLP } from '../lib/payroll'
 import {
   activarProductoPorBarra,
+  coincideFiltroStock,
   crearProductoNuevo,
   loadCategorias,
   loadProductos,
@@ -11,6 +13,7 @@ import {
   updateProducto,
   uploadProductoFoto,
   uploadProductoFotoBlob,
+  type FiltroStock,
   type Producto,
 } from '../lib/inventario'
 
@@ -28,6 +31,7 @@ export function InventarioAdmin() {
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
+  const [filtroStock, setFiltroStock] = useState<FiltroStock>('todos')
   const [totalModo, setTotalModo] = useState<number | null>(null)
   const [editing, setEditing] = useState<Producto | null>(null)
   const [editNombre, setEditNombre] = useState('')
@@ -283,6 +287,14 @@ export function InventarioAdmin() {
     )
   }
 
+  const cuentasStock: Record<FiltroStock, number> = {
+    todos: productos.length,
+    sinprecio: productos.filter((p) => coincideFiltroStock(p, 'sinprecio')).length,
+    sinstock: productos.filter((p) => coincideFiltroStock(p, 'sinstock')).length,
+    bajostock: productos.filter((p) => coincideFiltroStock(p, 'bajostock')).length,
+  }
+  const productosVisibles = productos.filter((p) => coincideFiltroStock(p, filtroStock))
+
   return (
     <section className="card">
       <div className="section-header">
@@ -292,7 +304,7 @@ export function InventarioAdmin() {
             {totalModo !== null
               ? `· ${totalModo} ${catalogoOculto ? 'ocultos' : 'activos'}`
               : ''}
-            {` · mostrando ${productos.length}`}
+            {` · mostrando ${productosVisibles.length}`}
           </span>
         </h2>
         <button className="btn btn-secondary" onClick={() => setOpen(false)}>
@@ -382,12 +394,18 @@ export function InventarioAdmin() {
           </select>
         </label>
       </div>
+
+      <FiltroStockBotones value={filtroStock} onChange={setFiltroStock} cuentas={cuentasStock} />
+
       {error && !editing && <p className="error-text">{error}</p>}
       {productos.length === 0 && search.trim() !== '' && !catalogoOculto && (
         <p className="subtitle">
           No hay productos activos con esa búsqueda. Para activar uno nuevo, escanéalo arriba o
           marca &quot;Ver catálogo oculto&quot;.
         </p>
+      )}
+      {productos.length > 0 && productosVisibles.length === 0 && (
+        <p className="subtitle">No hay productos con ese filtro.</p>
       )}
 
       <table className="table">
@@ -402,7 +420,7 @@ export function InventarioAdmin() {
           </tr>
         </thead>
         <tbody>
-          {productos.map((p) => (
+          {productosVisibles.map((p) => (
             <tr key={p.id}>
               <td>
                 {p.foto_path ? (

@@ -33,7 +33,7 @@ export function PedidoManual({ onCreado }: Props) {
   const [telefono, setTelefono] = useState('')
   const [torre, setTorre] = useState('')
   const [depto, setDepto] = useState('')
-  const [metodo, setMetodo] = useState<'efectivo' | 'tarjeta'>('efectivo')
+  const [metodo, setMetodo] = useState<'efectivo' | 'debito' | 'credito'>('efectivo')
   const [busqueda, setBusqueda] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -195,10 +195,10 @@ export function PedidoManual({ onCreado }: Props) {
 
         <fieldset className="pago-metodos">
           <legend>Paga en la entrega con</legend>
-          {(['efectivo', 'tarjeta'] as const).map((m) => (
+          {(['efectivo', 'debito', 'credito'] as const).map((m) => (
             <label key={m} className="checkbox-label">
               <input type="radio" name="metodo-manual" checked={metodo === m} onChange={() => setMetodo(m)} />
-              {m === 'efectivo' ? 'Efectivo' : 'Tarjeta'}
+              {m === 'efectivo' ? 'Efectivo' : m === 'debito' ? 'Débito' : 'Crédito'}
             </label>
           ))}
         </fieldset>
@@ -332,7 +332,8 @@ export function PedidoManual({ onCreado }: Props) {
 
         <div className="manual-pie">
           <p>
-            Total: <strong>{formatCLP(total)}</strong> · {metodo === 'efectivo' ? 'Efectivo' : 'Tarjeta'} al entregar
+            Total: <strong>{formatCLP(total)}</strong> ·{' '}
+            {metodo === 'efectivo' ? 'Efectivo' : metodo === 'debito' ? 'Débito' : 'Crédito'} al entregar
           </p>
           {error && <p className="error-text">{error}</p>}
           <div className="report-row">

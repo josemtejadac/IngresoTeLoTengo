@@ -106,8 +106,8 @@ export function PedidosTienda() {
     }
   }
 
-  async function handleCambiarMetodo(p: PedidoTienda) {
-    const nuevo = p.metodo_pago === 'tarjeta' ? 'efectivo' : 'tarjeta'
+  async function handleCambiarMetodo(p: PedidoTienda, nuevo: 'efectivo' | 'debito' | 'credito') {
+    if (p.metodo_pago === nuevo) return
     if (!window.confirm(`¿Cambiar el pago de ${p.nombre_cliente} a ${METODO_PAGO_LABEL[nuevo]}?`)) return
     setBusyId(p.id)
     setError(null)
@@ -227,13 +227,19 @@ export function PedidosTienda() {
                 </>
               )}
               {p.metodo_pago !== 'online' && p.estado === 'pendiente' && (
-                <button
-                  className="btn btn-secondary btn-small"
-                  disabled={busyId === p.id}
-                  onClick={() => handleCambiarMetodo(p)}
-                >
-                  Cambiar a {p.metodo_pago === 'tarjeta' ? 'efectivo' : 'tarjeta'}
-                </button>
+                <div className="metodo-cambiar">
+                  {(['efectivo', 'debito', 'credito'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className={p.metodo_pago === m ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                      disabled={busyId === p.id}
+                      onClick={() => handleCambiarMetodo(p, m)}
+                    >
+                      {METODO_PAGO_LABEL[m]}
+                    </button>
+                  ))}
+                </div>
               )}
               {p.pago_estado !== 'pagado' && (
                 <button

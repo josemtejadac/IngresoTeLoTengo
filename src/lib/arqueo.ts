@@ -14,6 +14,9 @@ export interface ArqueoEntry {
   transferencia: number
   /** Fecha de la ultima correccion (null si nunca se edito). */
   editado_at?: string | null
+  /** 'pedido' = la sumo sola la app al entregar un pedido de la tienda; no se puede editar. */
+  origen?: 'manual' | 'pedido'
+  pedido_id?: string | null
 }
 
 export interface ArqueoRowWithWorker extends ArqueoEntry {

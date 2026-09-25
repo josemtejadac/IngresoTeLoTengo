@@ -1626,3 +1626,9 @@ textarea {
 .manual-chips-wrap {
   --tienda-chips-bg: #fff;
 }
+
+.metodo-cambiar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}

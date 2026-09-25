@@ -5,19 +5,24 @@ import { loadVentasPedidos, type VentaPedidos } from '../lib/tienda'
 interface Props {
   /** Dia en formato AAAA-MM-DD. */
   fecha: string
-  /** Suma del arqueo del mismo dia, para mostrar el total con los pedidos de la tienda. */
+  /** Suma del arqueo del mismo dia (ya incluye lo que la app sumo sola al entregar pedidos contra entrega). */
   arqueoTotal: number
   /** Solo el admin ve el detalle por trabajador. */
   esAdmin?: boolean
 }
 
 const ETIQUETA: Record<string, string> = {
-  online: 'Pago online (Flow, ya pagado en la app)',
-  efectivo: 'Pago en efectivo al recibir',
-  tarjeta: 'Pago con tarjeta al recibir',
+  efectivo: 'Efectivo',
+  debito: 'Débito',
+  credito: 'Crédito',
+  tarjeta: 'Tarjeta',
 }
 
-/** Ventas de pedidos de la tienda del dia: se suman solas al trabajador que marca el pedido como entregado. */
+/**
+ * Pedidos de la tienda del dia. Los pagados contra entrega (efectivo/debito/credito) ya estan sumados
+ * dentro del arqueo (la app los agrega sola al marcarlos entregados); aca solo se muestran para que se
+ * entienda de donde salen. El pago online (Flow) nunca pasa por el arqueo, asi que se suma aparte.
+ */
 export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const [ventas, setVentas] = useState<VentaPedidos[]>([])
 
@@ -31,26 +36,37 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
     }
   }, [fecha])
 
-  const total = ventas.reduce((sum, v) => sum + v.monto, 0)
-  const porMetodo = (['online', 'efectivo', 'tarjeta'] as const).map((m) => ({
-    m,
-    monto: ventas.filter((v) => v.metodo === m).reduce((sum, v) => sum + v.monto, 0),
-  }))
+  const online = ventas.filter((v) => v.metodo === 'online')
+  const contraEntrega = ventas.filter((v) => v.metodo !== 'online')
+  const totalOnline = online.reduce((sum, v) => sum + v.monto, 0)
+  const totalContraEntrega = contraEntrega.reduce((sum, v) => sum + v.monto, 0)
 
   return (
     <div className="ventas-online">
-      <h3>Ventas de la tienda online (pedidos hechos en la app) — automático</h3>
+      <h3>Pedidos de la tienda del día — automático</h3>
       {ventas.length === 0 ? (
-        <p className="subtitle">Sin pedidos de la tienda online entregados este día.</p>
+        <p className="subtitle">Sin pedidos de la tienda entregados este día.</p>
       ) : (
         <>
-          {porMetodo
-            .filter((x) => x.monto > 0)
-            .map((x) => (
-              <p key={x.m}>
-                {ETIQUETA[x.m]}: <strong>{formatCLP(x.monto)}</strong>
-              </p>
-            ))}
+          {totalOnline > 0 && (
+            <p>
+              Pago online (Flow, se suma aparte del arqueo): <strong>{formatCLP(totalOnline)}</strong>
+            </p>
+          )}
+          {totalContraEntrega > 0 && (
+            <p className="subtitle">
+              Contra entrega (ya incluido en el arqueo de abajo):{' '}
+              {contraEntrega
+                .reduce<{ m: string; monto: number }[]>((acc, v) => {
+                  const existente = acc.find((x) => x.m === v.metodo)
+                  if (existente) existente.monto += v.monto
+                  else acc.push({ m: v.metodo, monto: v.monto })
+                  return acc
+                }, [])
+                .map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`)
+                .join(' · ')}
+            </p>
+          )}
           {esAdmin && (
             <div className="subtitle">
               {[...new Set(ventas.map((v) => v.worker_id))].map((id) => {
@@ -66,23 +82,19 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
         </>
       )}
       <p>
-        Arqueo del día (lo que anotan los trabajadores): <strong>{formatCLP(arqueoTotal)}</strong>
+        Arqueo del día (manual + pedidos contra entrega): <strong>{formatCLP(arqueoTotal)}</strong>
       </p>
       <p>
-        Total pedidos de la tienda online entregados: <strong>{formatCLP(total)}</strong>
-      </p>
-      <p>
-        Venta total del día: <strong>{formatCLP(arqueoTotal + total)}</strong>
+        Venta total del día: <strong>{formatCLP(arqueoTotal + totalOnline)}</strong>
       </p>
       <p className="subtitle">
-        Son los pedidos que los clientes hicieron desde la tienda online (con pago online por Flow, o con efectivo/tarjeta al
-        recibir). Se cuentan solos al trabajador que marca el pedido como entregado, según cómo pagó el cliente. No los
-        anotes también en tu arqueo.
+        Un pedido contra entrega (efectivo, débito o crédito) se suma solo al arqueo del trabajador que lo marca
+        como entregado, en la columna que corresponde. No lo anotes también a mano. El pago online (Flow) nunca pasa
+        por caja, así que se muestra y se suma aparte.
       </p>
       <p className="subtitle">
-        <strong>Pedidos manuales:</strong> lo que vendas por fuera de la app (sin que el cliente use la tienda) sí se
-        anota en tu arqueo, en efectivo, débito, crédito o transferencia, como siempre. Los pedidos manuales creados con
-        el botón «+ Pedido manual» en Pedidos se cuentan solos al marcarlos como entregados.
+        <strong>Ventas por fuera de la app</strong> (sin pedido en la tienda ni pedido manual) sí se anotan en tu
+        arqueo a mano, como siempre.
       </p>
     </div>
   )

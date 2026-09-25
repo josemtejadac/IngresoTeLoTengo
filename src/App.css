@@ -1047,31 +1047,79 @@ textarea {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.tienda-chips-wrap {
+  position: relative;
+  margin: 0 -2px;
+}
+
 .tienda-chips {
   display: flex;
+  align-items: center;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 2px 10px;
-  scrollbar-width: thin;
+  overflow-y: hidden;
+  padding: 6px 18px 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tienda-chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* Se difumina el borde para insinuar que hay mas categorias al costado. */
+.tienda-chips-wrap::before,
+.tienda-chips-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 12px;
+  width: 18px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tienda-chips-wrap::before {
+  left: 0;
+  background: linear-gradient(to right, var(--tienda-chips-bg, #f8fafc), transparent);
+}
+
+.tienda-chips-wrap::after {
+  right: 0;
+  background: linear-gradient(to left, var(--tienda-chips-bg, #f8fafc), transparent);
 }
 
 .tienda-chip {
   flex: 0 0 auto;
-  border: 1px solid #d1d5db;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
   background: #fff;
-  color: #334155;
+  color: #475569;
   border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 0.85rem;
+  padding: 0 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.01em;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.tienda-chip:active {
+  transform: scale(0.97);
 }
 
 .tienda-chip.activo {
   background: #16a34a;
   border-color: #16a34a;
   color: #fff;
-  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.35);
 }
 
 .tienda-card {
@@ -1573,4 +1621,8 @@ textarea {
   background: #fff;
   padding-top: 8px;
   border-top: 1px solid #e2e8f0;
+}
+
+.manual-chips-wrap {
+  --tienda-chips-bg: #fff;
 }

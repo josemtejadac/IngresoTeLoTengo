@@ -211,24 +211,26 @@ export function PedidoManual({ onCreado }: Props) {
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="🔍 Buscar producto por nombre"
         />
-        <div className="tienda-chips">
-          <button
-            type="button"
-            className={categoria === '' ? 'tienda-chip activo' : 'tienda-chip'}
-            onClick={() => setCategoria('')}
-          >
-            Todas
-          </button>
-          {categorias.map((c) => (
+        <div className="tienda-chips-wrap manual-chips-wrap">
+          <div className="tienda-chips" role="tablist" aria-label="Categorías">
             <button
-              key={c}
               type="button"
-              className={categoria === c ? 'tienda-chip activo' : 'tienda-chip'}
-              onClick={() => setCategoria(c)}
+              className={categoria === '' ? 'tienda-chip activo' : 'tienda-chip'}
+              onClick={() => setCategoria('')}
             >
-              {c.replace(/\s+/g, ' ').trim()}
+              Todas
             </button>
-          ))}
+            {categorias.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={categoria === c ? 'tienda-chip activo' : 'tienda-chip'}
+                onClick={() => setCategoria(c)}
+              >
+                {c.replace(/\s+/g, ' ').trim().toLowerCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
         {pesoDe && (

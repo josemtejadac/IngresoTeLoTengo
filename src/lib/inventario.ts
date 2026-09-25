@@ -164,6 +164,16 @@ export async function updateProducto(
   if (error) throw error
 }
 
+/** Un trabajador (no solo el admin) corrige el precio y el stock de un producto ya activo. */
+export async function actualizarPrecioStock(id: string, precio: number | null, stock: number) {
+  const { error } = await supabase.rpc('ingreso_worker_actualizar_precio_stock', {
+    p_id: id,
+    p_precio: precio,
+    p_stock: stock,
+  })
+  if (error) throw error
+}
+
 export async function uploadProductoFoto(productoId: string, file: File): Promise<string> {
   const compressed = await compressImageFile(file)
   return uploadProductoFotoBlob(productoId, compressed)

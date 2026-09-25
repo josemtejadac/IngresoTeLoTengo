@@ -2,7 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { supabase } from './supabase'
 import { formatCLP } from './payroll'
-import { loadVentasOnline } from './tienda'
+import { loadVentasPedidos } from './tienda'
 
 interface ArqueoRowRaw {
   arqueo_date: string
@@ -55,10 +55,16 @@ export async function downloadSalesPdf({
     cobrosPorFecha.set(d, (cobrosPorFecha.get(d) ?? 0) + Number(a.monto))
   }
 
+  // Pedidos de la tienda entregados: online, efectivo y tarjeta (contra entrega).
   const onlinePorFecha = new Map<string, number>()
-  for (const v of await loadVentasOnline(toISODate(start), toISODate(end))) {
-    onlinePorFecha.set(v.fecha, (onlinePorFecha.get(v.fecha) ?? 0) + v.monto)
+  const tiendaEfectivo = new Map<string, number>()
+  const tiendaTarjeta = new Map<string, number>()
+  for (const v of await loadVentasPedidos(toISODate(start), toISODate(end))) {
+    const mapa = v.metodo === 'online' ? onlinePorFecha : v.metodo === 'efectivo' ? tiendaEfectivo : tiendaTarjeta
+    mapa.set(v.fecha, (mapa.get(v.fecha) ?? 0) + v.monto)
   }
+  const tiendaTotalDia = (d: string) =>
+    (onlinePorFecha.get(d) ?? 0) + (tiendaEfectivo.get(d) ?? 0) + (tiendaTarjeta.get(d) ?? 0)
 
   const byDate = new Map<
     string,
@@ -78,11 +84,11 @@ export async function downloadSalesPdf({
     byDate.set(r.arqueo_date, entry)
   }
 
-  const dates = [...new Set([...byDate.keys(), ...cobrosPorFecha.keys(), ...onlinePorFecha.keys()])].sort()
+  const dates = [...new Set([...byDate.keys(), ...cobrosPorFecha.keys(), ...onlinePorFecha.keys(), ...tiendaEfectivo.keys(), ...tiendaTarjeta.keys()])].sort()
   const emptyDay = { efectivo: 0, debito: 0, credito: 0, transferencia: 0 }
   const grandTotal = dates.reduce((sum, d) => {
     const e = byDate.get(d) ?? emptyDay
-    return sum + e.efectivo + e.debito + e.credito + e.transferencia + (cobrosPorFecha.get(d) ?? 0) + (onlinePorFecha.get(d) ?? 0)
+    return sum + e.efectivo + e.debito + e.credito + e.transferencia + (cobrosPorFecha.get(d) ?? 0) + tiendaTotalDia(d)
   }, 0)
 
   const doc = new jsPDF()
@@ -93,12 +99,11 @@ export async function downloadSalesPdf({
 
   autoTable(doc, {
     startY: 34,
-    head: [['Fecha', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Deudas cobradas', 'Online', 'Venta']],
+    head: [['Fecha', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'Deudas cobradas', 'Tienda online', 'Tienda efectivo', 'Tienda tarjeta', 'Venta']],
     body: dates.map((d) => {
       const e = byDate.get(d) ?? emptyDay
       const cobros = cobrosPorFecha.get(d) ?? 0
-      const online = onlinePorFecha.get(d) ?? 0
-      const total = e.efectivo + e.debito + e.credito + e.transferencia + cobros + online
+      const total = e.efectivo + e.debito + e.credito + e.transferencia + cobros + tiendaTotalDia(d)
       return [
         d,
         formatCLP(e.efectivo),
@@ -106,11 +111,14 @@ export async function downloadSalesPdf({
         formatCLP(e.credito),
         formatCLP(e.transferencia),
         formatCLP(cobros),
-        formatCLP(online),
+        formatCLP(onlinePorFecha.get(d) ?? 0),
+        formatCLP(tiendaEfectivo.get(d) ?? 0),
+        formatCLP(tiendaTarjeta.get(d) ?? 0),
         formatCLP(total),
       ]
     }),
-    foot: [['', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
+    foot: [['', '', '', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
+    styles: { fontSize: 8 },
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },
   })

@@ -273,3 +273,24 @@ export async function loadVentasOnline(desde: string, hasta: string): Promise<Ve
   if (error) throw error
   return ((data as VentaOnline[]) ?? []).map((v) => ({ ...v, monto: Number(v.monto) }))
 }
+
+/** Vuelve a reservar un pedido online vencido (si aun hay stock) para poder reintentar el pago. */
+export async function reactivarPedidoOnline(pedidoId: string) {
+  const { error } = await supabase.rpc('ingreso_reactivar_pedido_online', { p_pedido: pedidoId })
+  if (error) throw error
+}
+
+export interface VentaPedidos {
+  worker_id: string
+  nombre: string | null
+  fecha: string
+  metodo: MetodoPago
+  monto: number
+}
+
+/** Ventas de pedidos de la tienda entregados y cobrados, por trabajador que entrego y metodo de pago. */
+export async function loadVentasPedidos(desde: string, hasta: string): Promise<VentaPedidos[]> {
+  const { data, error } = await supabase.rpc('ingreso_ventas_pedidos', { p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return ((data as VentaPedidos[]) ?? []).map((v) => ({ ...v, monto: Number(v.monto) }))
+}

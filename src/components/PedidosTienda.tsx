@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
+import { PedidoManual } from './PedidoManual'
 import {
   ajustarPesoItem,
   cambiarMetodoPedido,
@@ -143,116 +144,114 @@ export function PedidosTienda() {
   }
   const visibles = pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
 
-  if (pedidos.length === 0) return null
-
   return (
     <section className="card">
-      <h2>Pedidos de la tienda ({pedidos.length})</h2>
-      <p className="subtitle">
-        Pedidos de vecinos por entregar o por confirmar su pago.
-      </p>
+      <div className="section-header">
+        <h2>Pedidos de la tienda ({pedidos.length})</h2>
+        <PedidoManual onCreado={load} />
+      </div>
       <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
       {error && <p className="error-text">{error}</p>}
       {visibles.length === 0 && <p className="subtitle">No hay pedidos con este filtro.</p>}
-      {visibles.map((p) => (
-        <div
-          key={p.id}
-          className={p.pago_estado === 'pagado' ? 'pedido-tienda-item pedido-pagado' : 'pedido-tienda-item'}
-        >
-          <p>
-            <strong>{p.nombre_cliente}</strong> — Torre {p.torre}, Depto {p.depto}
-          </p>
-          <p className="subtitle">{(items[p.id] ?? []).map(textoItem).join(', ')}</p>
-          {(items[p.id] ?? [])
-            .filter((it) => it.aprox)
-            .map((it) => (
-              <div key={it.id} className="report-row">
-                <span>
-                  <strong>Pesar:</strong> {it.nombre_producto} (pidió {it.unidades} un, ≈{' '}
-                  {formatGramos(it.cantidad)})
-                </span>
-                {ajustando === it.id ? (
-                  <>
-                    <input
-                      type="number"
-                      min={10}
-                      value={ajusteGramos}
-                      onChange={(e) => setAjusteGramos(e.target.value)}
-                      placeholder="Gramos reales"
-                      className="qty-input"
-                      autoFocus
-                    />
-                    <button className="btn btn-primary btn-small" onClick={() => handleAjustar(it.id)}>
-                      Guardar peso
+      <div className="pedidos-grid">
+        {visibles.map((p) => (
+          <div
+            key={p.id}
+            className={p.pago_estado === 'pagado' ? 'pedido-compacto pedido-pagado' : 'pedido-compacto'}
+          >
+            <div className="pedido-fila-top">
+              <strong className="pedido-cliente">{p.nombre_cliente}</strong>
+              <span className="pedido-dir">
+                T{p.torre} · D{p.depto}
+              </span>
+              <strong className="pedido-total">{formatCLP(p.total)}</strong>
+            </div>
+            <div className="pedido-meta">{etiquetaPago(p)}</div>
+            <p className="pedido-items">{(items[p.id] ?? []).map(textoItem).join(', ')}</p>
+            {(items[p.id] ?? [])
+              .filter((it) => it.aprox)
+              .map((it) => (
+                <div key={it.id} className="pedido-pesar">
+                  <span>
+                    <strong>Pesar:</strong> {it.nombre_producto} (≈ {formatGramos(it.cantidad)})
+                  </span>
+                  {ajustando === it.id ? (
+                    <>
+                      <input
+                        type="number"
+                        min={10}
+                        value={ajusteGramos}
+                        onChange={(e) => setAjusteGramos(e.target.value)}
+                        placeholder="Gramos"
+                        className="qty-input"
+                        autoFocus
+                      />
+                      <button className="btn btn-primary btn-small" onClick={() => handleAjustar(it.id)}>
+                        Guardar
+                      </button>
+                      <button className="btn-link" onClick={() => setAjustando(null)}>
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn btn-secondary btn-small"
+                      onClick={() => {
+                        setAjustando(it.id)
+                        setAjusteGramos('')
+                      }}
+                    >
+                      Peso real
                     </button>
-                    <button className="btn-link" onClick={() => setAjustando(null)}>
-                      Cancelar
-                    </button>
-                  </>
-                ) : (
+                  )}
+                </div>
+              ))}
+            <div className="pedido-acciones">
+              {p.estado === 'pendiente' && (
+                <>
+                  <a
+                    className="btn btn-primary btn-small"
+                    href={whatsappEnCaminoUrl(p.telefono_cliente)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Estoy en camino
+                  </a>
                   <button
                     className="btn btn-secondary btn-small"
-                    onClick={() => {
-                      setAjustando(it.id)
-                      setAjusteGramos('')
-                    }}
+                    disabled={busyId === p.id}
+                    onClick={() => handleEntregado(p.id)}
                   >
-                    Ingresar peso real
+                    {busyId === p.id ? '...' : 'Entregado'}
                   </button>
-                )}
-              </div>
-            ))}
-          <p>
-            Total: <strong>{formatCLP(p.total)}</strong>
-          </p>
-          <p>{etiquetaPago(p)}</p>
-          <div className="report-row">
-            {p.estado === 'pendiente' ? (
-              <>
-                <a
-                  className="btn btn-primary"
-                  href={whatsappEnCaminoUrl(p.telefono_cliente)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Estoy en camino (WhatsApp)
-                </a>
+                </>
+              )}
+              {p.metodo_pago !== 'online' && p.estado === 'pendiente' && (
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary btn-small"
                   disabled={busyId === p.id}
-                  onClick={() => handleEntregado(p.id)}
+                  onClick={() => handleCambiarMetodo(p)}
                 >
-                  {busyId === p.id ? 'Guardando...' : 'Marcar entregado'}
+                  Cambiar a {p.metodo_pago === 'tarjeta' ? 'efectivo' : 'tarjeta'}
                 </button>
-              </>
-            ) : (
-              <span className="subtitle">Entregado — falta confirmar el pago</span>
-            )}
-            {p.metodo_pago !== 'online' && (
-              <button
-                className="btn btn-secondary"
-                disabled={busyId === p.id}
-                onClick={() => handleCambiarMetodo(p)}
-              >
-                Cambiar a {p.metodo_pago === 'tarjeta' ? 'efectivo' : 'tarjeta'}
-              </button>
-            )}
-            {p.pago_estado !== 'pagado' && (
-              <button
-                className="btn btn-primary"
-                disabled={busyId === p.id}
-                onClick={() => {
-                  if (window.confirm(`¿Confirmas que el pedido de ${p.nombre_cliente} está pagado?`)) {
-                    handlePagado(p.id)
-                  }
-                }}
-              >
-                Marcar pagado
-              </button>
-            )}
+              )}
+              {p.pago_estado !== 'pagado' && (
+                <button
+                  className="btn btn-secondary btn-small"
+                  disabled={busyId === p.id}
+                  onClick={() => {
+                    if (window.confirm(`¿Confirmas que el pedido de ${p.nombre_cliente} está pagado?`)) {
+                      handlePagado(p.id)
+                    }
+                  }}
+                >
+                  Marcar pagado
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </section>
   )
 }

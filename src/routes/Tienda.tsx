@@ -10,6 +10,7 @@ import {
   cancelarPedidoCliente,
   guardarPedidoIdLocal,
   loadProductosPorIds,
+  reactivarPedidoOnline,
   iniciarPagoFlow,
   loadMisPedidos,
   METODO_PAGO_LABEL,
@@ -37,6 +38,13 @@ function totalLinea(l: CartLine): number {
   return l.producto.por_peso
     ? montoPorPeso(l.producto.precio, gramosLinea(l))
     : l.producto.precio * l.cantidad
+}
+
+/** Los errores de Supabase no son instancias de Error: se lee su mensaje igual. */
+function mensajeError(err: unknown, porDefecto: string): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object' && 'message' in err) return String((err as { message: unknown }).message)
+  return porDefecto
 }
 
 const GRAMOS_RAPIDOS = [100, 250, 500, 1000]
@@ -276,7 +284,7 @@ export function Tienda() {
         setDepto('')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error generando el pedido')
+      setError(mensajeError(err, 'Error generando el pedido'))
     } finally {
       setBusy(false)
     }
@@ -290,9 +298,11 @@ export function Tienda() {
     if (!correo) return
     setBusyPedido(p.id)
     try {
+      // Si el pedido ya vencio, se vuelve a reservar el stock antes de pagar.
+      if (p.estado === 'cancelado') await reactivarPedidoOnline(p.id)
       window.location.href = await iniciarPagoFlow(p.id, correo)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo iniciar el pago')
+      setError(mensajeError(err, 'No se pudo iniciar el pago'))
       setBusyPedido(null)
     }
   }
@@ -381,8 +391,8 @@ export function Tienda() {
           </div>
           {pagado && (
             <p>
-              <span className="badge-pagado">PAGADO</span> · Tu pedido está <strong>en curso</strong>. Un
-              vecino de Te Lo Tengo Market te va a escribir por WhatsApp cuando esté abajo.
+              <span className="badge-pagado">PAGADO</span> · Tu pedido está <strong>en curso</strong>. Te
+              avisaremos cuando estemos en camino.
             </p>
           )}
           {!pagado && retorno.pago === 'fallo' && (
@@ -421,7 +431,7 @@ export function Tienda() {
             Total: <strong>{formatCLP(confirmacion.total)}</strong> · Pago:{' '}
             {METODO_PAGO_LABEL[confirmacion.metodo]} al recibir
           </p>
-          <p>Un vecino de Te Lo Tengo Market te va a escribir por WhatsApp cuando esté abajo.</p>
+          <p>Te avisaremos cuando estemos en camino.</p>
           <button className="btn btn-primary" onClick={() => setConfirmacion(null)}>
             Hacer otro pedido
           </button>
@@ -485,13 +495,14 @@ export function Tienda() {
 
       <div className="tienda-grid">
         {productos.map((p) => (
-          <div key={p.id} className="tienda-card">
+          <div key={p.id} className={p.disponible ? 'tienda-card' : 'tienda-card sin-stock'}>
             <button type="button" className="tienda-abrir" onClick={() => abrirDetalle(p)}>
               {p.foto_path ? (
                 <img src={productoFotoUrl(p.foto_path)} alt={p.nombre} className="tienda-foto" />
               ) : (
                 <div className="tienda-foto tienda-foto-placeholder">🛒</div>
               )}
+              {!p.disponible && <span className="tienda-agotado">Sin stock</span>}
               <p className="tienda-nombre">{p.nombre}</p>
             </button>
             <p className="tienda-precio">
@@ -839,6 +850,8 @@ export function Tienda() {
                   {' · '}
                   {p.pago_estado === 'pagado' ? (
                     <span className="badge-pagado">PAGADO</span>
+                  ) : p.pago_estado === 'esperando_pago' && p.estado === 'cancelado' ? (
+                    <span className="badge-pendiente">No pagado</span>
                   ) : p.pago_estado === 'esperando_pago' ? (
                     <span className="badge-pendiente">Esperando pago</span>
                   ) : (
@@ -875,9 +888,16 @@ export function Tienda() {
                     <button
                       className="btn btn-primary btn-small"
                       disabled={busyPedido === p.id}
+                      onClick={() => pagarPedido(p)}
+                    >
+                      Intentar pago nuevamente
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      disabled={busyPedido === p.id}
                       onClick={() => editarPedido(p)}
                     >
-                      Volver a pedir
+                      Editar / agregar más
                     </button>
                   </div>
                 )}
@@ -926,6 +946,7 @@ export function Tienda() {
               </button>
             ) : (
               <>
+                {!detalle.disponible && <p className="error-text">Este producto está sin stock por ahora.</p>}
                 <div className="detalle-cantidad">
                   <Stepper
                     value={detalleCant}
@@ -936,6 +957,7 @@ export function Tienda() {
                 </div>
                 <button
                   className="btn btn-primary"
+                  disabled={!detalle.disponible}
                   onClick={() => {
                     addToCart(detalle, detalleCant)
                     setDetalle(null)

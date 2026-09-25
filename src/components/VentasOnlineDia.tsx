@@ -1,23 +1,25 @@
 import { useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { loadVentasOnline, type VentaOnline } from '../lib/tienda'
+import { loadVentasPedidos, type VentaPedidos } from '../lib/tienda'
 
 interface Props {
   /** Dia en formato AAAA-MM-DD. */
   fecha: string
-  /** Suma del arqueo del mismo dia, para mostrar el total con las ventas online. */
+  /** Suma del arqueo del mismo dia, para mostrar el total con los pedidos de la tienda. */
   arqueoTotal: number
   /** Solo el admin ve el detalle por trabajador. */
   esAdmin?: boolean
 }
 
-/** Ventas online (Flow) del dia: se suman solas al arqueo del trabajador que entrego el pedido. */
+const ETIQUETA: Record<string, string> = { online: 'Online (Flow)', efectivo: 'Efectivo', tarjeta: 'Tarjeta' }
+
+/** Ventas de pedidos de la tienda del dia: se suman solas al trabajador que marca el pedido como entregado. */
 export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
-  const [ventas, setVentas] = useState<VentaOnline[]>([])
+  const [ventas, setVentas] = useState<VentaPedidos[]>([])
 
   useEffect(() => {
     let vivo = true
-    loadVentasOnline(fecha, fecha)
+    loadVentasPedidos(fecha, fecha)
       .then((v) => vivo && setVentas(v))
       .catch(() => vivo && setVentas([]))
     return () => {
@@ -25,31 +27,52 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
     }
   }, [fecha])
 
-  const totalOnline = ventas.reduce((sum, v) => sum + v.monto, 0)
+  const total = ventas.reduce((sum, v) => sum + v.monto, 0)
+  const porMetodo = (['online', 'efectivo', 'tarjeta'] as const).map((m) => ({
+    m,
+    monto: ventas.filter((v) => v.metodo === m).reduce((sum, v) => sum + v.monto, 0),
+  }))
 
   return (
     <div className="ventas-online">
-      <h3>Ventas online (Flow) — automático</h3>
+      <h3>Pedidos de la tienda entregados — automático</h3>
       {ventas.length === 0 ? (
-        <p className="subtitle">Sin ventas online entregadas este día.</p>
+        <p className="subtitle">Sin pedidos de la tienda entregados este día.</p>
       ) : (
         <>
-          {esAdmin &&
-            ventas.map((v) => (
-              <p key={v.worker_id}>
-                {v.nombre ?? '—'}: <strong>{formatCLP(v.monto)}</strong>
+          {porMetodo
+            .filter((x) => x.monto > 0)
+            .map((x) => (
+              <p key={x.m}>
+                {ETIQUETA[x.m]}: <strong>{formatCLP(x.monto)}</strong>
               </p>
             ))}
-          <p>
-            Online del día: <strong>{formatCLP(totalOnline)}</strong>
-          </p>
+          {esAdmin && (
+            <div className="subtitle">
+              {[...new Set(ventas.map((v) => v.worker_id))].map((id) => {
+                const propias = ventas.filter((v) => v.worker_id === id)
+                return (
+                  <p key={id}>
+                    {propias[0].nombre ?? '—'}: {formatCLP(propias.reduce((sum, v) => sum + v.monto, 0))}
+                  </p>
+                )
+              })}
+            </div>
+          )}
         </>
       )}
       <p>
-        Venta total con online: <strong>{formatCLP(arqueoTotal + totalOnline)}</strong>
+        Arqueo del día (lo que anotan los trabajadores): <strong>{formatCLP(arqueoTotal)}</strong>
+      </p>
+      <p>
+        Pedidos de la tienda entregados: <strong>{formatCLP(total)}</strong>
+      </p>
+      <p>
+        Venta total del día: <strong>{formatCLP(arqueoTotal + total)}</strong>
       </p>
       <p className="subtitle">
-        Se cuenta al trabajador que marca el pedido como entregado, en el día de la entrega.
+        Se cuentan solos al trabajador que marca el pedido como entregado, según el método de pago. No los anotes
+        también en tu arqueo.
       </p>
     </div>
   )

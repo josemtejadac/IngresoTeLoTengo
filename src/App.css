@@ -1855,3 +1855,14 @@ textarea {
   width: 100%;
   box-sizing: border-box;
 }
+
+/* Las fotos aparecen con fundido cuando ya cargaron completas. */
+.foto-img {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  background: #f1f5f9;
+}
+
+.foto-img.foto-lista {
+  opacity: 1;
+}

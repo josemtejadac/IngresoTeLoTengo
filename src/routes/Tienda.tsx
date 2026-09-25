@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { Stepper } from '../components/Stepper'
+import { FotoImg } from '../components/FotoImg'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { useAtrasCierra } from '../lib/atras'
@@ -543,7 +544,7 @@ export function Tienda() {
           <div key={p.id} className={p.disponible ? 'tienda-card' : 'tienda-card sin-stock'}>
             <button type="button" className="tienda-abrir" onClick={() => abrirDetalle(p)}>
               {p.foto_path ? (
-                <img src={productoFotoUrl(p.foto_path)} alt={p.nombre} className="tienda-foto" />
+                <FotoImg src={productoFotoUrl(p.foto_path)} alt={p.nombre} className="tienda-foto" />
               ) : (
                 <div className="tienda-foto tienda-foto-placeholder">🛒</div>
               )}
@@ -605,7 +606,7 @@ export function Tienda() {
                     ✕
                   </button>
                   {l.producto.foto_path ? (
-                    <img src={productoFotoUrl(l.producto.foto_path)} alt="" className="carrito-foto" />
+                    <FotoImg src={productoFotoUrl(l.producto.foto_path)} className="carrito-foto" />
                   ) : (
                     <div className="carrito-foto carrito-foto-vacia">🛒</div>
                   )}
@@ -972,7 +973,7 @@ export function Tienda() {
               </button>
             </div>
             {detalle.foto_path ? (
-              <img src={productoFotoUrl(detalle.foto_path)} alt={detalle.nombre} className="detalle-foto" />
+              <FotoImg src={productoFotoUrl(detalle.foto_path)} alt={detalle.nombre} className="detalle-foto" />
             ) : (
               <div className="detalle-foto detalle-foto-vacia">Sin foto</div>
             )}

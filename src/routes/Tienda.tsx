@@ -880,9 +880,11 @@ export function Tienda() {
                   · {p.estado === 'entregado'
                     ? 'Entregado'
                     : p.estado === 'cancelado'
-                      ? p.metodo_pago === 'online' && p.pago_estado !== 'pagado'
+                      ? p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && !p.cancelado_por_cliente
                         ? 'Pago no completado'
-                        : 'Cancelado'
+                        : p.cancelado_por_cliente
+                          ? 'Cancelado por ti'
+                          : 'Cancelado'
                       : p.pago_estado === 'esperando_pago'
                         ? 'Sin pagar'
                         : 'En curso'}
@@ -935,7 +937,18 @@ export function Tienda() {
                     </button>
                   </div>
                 )}
-                {p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && p.estado === 'cancelado' && (
+                {p.metodo_pago !== 'online' && p.estado === 'pendiente' && (
+                  <div className="report-row">
+                    <button
+                      className="btn btn-secondary btn-small"
+                      disabled={busyPedido === p.id}
+                      onClick={() => cancelarPedido(p)}
+                    >
+                      Cancelar pedido
+                    </button>
+                  </div>
+                )}
+                {p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && p.estado === 'cancelado' && !p.cancelado_por_cliente && (
                   <div className="report-row">
                     <button
                       className="btn btn-primary btn-small"

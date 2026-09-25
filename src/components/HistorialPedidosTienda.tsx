@@ -92,7 +92,7 @@ export function HistorialPedidosTienda() {
           <p className="subtitle">{(items[p.id] ?? []).map(textoItem).join(', ')}</p>
           <p>
             {formatCLP(p.total)} ·{' '}
-            {p.estado === 'entregado' ? 'Entregado' : p.estado === 'cancelado' ? 'Cancelado' : 'Por entregar'} ·{' '}
+            {p.estado === 'entregado' ? 'Entregado' : p.estado === 'cancelado' ? (p.cancelado_por_cliente ? 'Cancelado por el cliente' : 'Cancelado') : 'Por entregar'} ·{' '}
             {p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'}
             {p.pago_estado === 'pagado' ? (
               <>

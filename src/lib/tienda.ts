@@ -109,6 +109,7 @@ export interface PedidoTienda {
   metodo_pago: MetodoPago | null
   pago_estado: PagoEstado
   created_at: string
+  cancelado_por_cliente?: boolean
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {
@@ -227,6 +228,7 @@ export interface MiPedido {
   id: string
   created_at: string
   total: number
+  cancelado_por_cliente?: boolean
   estado: 'pendiente' | 'entregado' | 'cancelado'
   metodo_pago: MetodoPago | null
   pago_estado: PagoEstado

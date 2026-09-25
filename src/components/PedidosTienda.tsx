@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useRealtimeRefresh } from '../lib/realtime'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
@@ -67,21 +67,8 @@ export function PedidosTienda() {
     load()
   }, [load])
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('ingreso_pedidos_tienda_staff')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ingreso_pedidos_tienda' },
-        () => {
-          load()
-        },
-      )
-      .subscribe()
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [load])
+  // Tiempo real, con respaldo cada 20 s por si el celular pierde la conexion en vivo.
+  useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 20000)
 
   async function handleEntregado(id: string) {
     setBusyId(id)

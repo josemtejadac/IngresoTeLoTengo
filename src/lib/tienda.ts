@@ -110,6 +110,7 @@ export interface PedidoTienda {
   pago_estado: PagoEstado
   created_at: string
   cancelado_por_cliente?: boolean
+  cancelado_at?: string | null
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {

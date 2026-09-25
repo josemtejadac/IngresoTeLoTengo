@@ -83,26 +83,45 @@ export function HistorialPedidosTienda() {
       {filtrados.map((p) => (
         <div
           key={p.id}
-          className={p.pago_estado === 'pagado' ? 'pedido-tienda-item pedido-pagado' : 'pedido-tienda-item'}
+          className={
+            p.estado === 'cancelado'
+              ? 'pedido-tienda-item pedido-cancelado'
+              : p.pago_estado === 'pagado'
+                ? 'pedido-tienda-item pedido-pagado'
+                : 'pedido-tienda-item'
+          }
         >
+          {p.estado === 'cancelado' && (
+            <p className="pedido-cancelado-etiqueta">
+              ❌ {p.cancelado_por_cliente ? 'PEDIDO CANCELADO POR EL CLIENTE' : 'PEDIDO CANCELADO'}
+              {p.cancelado_at &&
+                ` · ${new Date(p.cancelado_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`}
+            </p>
+          )}
           <p>
             <strong>{p.nombre_cliente}</strong> — Torre {p.torre}, Depto {p.depto} ·{' '}
             {new Date(p.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
           </p>
           <p className="subtitle">{(items[p.id] ?? []).map(textoItem).join(', ')}</p>
-          <p>
-            {formatCLP(p.total)} ·{' '}
-            {p.estado === 'entregado' ? 'Entregado' : p.estado === 'cancelado' ? (p.cancelado_por_cliente ? 'Cancelado por el cliente' : 'Cancelado') : 'Por entregar'} ·{' '}
-            {p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'}
-            {p.pago_estado === 'pagado' ? (
-              <>
-                {' · '}
-                <span className="badge-pagado">PAGADO</span>
-              </>
-            ) : (
-              ' · Pago pendiente'
-            )}
-          </p>
+          {p.estado === 'cancelado' ? (
+            // Un pedido cancelado no se cobra: no se muestra "pago pendiente".
+            <p className="pedido-cancelado-monto">
+              {formatCLP(p.total)} · {p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'} · no se cobra
+            </p>
+          ) : (
+            <p>
+              {formatCLP(p.total)} · {p.estado === 'entregado' ? 'Entregado' : 'Por entregar'} ·{' '}
+              {p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'}
+              {p.pago_estado === 'pagado' ? (
+                <>
+                  {' · '}
+                  <span className="badge-pagado">PAGADO</span>
+                </>
+              ) : (
+                ' · Pago pendiente'
+              )}
+            </p>
+          )}
         </div>
       ))}
     </section>

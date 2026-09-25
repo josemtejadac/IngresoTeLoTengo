@@ -1866,3 +1866,26 @@ textarea {
 .foto-img.foto-lista {
   opacity: 1;
 }
+
+/* Pedido cancelado (historial del personal): en rojo. */
+.pedido-cancelado {
+  border-left: 4px solid #dc2626;
+  padding-left: 10px;
+  background: #fef2f2;
+}
+
+.pedido-cancelado-etiqueta {
+  color: #b91c1c;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
+.pedido-cancelado-monto {
+  color: #7f1d1d;
+}
+
+.pedido-cancelado .subtitle {
+  text-decoration: line-through;
+  text-decoration-color: #fca5a5;
+}

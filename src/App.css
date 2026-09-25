@@ -1449,3 +1449,128 @@ textarea {
 .chat-acciones {
   margin-top: 8px;
 }
+
+/* ---------- Pedido manual (ventana completa con productos y fotos) ---------- */
+.manual-modal {
+  max-width: 720px;
+  gap: 10px;
+}
+
+.manual-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.manual-datos label {
+  min-width: 0;
+}
+
+.manual-datos input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.manual-titulo {
+  margin: 6px 0 0;
+  font-size: 1rem;
+}
+
+.manual-buscar {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.manual-catalogo {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.manual-prod {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.manual-prod:hover:not(:disabled) {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.manual-prod.agotado {
+  opacity: 0.5;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
+
+.manual-foto {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.manual-foto-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  opacity: 0.6;
+}
+
+.manual-prod-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.manual-prod-nombre {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.manual-prod-precio {
+  font-size: 0.75rem;
+  color: #15803d;
+}
+
+.manual-en-pedido {
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.manual-peso {
+  border: 1px dashed #16a34a;
+  border-radius: 10px;
+  padding: 8px;
+  background: #f0fdf4;
+}
+
+.manual-pie {
+  position: sticky;
+  bottom: -16px;
+  background: #fff;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}

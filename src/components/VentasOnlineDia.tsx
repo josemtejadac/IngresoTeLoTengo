@@ -79,6 +79,11 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
         recibir). Se cuentan solos al trabajador que marca el pedido como entregado, según cómo pagó el cliente. No los
         anotes también en tu arqueo.
       </p>
+      <p className="subtitle">
+        <strong>Pedidos manuales:</strong> lo que vendas por fuera de la app (sin que el cliente use la tienda) sí se
+        anota en tu arqueo, en efectivo, débito, crédito o transferencia, como siempre. Los pedidos manuales creados con
+        el botón «+ Pedido manual» en Pedidos se cuentan solos al marcarlos como entregados.
+      </p>
     </div>
   )
 }

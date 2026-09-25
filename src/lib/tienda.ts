@@ -313,6 +313,24 @@ export async function loadAbonosDia(fecha: string): Promise<AbonoDia[]> {
   return ((data as AbonoDia[]) ?? []).map((a) => ({ ...a, monto: Number(a.monto), monto_aparte: Number(a.monto_aparte) }))
 }
 
+export interface AbonoDetalle {
+  id: string
+  hora: string
+  cliente: string | null
+  detalle: string | null
+  metodo: string | null
+  monto: number
+  worker_id: string
+  nombre: string | null
+}
+
+/** Cada abono cobrado en el dia: de que deuda salio, con que se pago y quien lo cobro. */
+export async function loadAbonosDetalleDia(fecha: string): Promise<AbonoDetalle[]> {
+  const { data, error } = await supabase.rpc('ingreso_abonos_detalle_dia', { p_fecha: fecha })
+  if (error) throw error
+  return ((data as AbonoDetalle[]) ?? []).map((a) => ({ ...a, monto: Number(a.monto) }))
+}
+
 export interface VentaPedidos {
   worker_id: string
   nombre: string | null

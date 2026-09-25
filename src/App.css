@@ -1889,3 +1889,15 @@ textarea {
   text-decoration: line-through;
   text-decoration-color: #fca5a5;
 }
+
+.abonos-detalle {
+  margin: 6px 0;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-left: 3px solid #16a34a;
+  border-radius: 6px;
+}
+
+.abonos-detalle p {
+  margin: 2px 0;
+}

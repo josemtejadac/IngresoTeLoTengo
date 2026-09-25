@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { formatCLP } from '../lib/payroll'
-import { loadAbonosDia, loadVentasPedidos, type AbonoDia, type VentaPedidos } from '../lib/tienda'
+import {
+  loadAbonosDetalleDia,
+  loadAbonosDia,
+  loadVentasPedidos,
+  type AbonoDetalle,
+  type AbonoDia,
+  type VentaPedidos,
+} from '../lib/tienda'
 
 interface Props {
   /** Dia en formato AAAA-MM-DD. */
@@ -28,6 +35,7 @@ const ETIQUETA: Record<string, string> = {
 export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const [ventas, setVentas] = useState<VentaPedidos[]>([])
   const [abonos, setAbonos] = useState<AbonoDia[]>([])
+  const [detalleAbonos, setDetalleAbonos] = useState<AbonoDetalle[]>([])
 
   const cargar = useCallback(() => {
     loadVentasPedidos(fecha, fecha)
@@ -36,6 +44,9 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
     loadAbonosDia(fecha)
       .then(setAbonos)
       .catch(() => setAbonos([]))
+    loadAbonosDetalleDia(fecha)
+      .then(setDetalleAbonos)
+      .catch(() => setDetalleAbonos([]))
   }, [fecha])
 
   useEffect(() => {
@@ -92,6 +103,21 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
             </div>
           )}
         </>
+      )}
+      {detalleAbonos.length > 0 && (
+        <div className="abonos-detalle">
+          <p>
+            <strong>Abonos de deudas cobrados hoy</strong> (de dónde salieron):
+          </p>
+          {detalleAbonos.map((a) => (
+            <p key={a.id} className="subtitle">
+              🕒 {new Date(a.hora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })} ·{' '}
+              <strong>{formatCLP(a.monto)}</strong> · {a.metodo ? (ETIQUETA[a.metodo] ?? a.metodo) : 'sin método'} · deuda de{' '}
+              {a.cliente ?? a.detalle ?? 'cliente sin nombre'}
+              {esAdmin && a.nombre ? ` · cobró ${a.nombre}` : ''}
+            </p>
+          ))}
+        </div>
       )}
       <p>
         Arqueo del día (manual + pedidos contra entrega): <strong>{formatCLP(arqueoTotal)}</strong>

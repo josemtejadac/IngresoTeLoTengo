@@ -11,6 +11,7 @@ import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
+import { RegistrarArqueo } from '../../components/RegistrarArqueo'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
 import {
@@ -1306,6 +1307,14 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           <h2>Arqueo diario</h2>
           <input type="date" value={arqueoDate} onChange={(e) => setArqueoDate(e.target.value)} />
         </div>
+        <RegistrarArqueo
+          workerId={profile.id}
+          fecha={currentDateValue()}
+          onGuardado={() => {
+            loadArqueoRows()
+            loadWeeklySales()
+          }}
+        />
         <table className="table">
           <thead>
             <tr>

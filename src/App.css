@@ -1901,3 +1901,38 @@ textarea {
 .abonos-detalle p {
   margin: 2px 0;
 }
+
+/* ---------- Historial de pagos (trabajador) ---------- */
+.pago-mes {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.pago-mes-cabecera {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  text-transform: capitalize;
+}
+
+.pago-mes-detalle {
+  padding: 10px 12px;
+}
+
+.pago-mes-detalle p {
+  margin: 4px 0;
+}
+
+.pago-mes-total {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 6px;
+  margin-top: 6px !important;
+}

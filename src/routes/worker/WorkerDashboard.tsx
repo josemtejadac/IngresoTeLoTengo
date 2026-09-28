@@ -10,6 +10,7 @@ import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
+import { HistorialPagos } from '../../components/HistorialPagos'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { computeShifts, formatHoursMinutes } from '../../lib/hours'
@@ -707,6 +708,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           )}
         </section>
       )}
+
+      {activeTab === 'inicio' && <HistorialPagos profile={profile} />}
 
       {activeTab === 'productos' && <ProductosScanner />}
 

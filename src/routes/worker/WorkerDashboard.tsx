@@ -10,6 +10,7 @@ import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
+import { MesActual } from '../../components/MesActual'
 import { HistorialPagos } from '../../components/HistorialPagos'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
@@ -542,6 +543,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
   return (
     <div className="page">
+      <MesActual />
       <header className="page-header">
         <div className="brand-row">
           <Logo size={48} />

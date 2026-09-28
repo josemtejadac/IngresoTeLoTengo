@@ -26,13 +26,19 @@ function currentMonthValue(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-/** Meses anteriores al actual, del mas reciente al mas antiguo. */
+// El historial solo muestra meses desde que se empezo a llevar bien (los de antes usaban otro sueldo/horario
+// y no reflejan lo que realmente se pago). Se ajusta una sola vez si hace falta correr el inicio mas adelante.
+const HISTORIAL_DESDE = '2026-09'
+
+/** Meses anteriores al actual, del mas reciente al mas antiguo (nunca antes de HISTORIAL_DESDE). */
 export function previousMonths(cantidad: number): string[] {
   const now = new Date()
   const meses: string[] = []
   for (let i = 1; i <= cantidad; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    meses.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    const mes = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    if (mes < HISTORIAL_DESDE) break
+    meses.push(mes)
   }
   return meses
 }

@@ -12,6 +12,7 @@ import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { RegistrarArqueo } from '../../components/RegistrarArqueo'
+import { MesActual } from '../../components/MesActual'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
 import {
@@ -854,6 +855,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
 
   return (
     <div className="page">
+      <MesActual />
       <header className="page-header">
         <div className="brand-row">
           <Logo size={48} />

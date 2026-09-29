@@ -100,10 +100,10 @@ export function Merma({ tipo }: Props) {
     try {
       await registrarMerma(elegido.id, n, nota, tipo)
       setOk(`${c.okTexto}: ${elegido.nombre} · ${elegido.por_peso ? formatGramos(n) : `${n} un.`}`)
+      // Se mantiene la misma busqueda (no se borra) para que se vea el stock ya actualizado de una.
       setElegido(null)
       setCantidad('')
       setNota('')
-      setBusqueda('')
       if (verHistorial) cargarHistorial()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar')
@@ -125,7 +125,7 @@ export function Merma({ tipo }: Props) {
 
   if (!abierto) {
     return (
-      <button type="button" className="btn btn-secondary btn-small" onClick={() => setAbierto(true)}>
+      <button type="button" className={`merma-trigger merma-trigger-${tipo}`} onClick={() => setAbierto(true)}>
         {c.boton}
       </button>
     )
@@ -158,11 +158,13 @@ export function Merma({ tipo }: Props) {
             {cargando && <p className="subtitle">Buscando...</p>}
             <div className="agregar-item-lista">
               {productos.map((p) => (
-                <div key={p.id} className="agregar-item-fila">
-                  <span className="agregar-item-nombre">
-                    {p.nombre} · {formatCLP(p.precio)}
-                    {p.por_peso ? '/kg' : ''} · stock{' '}
-                    {p.por_peso ? formatGramos(p.stock_max ?? 0) : (p.stock_max ?? 0)}
+                <div key={p.id} className="merma-picker-item">
+                  <span className="merma-picker-info">
+                    <span className="merma-picker-nombre">{p.nombre}</span>
+                    <span className="merma-picker-meta">
+                      {formatCLP(p.precio)}
+                      {p.por_peso ? '/kg' : ''} · stock {p.por_peso ? formatGramos(p.stock_max ?? 0) : (p.stock_max ?? 0)}
+                    </span>
                   </span>
                   <button type="button" className="btn btn-primary btn-small" onClick={() => elegir(p)}>
                     Elegir
@@ -175,11 +177,13 @@ export function Merma({ tipo }: Props) {
             </div>
           </>
         ) : (
-          <div className="manual-peso">
-            <strong>{elegido.nombre}</strong>
-            <button type="button" className="btn-link" onClick={() => setElegido(null)}>
-              Cambiar producto
-            </button>
+          <div className="merma-elegido">
+            <div className="merma-elegido-top">
+              <strong className="merma-elegido-nombre">{elegido.nombre}</strong>
+              <button type="button" className="btn-link" onClick={() => setElegido(null)}>
+                Cambiar producto
+              </button>
+            </div>
             <label>
               Cantidad {c.cantidadLabel} ({elegido.por_peso ? 'gramos' : 'unidades'})
               <input
@@ -201,17 +205,18 @@ export function Merma({ tipo }: Props) {
           </div>
         )}
 
-        <button type="button" className="btn-link" onClick={() => setVerHistorial((v) => !v)}>
+        <button type="button" className="btn-detalle" onClick={() => setVerHistorial((v) => !v)}>
           {verHistorial ? 'Ocultar historial ▴' : 'Ver historial (30 días) ▾'}
         </button>
         {verHistorial && (
           <div className="agregar-item-lista">
             {historial.length === 0 && <p className="subtitle">{c.vacioTexto}</p>}
             {historial.map((m) => (
-              <div key={m.id} className="agregar-item-fila">
-                <span className="agregar-item-nombre">
-                  {new Date(m.created_at).toLocaleDateString('es-CL')} · {m.nombre_producto} ·{' '}
-                  {m.es_peso ? formatGramos(m.cantidad) : `${m.cantidad} un.`} · {m.worker_name}
+              <div key={m.id} className="merma-historial-fila">
+                <span className="merma-historial-fecha">{new Date(m.created_at).toLocaleDateString('es-CL')}</span>
+                <span>
+                  <strong>{m.nombre_producto}</strong> · {m.es_peso ? formatGramos(m.cantidad) : `${m.cantidad} un.`} ·{' '}
+                  {m.worker_name}
                   {m.nota ? ` · ${m.nota}` : ''}
                 </span>
               </div>

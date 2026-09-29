@@ -1172,6 +1172,7 @@ textarea {
 .tienda-precio-descuento {
   color: #dc2626;
   font-weight: 800;
+  font-size: 1.15em;
 }
 
 .tienda-descuento-badge {

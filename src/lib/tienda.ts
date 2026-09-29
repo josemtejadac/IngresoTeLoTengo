@@ -123,6 +123,9 @@ export interface PedidoTienda {
   cancelado_at?: string | null
   /** Si pago en efectivo: con cuanto billete va a pagar el cliente. */
   pago_con?: number | null
+  /** Quien salio fisicamente a entregarlo (ej. el turno que entra), sin ser necesariamente quien lo cobra/confirma. */
+  entrega_fisica_por?: string | null
+  entrega_fisica_at?: string | null
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {
@@ -160,6 +163,23 @@ export async function marcarPedidoTiendaEntregado(id: string) {
   const { error } = await supabase
     .from('ingreso_pedidos_tienda')
     .update({ estado: 'entregado' })
+    .eq('id', id)
+  if (error) throw error
+}
+
+/**
+ * Marca (o desmarca) que alguien ya salio a entregar el pedido fisicamente, sin sumarlo a su arqueo.
+ * Sirve para el cambio de turno: el que entra deja el check, y el dueño del turno confirma "Entregado" despues.
+ */
+export async function marcarEntregaFisica(id: string, entregar: boolean) {
+  const { data: userData } = await supabase.auth.getUser()
+  const { error } = await supabase
+    .from('ingreso_pedidos_tienda')
+    .update(
+      entregar
+        ? { entrega_fisica_por: userData.user?.id ?? null, entrega_fisica_at: new Date().toISOString() }
+        : { entrega_fisica_por: null, entrega_fisica_at: null },
+    )
     .eq('id', id)
   if (error) throw error
 }

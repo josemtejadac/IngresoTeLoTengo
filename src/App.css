@@ -1430,6 +1430,15 @@ textarea {
   color: #b45309;
 }
 
+.pedido-entrega-fisica {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  margin: 2px 0;
+}
+
 .btn-detalle {
   align-self: flex-start;
   background: #eff6ff;

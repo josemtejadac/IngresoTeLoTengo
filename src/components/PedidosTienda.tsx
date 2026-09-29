@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
+import { loadNameDirectory } from '../lib/directory'
 import { AgregarProductoPedido } from './AgregarProductoPedido'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { PedidoManual } from './PedidoManual'
@@ -15,6 +16,7 @@ import {
   loadPedidosTiendaPendientes,
   loadFotosProductos,
   loadPedidoTiendaItems,
+  marcarEntregaFisica,
   productoFotoUrl,
   marcarPedidoTiendaEntregado,
   whatsappEnCaminoUrl,
@@ -32,12 +34,17 @@ export function PedidosTienda() {
   const [ajusteGramos, setAjusteGramos] = useState('')
   const [fotos, setFotos] = useState<Record<string, string | null>>({})
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
+  const [nombres, setNombres] = useState<Record<string, string>>({})
   // Reloj para el "hace X min" de cada pedido.
   const [ahora, setAhora] = useState(() => Date.now())
 
   useEffect(() => {
     const t = setInterval(() => setAhora(Date.now()), 30000)
     return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
+    loadNameDirectory().then(setNombres).catch(() => {})
   }, [])
 
   function alternarDetalle(id: string) {
@@ -76,7 +83,7 @@ export function PedidosTienda() {
   useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 20000)
 
   async function handleEntregado(p: PedidoTienda) {
-    if (!window.confirm(`¿Marcar como entregado el pedido de ${p.nombre_cliente} (${formatCLP(p.total)})?`)) return
+    if (!window.confirm(`¿Marcar como entregado el pedido de ${p.nombre_cliente} (${formatCLP(p.total)})? Esto se suma a tu arqueo.`)) return
     setBusyId(p.id)
     setError(null)
     try {
@@ -84,6 +91,19 @@ export function PedidosTienda() {
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error marcando el pedido')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleEntregaFisica(p: PedidoTienda, entregar: boolean) {
+    setBusyId(p.id)
+    setError(null)
+    try {
+      await marcarEntregaFisica(p.id, entregar)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error marcando la entrega')
     } finally {
       setBusyId(null)
     }
@@ -214,6 +234,12 @@ export function PedidosTienda() {
             <p className="pedido-hora">
               🕒 Llegó a las <strong>{horaLlegada(p.created_at)}</strong> · {haceCuanto(p.created_at, ahora)}
             </p>
+            {p.entrega_fisica_por && p.estado === 'pendiente' && (
+              <p className="pedido-entrega-fisica">
+                ✓ Ya lo entregó <strong>{nombres[p.entrega_fisica_por] ?? 'alguien'}</strong>
+                {p.entrega_fisica_at && ` a las ${horaLlegada(p.entrega_fisica_at)}`} · falta confirmar
+              </p>
+            )}
             <div className="pedido-meta">{etiquetaPago(p)}</div>
             <p className="pedido-items">
               {(items[p.id] ?? []).length} producto(s):{' '}
@@ -309,8 +335,18 @@ export function PedidosTienda() {
                     className="btn btn-secondary btn-small"
                     disabled={busyId === p.id}
                     onClick={() => handleEntregado(p)}
+                    title="Confirma el pedido y suma la venta a tu arqueo"
                   >
                     {busyId === p.id ? '...' : 'Entregado'}
+                  </button>
+                  <button
+                    type="button"
+                    className={p.entrega_fisica_por ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                    disabled={busyId === p.id}
+                    title="Marca que ya saliste a entregarlo, sin sumarlo a tu arqueo (para cambio de turno)"
+                    onClick={() => handleEntregaFisica(p, !p.entrega_fisica_por)}
+                  >
+                    {p.entrega_fisica_por ? '✓ Ya lo entregué' : '☐ Ya lo entregué'}
                   </button>
                   <button
                     type="button"

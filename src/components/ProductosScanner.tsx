@@ -5,6 +5,7 @@ import { useRealtimeRefresh } from '../lib/realtime'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FotoProductoModal } from './FotoProductoModal'
 import { FacturaStock } from './FacturaStock'
+import { Merma } from './Merma'
 import {
   actualizarPrecioStock,
   coincideFiltroStock,
@@ -136,11 +137,19 @@ export function ProductosScanner() {
     <section className="card">
       <div className="section-header">
         <h2>Productos</h2>
-        {puedeFacturas && (
-          <button className="btn btn-primary btn-small" onClick={() => setVerFactura(true)}>
-            🧾 Cargar factura
-          </button>
-        )}
+        <div className="table-controls">
+          {puedeFacturas && (
+            <button className="btn btn-primary btn-small" onClick={() => setVerFactura(true)}>
+              🧾 Cargar factura
+            </button>
+          )}
+          {puedeEditar && (
+            <>
+              <Merma tipo="merma" />
+              <Merma tipo="gasto_operativo" />
+            </>
+          )}
+        </div>
       </div>
       <p className="subtitle">
         Escanea con la pistola o busca por nombre para revisar el stock y el precio.{' '}

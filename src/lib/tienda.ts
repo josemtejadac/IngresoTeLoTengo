@@ -294,6 +294,32 @@ export async function agregarItemPedido(pedidoId: string, productoId: string, ca
   if (error) throw error
 }
 
+/** Registra una merma (producto que se perdio/echo a perder): descuenta el stock y queda con fecha y quien la hizo. */
+export async function registrarMerma(productoId: string, cantidad: number, nota?: string) {
+  const { error } = await supabase.rpc('ingreso_registrar_merma', {
+    p_producto: productoId,
+    p_cantidad: cantidad,
+    p_nota: nota || null,
+  })
+  if (error) throw error
+}
+
+export interface MermaHistorial {
+  id: string
+  nombre_producto: string
+  cantidad: number
+  es_peso: boolean
+  nota: string | null
+  created_at: string
+  worker_name: string
+}
+
+export async function loadMermasHistorial(dias = 30): Promise<MermaHistorial[]> {
+  const { data, error } = await supabase.rpc('ingreso_mermas_historial', { p_dias: dias })
+  if (error) throw error
+  return (data as MermaHistorial[]) ?? []
+}
+
 /** Productos vigentes del catalogo por id (para rearmar un carrito desde un pedido). */
 export async function loadProductosPorIds(ids: string[]): Promise<ProductoTienda[]> {
   const { data, error } = await supabase.rpc('ingreso_tienda_productos_por_ids', { p_ids: ids })

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { FotoProductoModal } from './FotoProductoModal'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
+import { Merma } from './Merma'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import {
@@ -315,6 +316,7 @@ export function InventarioAdmin() {
           <button className="btn btn-primary" onClick={() => setVerFactura(true)}>
             🧾 Cargar factura
           </button>
+          <Merma />
           <button className="btn btn-secondary" onClick={() => setOpen(false)}>
             Cerrar
           </button>

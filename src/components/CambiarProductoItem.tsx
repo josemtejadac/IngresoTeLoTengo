@@ -47,7 +47,7 @@ export function CambiarProductoItem({ itemId, onCambiado }: Props) {
 
   if (!abierto) {
     return (
-      <button type="button" className="btn-link" onClick={() => setAbierto(true)}>
+      <button type="button" className="chip-accion chip-cambiar" onClick={() => setAbierto(true)}>
         🔁 Cambiar
       </button>
     )

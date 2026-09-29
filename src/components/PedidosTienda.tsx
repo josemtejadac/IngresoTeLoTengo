@@ -294,7 +294,7 @@ export function PedidosTienda() {
                             )}
                             <button
                               type="button"
-                              className="btn-link btn-link-peligro"
+                              className="chip-accion chip-quitar"
                               disabled={busyId === it.id}
                               onClick={() => handleQuitarItem(it)}
                             >

@@ -1436,14 +1436,40 @@ textarea {
   margin-top: 2px;
 }
 
-.btn-link-peligro {
-  color: #dc2626;
-  background: none;
-  border: none;
+.chip-accion {
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0;
-  font-size: 0.85rem;
-  text-decoration: underline;
+  border: 1px solid transparent;
+}
+
+.chip-accion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chip-cambiar {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.chip-cambiar:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.chip-quitar {
+  background: #fff5f5;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.chip-quitar:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 .pedido-entrega-fisica {

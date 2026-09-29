@@ -20,7 +20,10 @@ function hoyISO(): string {
 }
 
 function textoItem(it: PedidoTiendaItem): string {
-  if (!it.es_peso) return `${it.cantidad}x ${it.nombre_producto}`
+  if (!it.es_peso) {
+    if (it.es_combo) return `${it.nombre_producto} (pack, ${it.cantidad} un)`
+    return `${it.cantidad}x ${it.nombre_producto}`
+  }
   const un = it.unidades ? `${it.unidades} un, ` : ''
   return `${it.nombre_producto} (${un}${it.aprox ? '≈ ' : ''}${formatGramos(it.cantidad)})`
 }

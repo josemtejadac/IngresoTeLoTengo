@@ -27,9 +27,11 @@ import {
 
 interface CartLine {
   producto: ProductoTienda
-  /** Unidades normales, o (por peso) unidades aproximadas / gramos segun el modo. */
+  /** Unidades normales, o (por peso) unidades aproximadas / gramos segun el modo; packs si esCombo. */
   cantidad: number
   modo?: 'unidades' | 'gramos'
+  /** Se compra por pack (ej. 3 x $1000): cantidad son packs, no unidades sueltas. */
+  esCombo?: boolean
 }
 
 function gramosLinea(l: CartLine): number {
@@ -38,9 +40,9 @@ function gramosLinea(l: CartLine): number {
 }
 
 function totalLinea(l: CartLine): number {
-  return l.producto.por_peso
-    ? montoPorPeso(l.producto.precio, gramosLinea(l))
-    : l.producto.precio * l.cantidad
+  if (l.producto.por_peso) return montoPorPeso(l.producto.precio, gramosLinea(l))
+  if (l.esCombo) return l.cantidad * (l.producto.combo_precio ?? 0)
+  return l.producto.precio * l.cantidad
 }
 
 /** Los errores de Supabase no son instancias de Error: se lee su mensaje igual. */
@@ -210,6 +212,10 @@ export function Tienda() {
       abrirPeso(producto)
       return
     }
+    if (cart.some((l) => l.producto.id === producto.id && l.esCombo)) {
+      setError(`Ya tienes ${producto.nombre} en pack en tu carrito. Quítalo antes de comprarlo por unidad.`)
+      return
+    }
     const max = producto.stock_max ?? Infinity
     if (enCarrito(producto.id) >= max) {
       setError(`Solo hay ${max} unidad(es) disponible(s) de ${producto.nombre}.`)
@@ -217,15 +223,39 @@ export function Tienda() {
     }
     setError(null)
     setCart((prev) => {
-      const existing = prev.find((l) => l.producto.id === producto.id)
+      const existing = prev.find((l) => l.producto.id === producto.id && !l.esCombo)
       if (existing) {
         return prev.map((l) =>
-          l.producto.id === producto.id
+          l.producto.id === producto.id && !l.esCombo
             ? { ...l, cantidad: Math.min(max, l.cantidad + cantidad) }
             : l,
         )
       }
       return [...prev, { producto, cantidad: Math.min(max, cantidad) }]
+    })
+  }
+
+  /** Agrega (o suma) un pack completo (ej. 3 x $1000) del producto, como linea aparte de la compra por unidad. */
+  function agregarPack(producto: ProductoTienda) {
+    if (!producto.combo_cantidad || !producto.combo_precio) return
+    if (cart.some((l) => l.producto.id === producto.id && !l.esCombo)) {
+      setError(`Ya tienes ${producto.nombre} por unidad en tu carrito. Quítalo antes de comprar el pack.`)
+      return
+    }
+    const maxPacks = Math.floor((producto.stock_max ?? 0) / producto.combo_cantidad)
+    if (maxPacks <= 0) {
+      setError(`No hay stock suficiente para el pack de ${producto.nombre}.`)
+      return
+    }
+    setError(null)
+    setCart((prev) => {
+      const existing = prev.find((l) => l.producto.id === producto.id && l.esCombo)
+      if (existing) {
+        return prev.map((l) =>
+          l.producto.id === producto.id && l.esCombo ? { ...l, cantidad: Math.min(maxPacks, l.cantidad + 1) } : l,
+        )
+      }
+      return [...prev, { producto, cantidad: 1, esCombo: true }]
     })
   }
 
@@ -298,10 +328,12 @@ export function Tienda() {
         depto,
         metodo,
         items: cart.map((l) => {
-          if (!l.producto.por_peso) return { producto_id: l.producto.id, cantidad: l.cantidad }
-          return l.modo === 'unidades'
-            ? { producto_id: l.producto.id, unidades: l.cantidad }
-            : { producto_id: l.producto.id, gramos: l.cantidad }
+          if (l.producto.por_peso) {
+            return l.modo === 'unidades'
+              ? { producto_id: l.producto.id, unidades: l.cantidad }
+              : { producto_id: l.producto.id, gramos: l.cantidad }
+          }
+          return { producto_id: l.producto.id, cantidad: l.cantidad, es_combo: l.esCombo || undefined }
         }),
       })
       if (guardarDatos) {
@@ -650,7 +682,10 @@ export function Tienda() {
                     <div className="carrito-foto carrito-foto-vacia">🛒</div>
                   )}
                   <div className="carrito-info">
-                    <p className="carrito-nombre">{l.producto.nombre}</p>
+                    <p className="carrito-nombre">
+                      {l.producto.nombre}
+                      {l.esCombo && ` · pack x${l.producto.combo_cantidad}`}
+                    </p>
                     <p className="carrito-precio">
                       {l.producto.por_peso && l.modo === 'unidades' ? '≈ ' : ''}
                       {formatCLP(totalLinea(l))}
@@ -663,6 +698,14 @@ export function Tienda() {
                             : formatGramos(l.cantidad)}{' '}
                           · Cambiar
                         </button>
+                      ) : l.esCombo ? (
+                        <Stepper
+                          value={l.cantidad}
+                          min={1}
+                          max={Math.floor((l.producto.stock_max ?? 0) / (l.producto.combo_cantidad ?? 1))}
+                          label={`${l.cantidad} pack(s)`}
+                          onChange={(v) => updateCantidad(l.producto.id, v)}
+                        />
                       ) : (
                         <Stepper
                           value={l.cantidad}
@@ -1050,6 +1093,12 @@ export function Tienda() {
               {formatCLP(detalle.precio)}
               {detalle.por_peso ? ' el kilo' : ''}
             </p>
+            {detalle.combo_cantidad && detalle.combo_precio && (
+              <p className="detalle-pack">
+                O pack de {detalle.combo_cantidad} por {formatCLP(detalle.combo_precio)}
+                {!detalle.combo_disponible && ' (sin stock suficiente para el pack por ahora)'}
+              </p>
+            )}
             {enCarrito(detalle.id) > 0 && !detalle.por_peso && (
               <p className="subtitle">Ya tienes {enCarrito(detalle.id)} en tu pedido.</p>
             )}
@@ -1085,6 +1134,18 @@ export function Tienda() {
                 >
                   Agregar · {formatCLP(detalle.precio * detalleCant)}
                 </button>
+                {detalle.combo_cantidad && detalle.combo_precio && (
+                  <button
+                    className="btn btn-secondary"
+                    disabled={!detalle.combo_disponible}
+                    onClick={() => {
+                      agregarPack(detalle)
+                      setDetalle(null)
+                    }}
+                  >
+                    Agregar pack de {detalle.combo_cantidad} · {formatCLP(detalle.combo_precio)}
+                  </button>
+                )}
               </>
             )}
           </div>

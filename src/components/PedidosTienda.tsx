@@ -100,7 +100,10 @@ export function PedidosTienda() {
   }
 
   function textoItem(it: PedidoTiendaItem): string {
-    if (!it.es_peso) return `${it.cantidad}x ${it.nombre_producto}`
+    if (!it.es_peso) {
+      if (it.es_combo) return `${it.nombre_producto} (pack, ${it.cantidad} un)`
+      return `${it.cantidad}x ${it.nombre_producto}`
+    }
     const pedido = it.unidades ? `${it.unidades} un, ` : ''
     return `${it.nombre_producto} (${pedido}${it.aprox ? '≈ ' : ''}${formatGramos(it.cantidad)})`
   }
@@ -225,11 +228,12 @@ export function PedidosTienda() {
               </div>
             )}
             {(items[p.id] ?? [])
-              .filter((it) => it.aprox)
+              .filter((it) => it.es_peso)
               .map((it) => (
                 <div key={it.id} className="pedido-pesar">
                   <span>
-                    <strong>Pesar:</strong> {it.nombre_producto} (≈ {formatGramos(it.cantidad)})
+                    <strong>Pesar:</strong> {it.nombre_producto} (
+                    {it.aprox ? `≈ ${formatGramos(it.cantidad)}` : formatGramos(it.cantidad)})
                   </span>
                   {ajustando === it.id ? (
                     <>

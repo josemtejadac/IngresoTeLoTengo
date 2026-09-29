@@ -13,6 +13,11 @@ export interface ProductoTienda {
   gramos_unidad: number | null
   /** Unidades disponibles (null en productos por peso). */
   stock_max: number | null
+  /** Precio por pack (ej. 3 x $1000): null si el producto no se vende en pack. */
+  combo_cantidad: number | null
+  combo_precio: number | null
+  /** Si hay stock suficiente para armar al menos un pack. */
+  combo_disponible: boolean
 }
 
 export async function loadCatalogoTienda(params: {
@@ -63,7 +68,7 @@ export interface PedidoTiendaInput {
   telefono: string
   torre: string
   depto: string
-  items: { producto_id: string; cantidad?: number; gramos?: number; unidades?: number }[]
+  items: { producto_id: string; cantidad?: number; gramos?: number; unidades?: number; es_combo?: boolean }[]
 }
 
 export async function crearPedidoTienda(
@@ -96,6 +101,8 @@ export interface PedidoTiendaItem {
   /** Unidades pedidas por el cliente (peso aproximado hasta que se pese). */
   unidades: number | null
   aprox: boolean
+  /** Se compro por pack (ej. 3 x $1000): cantidad son las unidades reales que salieron del stock. */
+  es_combo: boolean
 }
 
 export interface PedidoTienda {

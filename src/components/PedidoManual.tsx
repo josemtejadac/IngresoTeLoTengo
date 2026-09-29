@@ -14,12 +14,16 @@ import {
 
 interface Linea {
   producto: ProductoTienda
-  /** Unidades, o gramos si el producto es por peso. */
+  /** Unidades, gramos si el producto es por peso, o packs si esCombo. */
   cantidad: number
+  /** Se compra por pack (ej. 3 x $1000): cantidad son packs, no unidades sueltas. */
+  esCombo?: boolean
 }
 
 function totalLinea(l: Linea): number {
-  return l.producto.por_peso ? montoPorPeso(l.producto.precio, l.cantidad) : l.producto.precio * l.cantidad
+  if (l.producto.por_peso) return montoPorPeso(l.producto.precio, l.cantidad)
+  if (l.esCombo) return l.cantidad * (l.producto.combo_precio ?? 0)
+  return l.producto.precio * l.cantidad
 }
 
 const MAX_VISIBLES = 40
@@ -96,11 +100,36 @@ export function PedidoManual({ onCreado }: Props) {
       setGramos('250')
       return
     }
+    if (lineas.some((l) => l.producto.id === p.id && l.esCombo)) {
+      setError(`Ya agregaste ${p.nombre} en pack. Quítalo si lo quieres por unidad.`)
+      return
+    }
+    setError(null)
     setLineas((prev) => {
       const ex = prev.find((l) => l.producto.id === p.id)
       const max = p.stock_max ?? Infinity
       if (ex) return prev.map((l) => (l.producto.id === p.id ? { ...l, cantidad: Math.min(max, l.cantidad + 1) } : l))
       return [...prev, { producto: p, cantidad: 1 }]
+    })
+  }
+
+  /** Agrega (o suma) un pack completo (ej. 3 x $1000) del producto. */
+  function agregarPack(p: ProductoTienda) {
+    if (!p.combo_cantidad || !p.combo_precio) return
+    if (lineas.some((l) => l.producto.id === p.id && !l.esCombo)) {
+      setError(`Ya agregaste ${p.nombre} por unidad. Quítalo si lo quieres en pack.`)
+      return
+    }
+    const maxPacks = Math.floor((p.stock_max ?? 0) / p.combo_cantidad)
+    if (maxPacks <= 0) {
+      setError(`No hay stock suficiente para el pack de ${p.nombre}.`)
+      return
+    }
+    setError(null)
+    setLineas((prev) => {
+      const ex = prev.find((l) => l.producto.id === p.id && l.esCombo)
+      if (ex) return prev.map((l) => (l.producto.id === p.id ? { ...l, cantidad: Math.min(maxPacks, l.cantidad + 1) } : l))
+      return [...prev, { producto: p, cantidad: 1, esCombo: true }]
     })
   }
 
@@ -144,7 +173,7 @@ export function PedidoManual({ onCreado }: Props) {
         items: lineas.map((l) =>
           l.producto.por_peso
             ? { producto_id: l.producto.id, gramos: l.cantidad }
-            : { producto_id: l.producto.id, cantidad: l.cantidad },
+            : { producto_id: l.producto.id, cantidad: l.cantidad, es_combo: l.esCombo || undefined },
         ),
       })
       setNombre('')
@@ -297,28 +326,34 @@ export function PedidoManual({ onCreado }: Props) {
           {visibles.map((p) => {
             const n = enLinea(p.id)
             return (
-              <button
-                key={p.id}
-                type="button"
-                className={p.disponible ? 'manual-prod' : 'manual-prod agotado'}
-                disabled={!p.disponible}
-                onClick={() => agregar(p)}
-              >
-                {p.foto_path ? (
-                  <img src={productoFotoUrl(p.foto_path)} alt="" className="manual-foto" loading="lazy" />
-                ) : (
-                  <span className="manual-foto manual-foto-vacia">🛒</span>
-                )}
-                <span className="manual-prod-info">
-                  <span className="manual-prod-nombre">{p.nombre}</span>
-                  <span className="manual-prod-precio">
-                    {formatCLP(p.precio)}
-                    {p.por_peso ? '/kg' : ''}
-                    {!p.disponible ? ' · Sin stock' : p.stock_max !== null ? ` · stock ${p.stock_max}` : ''}
+              <div key={p.id} className={p.disponible ? 'manual-prod' : 'manual-prod agotado'}>
+                <button type="button" className="manual-prod-click" disabled={!p.disponible} onClick={() => agregar(p)}>
+                  {p.foto_path ? (
+                    <img src={productoFotoUrl(p.foto_path)} alt="" className="manual-foto" loading="lazy" />
+                  ) : (
+                    <span className="manual-foto manual-foto-vacia">🛒</span>
+                  )}
+                  <span className="manual-prod-info">
+                    <span className="manual-prod-nombre">{p.nombre}</span>
+                    <span className="manual-prod-precio">
+                      {formatCLP(p.precio)}
+                      {p.por_peso ? '/kg' : ''}
+                      {!p.disponible ? ' · Sin stock' : p.stock_max !== null ? ` · stock ${p.stock_max}` : ''}
+                    </span>
                   </span>
-                </span>
+                </button>
+                {p.combo_cantidad && p.combo_precio && (
+                  <button
+                    type="button"
+                    className="manual-pack-btn"
+                    disabled={!p.combo_disponible}
+                    onClick={() => agregarPack(p)}
+                  >
+                    + Pack {p.combo_cantidad} × {formatCLP(p.combo_precio)}
+                  </button>
+                )}
                 {n > 0 && <span className="manual-en-pedido">{p.por_peso ? `${n}g` : `×${n}`}</span>}
-              </button>
+              </div>
             )
           })}
           {cargandoProductos && productos.length === 0 && <p className="subtitle">Cargando productos...</p>}
@@ -351,11 +386,22 @@ export function PedidoManual({ onCreado }: Props) {
                 <div className="carrito-foto carrito-foto-vacia">🛒</div>
               )}
               <div className="carrito-info">
-                <p className="carrito-nombre">{l.producto.nombre}</p>
+                <p className="carrito-nombre">
+                  {l.producto.nombre}
+                  {l.esCombo && ` · pack x${l.producto.combo_cantidad}`}
+                </p>
                 <p className="carrito-precio">{formatCLP(totalLinea(l))}</p>
                 <div className="carrito-acciones">
                   {l.producto.por_peso ? (
                     <span>{l.cantidad} g</span>
+                  ) : l.esCombo ? (
+                    <Stepper
+                      value={l.cantidad}
+                      min={1}
+                      max={Math.floor((l.producto.stock_max ?? 0) / (l.producto.combo_cantidad ?? 1))}
+                      label={`${l.cantidad} pack(s)`}
+                      onChange={(v) => cambiar(l.producto.id, v)}
+                    />
                   ) : (
                     <Stepper
                       value={l.cantidad}

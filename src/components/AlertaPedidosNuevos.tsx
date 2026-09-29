@@ -18,27 +18,58 @@ interface Aviso {
   total: number
 }
 
-/** Pitido corto para llamar la atencion (puede fallar si el navegador aun no permite audio: no es grave). */
-function pitar() {
+// Se crea una sola vez y se reutiliza: en iOS/Safari un AudioContext nuevo arranca "suspended" y
+// solo se puede reanudar (no crear) fuera de un toque del usuario. Por eso se deja uno vivo y se
+// intenta "desbloquear" con el primer toque en la pantalla.
+let audioCtx: AudioContext | null = null
+function getAudioCtx(): AudioContext | null {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    const ctx = new Ctx()
-    ;[880, 1175].forEach((freq, i) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.frequency.value = freq
-      gain.gain.value = 0.15
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.start(ctx.currentTime + i * 0.2)
-      osc.stop(ctx.currentTime + i * 0.2 + 0.15)
-    })
-    setTimeout(() => ctx.close(), 800)
+    if (!audioCtx) audioCtx = new Ctx()
+    return audioCtx
+  } catch {
+    return null
+  }
+}
+if (typeof window !== 'undefined') {
+  const desbloquear = () => {
+    getAudioCtx()?.resume().catch(() => {})
+  }
+  window.addEventListener('pointerdown', desbloquear, { passive: true })
+  window.addEventListener('touchstart', desbloquear, { passive: true })
+}
+
+/** Sonido bien audible para llamar la atencion: campanita de 3 tonos, repetida dos veces, mas vibracion fuerte. */
+function pitar() {
+  try {
+    const ctx = getAudioCtx()
+    if (ctx) {
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+      const notas = [988, 1319, 1568] // Si - Mi - Sol, campanita clara y alegre
+      const repeticiones = 2
+      for (let r = 0; r < repeticiones; r++) {
+        notas.forEach((freq, i) => {
+          const inicio = ctx.currentTime + r * 0.75 + i * 0.16
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.type = 'sine'
+          osc.frequency.value = freq
+          // Envolvente (ataque rapido, caida suave) para que no suene un click seco, y bien fuerte.
+          gain.gain.setValueAtTime(0, inicio)
+          gain.gain.linearRampToValueAtTime(0.5, inicio + 0.02)
+          gain.gain.exponentialRampToValueAtTime(0.001, inicio + 0.35)
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.start(inicio)
+          osc.stop(inicio + 0.36)
+        })
+      }
+    }
   } catch {
     // sin audio disponible
   }
   try {
-    navigator.vibrate?.([200, 100, 200])
+    navigator.vibrate?.([250, 100, 250, 100, 250])
   } catch {
     // sin vibracion
   }

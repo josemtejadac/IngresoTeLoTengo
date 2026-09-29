@@ -1156,6 +1156,46 @@ textarea {
 .tienda-precio {
   font-size: 1.05rem;
   color: #15803d;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tienda-precio-original {
+  color: #94a3b8;
+  text-decoration: line-through;
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
+.tienda-precio-descuento {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.tienda-descuento-badge {
+  align-self: center;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.detalle-precio .tienda-descuento-badge {
+  position: static;
+  margin-left: 4px;
+}
+
+.badge-descuento {
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 1px 6px;
 }
 
 .tienda-card .btn-primary {

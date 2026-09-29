@@ -623,11 +623,17 @@ export function Tienda() {
                 <div className="tienda-foto tienda-foto-placeholder">🛒</div>
               )}
               {!p.disponible && <span className="tienda-agotado">Sin stock</span>}
+              {p.descuento_pct && <span className="tienda-descuento-badge">-{p.descuento_pct}%</span>}
               <p className="tienda-nombre">{p.nombre}</p>
             </button>
             <p className="tienda-precio">
-              {formatCLP(p.precio)}
-              {p.por_peso ? ' /kg' : ''}
+              {p.precio_original && (
+                <span className="tienda-precio-original">{formatCLP(p.precio_original)}</span>
+              )}
+              <span className={p.precio_original ? 'tienda-precio-descuento' : undefined}>
+                {formatCLP(p.precio)}
+                {p.por_peso ? ' /kg' : ''}
+              </span>
             </p>
             <button
               className="btn btn-primary btn-small"
@@ -1105,8 +1111,14 @@ export function Tienda() {
             )}
             <h2 className="detalle-nombre">{detalle.nombre}</h2>
             <p className="detalle-precio">
-              {formatCLP(detalle.precio)}
-              {detalle.por_peso ? ' el kilo' : ''}
+              {detalle.precio_original && (
+                <span className="tienda-precio-original">{formatCLP(detalle.precio_original)}</span>
+              )}
+              <span className={detalle.precio_original ? 'tienda-precio-descuento' : undefined}>
+                {formatCLP(detalle.precio)}
+                {detalle.por_peso ? ' el kilo' : ''}
+              </span>
+              {detalle.descuento_pct && <span className="tienda-descuento-badge">-{detalle.descuento_pct}%</span>}
             </p>
             {detalle.combo_cantidad && detalle.combo_precio && (
               <p className="detalle-pack">

@@ -46,6 +46,7 @@ export function InventarioAdmin() {
   const [editStock, setEditStock] = useState('0')
   const [editPorPeso, setEditPorPeso] = useState(false)
   const [editGramosUnidad, setEditGramosUnidad] = useState('')
+  const [editDescuento, setEditDescuento] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
@@ -192,6 +193,7 @@ export function InventarioAdmin() {
     setEditStock(p.stock.toString())
     setEditPorPeso(p.por_peso)
     setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
+    setEditDescuento(p.descuento_pct?.toString() ?? '')
     setError(null)
   }
 
@@ -231,6 +233,11 @@ export function InventarioAdmin() {
       setError('Los gramos por unidad deben ser un número entero mayor a 0')
       return
     }
+    const descuentoPct = editDescuento.trim() === '' ? null : Number(editDescuento)
+    if (descuentoPct !== null && (Number.isNaN(descuentoPct) || descuentoPct <= 0 || descuentoPct > 90)) {
+      setError('El descuento debe ser un porcentaje entre 1 y 90')
+      return
+    }
     setSavingId(editing.id)
     setError(null)
     try {
@@ -242,6 +249,7 @@ export function InventarioAdmin() {
         stock: Math.round(stock),
         por_peso: editPorPeso,
         gramos_unidad: gramosUnidad,
+        descuento_pct: descuentoPct,
       })
       await runSearch()
       loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
@@ -463,7 +471,17 @@ export function InventarioAdmin() {
                 {!p.active && <span className="subtitle"> (oculto)</span>}
               </td>
               <td className="col-nombre">{p.categoria ?? '—'}</td>
-              <td>{p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}</td>
+              <td>
+                {p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}
+                {p.descuento_pct && p.precio !== null && (
+                  <>
+                    {' '}
+                    <span className="badge-descuento">
+                      -{p.descuento_pct}% → {formatCLP(Math.round(p.precio * (1 - p.descuento_pct / 100)))}
+                    </span>
+                  </>
+                )}
+              </td>
               <td>{p.por_peso ? formatGramos(p.stock) : p.stock}</td>
               <td>
                 <div className="table-controls">
@@ -582,6 +600,22 @@ export function InventarioAdmin() {
                 onChange={(e) => setEditPrecio(e.target.value)}
               />
             </label>
+            <label>
+              Descuento (%, vacío = sin descuento)
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={editDescuento}
+                onChange={(e) => setEditDescuento(e.target.value)}
+                placeholder="Ej: 20"
+              />
+            </label>
+            {editDescuento.trim() !== '' && editPrecio.trim() !== '' && !Number.isNaN(Number(editDescuento)) && (
+              <p className="subtitle">
+                Precio con descuento: {formatCLP(Math.round(Number(editPrecio) * (1 - Number(editDescuento) / 100)))}
+              </p>
+            )}
             <label>
               {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
               <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />

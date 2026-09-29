@@ -5,7 +5,12 @@ export interface ProductoTienda {
   id: string
   nombre: string
   categoria: string | null
+  /** Precio final (ya con descuento aplicado si tiene). */
   precio: number
+  /** Precio normal sin descuento: solo viene si el producto tiene descuento activo. */
+  precio_original: number | null
+  /** Porcentaje de descuento activo (0-90), o null si no tiene. */
+  descuento_pct: number | null
   foto_path: string | null
   disponible: boolean
   /** Precio por kilo; la cantidad se pide en unidades aproximadas o en gramos. */

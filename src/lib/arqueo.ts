@@ -12,6 +12,7 @@ export interface ArqueoEntry {
   debito: number
   credito: number
   transferencia: number
+  qr: number
   /** Fecha de la ultima correccion (null si nunca se edito). */
   editado_at?: string | null
   /** 'pedido' = la sumo sola la app al entregar un pedido de la tienda; no se puede editar. */
@@ -28,10 +29,11 @@ export interface ArqueoInput {
   debito: number
   credito: number
   transferencia: number
+  qr: number
 }
 
 export function ventaTotal(a: ArqueoInput): number {
-  return a.efectivo + a.debito + a.credito + a.transferencia
+  return a.efectivo + a.debito + a.credito + a.transferencia + a.qr
 }
 
 function toISODate(d: Date): string {

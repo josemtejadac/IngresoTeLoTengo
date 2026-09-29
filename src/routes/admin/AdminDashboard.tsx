@@ -1330,6 +1330,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               <th>Débito</th>
               <th>Crédito</th>
               <th>Transferencia</th>
+              <th>QR</th>
               <th>Venta total</th>
               <th>Origen</th>
             </tr>
@@ -1342,6 +1343,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <td>{formatCLP(a.debito)}</td>
                 <td>{formatCLP(a.credito)}</td>
                 <td>{formatCLP(a.transferencia)}</td>
+                <td>{formatCLP(a.qr)}</td>
                 <td>{formatCLP(ventaTotal(a))}</td>
                 <td className="subtitle">{a.origen === 'pedido' ? 'Pedido de la tienda' : a.origen === 'abono' ? 'Abono de deuda' : 'Arqueo manual'}</td>
               </tr>
@@ -1349,7 +1351,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={5}>
+              <td colSpan={6}>
                 <strong>Venta bruta del día</strong>
               </td>
               <td>

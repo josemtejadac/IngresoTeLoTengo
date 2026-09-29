@@ -10,6 +10,7 @@ interface ArqueoRowRaw {
   debito: number
   credito: number
   transferencia: number
+  qr: number
 }
 
 function toISODate(d: Date): string {
@@ -33,7 +34,7 @@ export async function downloadSalesPdf({
 }: DownloadSalesPdfParams) {
   const { data, error } = await supabase
     .from('ingreso_arqueo')
-    .select('arqueo_date, efectivo, debito, credito, transferencia')
+    .select('arqueo_date, efectivo, debito, credito, transferencia, qr')
     .gte('arqueo_date', toISODate(start))
     .lte('arqueo_date', toISODate(end))
     .order('arqueo_date', { ascending: true })
@@ -68,7 +69,7 @@ export async function downloadSalesPdf({
 
   const byDate = new Map<
     string,
-    { efectivo: number; debito: number; credito: number; transferencia: number }
+    { efectivo: number; debito: number; credito: number; transferencia: number; qr: number }
   >()
   for (const r of rows) {
     const entry = byDate.get(r.arqueo_date) ?? {
@@ -76,21 +77,23 @@ export async function downloadSalesPdf({
       debito: 0,
       credito: 0,
       transferencia: 0,
+      qr: 0,
     }
     entry.efectivo += Number(r.efectivo)
     entry.debito += Number(r.debito)
     entry.credito += Number(r.credito)
     entry.transferencia += Number(r.transferencia)
+    entry.qr += Number(r.qr)
     byDate.set(r.arqueo_date, entry)
   }
 
   const dates = [
     ...new Set([...byDate.keys(), ...cobrosPorFecha.keys(), ...onlinePorFecha.keys(), ...tiendaContraEntregaPorFecha.keys()]),
   ].sort()
-  const emptyDay = { efectivo: 0, debito: 0, credito: 0, transferencia: 0 }
+  const emptyDay = { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
   const grandTotal = dates.reduce((sum, d) => {
     const e = byDate.get(d) ?? emptyDay
-    return sum + e.efectivo + e.debito + e.credito + e.transferencia + (cobrosPorFecha.get(d) ?? 0) + (onlinePorFecha.get(d) ?? 0)
+    return sum + e.efectivo + e.debito + e.credito + e.transferencia + e.qr + (cobrosPorFecha.get(d) ?? 0) + (onlinePorFecha.get(d) ?? 0)
   }, 0)
 
   const doc = new jsPDF()
@@ -108,6 +111,7 @@ export async function downloadSalesPdf({
         'Débito',
         'Crédito',
         'Transferencia',
+        'QR',
         'Deudas cobradas',
         'Tienda online',
         'Tienda contra entrega (ya incluido)',
@@ -118,20 +122,21 @@ export async function downloadSalesPdf({
       const e = byDate.get(d) ?? emptyDay
       const cobros = cobrosPorFecha.get(d) ?? 0
       const online = onlinePorFecha.get(d) ?? 0
-      const total = e.efectivo + e.debito + e.credito + e.transferencia + cobros + online
+      const total = e.efectivo + e.debito + e.credito + e.transferencia + e.qr + cobros + online
       return [
         d,
         formatCLP(e.efectivo),
         formatCLP(e.debito),
         formatCLP(e.credito),
         formatCLP(e.transferencia),
+        formatCLP(e.qr),
         formatCLP(cobros),
         formatCLP(online),
         formatCLP(tiendaContraEntregaPorFecha.get(d) ?? 0),
         formatCLP(total),
       ]
     }),
-    foot: [['', '', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
+    foot: [['', '', '', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },

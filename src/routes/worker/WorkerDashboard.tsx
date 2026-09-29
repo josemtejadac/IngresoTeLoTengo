@@ -101,6 +101,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [debito, setDebito] = useState('')
   const [credito, setCredito] = useState('')
   const [transferencia, setTransferencia] = useState('')
+  const [qr, setQr] = useState('')
   const [arqueoBusy, setArqueoBusy] = useState(false)
   const [editandoArqueo, setEditandoArqueo] = useState<ArqueoEntry | null>(null)
   const [editArqueoValores, setEditArqueoValores] = useState({
@@ -108,6 +109,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     debito: '',
     credito: '',
     transferencia: '',
+    qr: '',
   })
   const [editArqueoBusy, setEditArqueoBusy] = useState(false)
   const [editArqueoError, setEditArqueoError] = useState<string | null>(null)
@@ -408,6 +410,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     debito: Number(debito) || 0,
     credito: Number(credito) || 0,
     transferencia: Number(transferencia) || 0,
+    qr: Number(qr) || 0,
   }
   const arqueoVentaTotal = ventaTotal(arqueoValues)
 
@@ -419,6 +422,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       debito: String(a.debito),
       credito: String(a.credito),
       transferencia: String(a.transferencia),
+      qr: String(a.qr),
     })
   }
 
@@ -429,6 +433,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       debito: Number(editArqueoValores.debito) || 0,
       credito: Number(editArqueoValores.credito) || 0,
       transferencia: Number(editArqueoValores.transferencia) || 0,
+      qr: Number(editArqueoValores.qr) || 0,
     }
     if (Object.values(valores).some((v) => v < 0)) {
       setEditArqueoError('Los montos no pueden ser negativos.')
@@ -459,6 +464,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       setDebito('')
       setCredito('')
       setTransferencia('')
+      setQr('')
       setArqueoMessage('Arqueo guardado correctamente.')
       await loadTodayArqueo()
       await loadWeeklySales()
@@ -787,6 +793,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               onChange={(e) => setTransferencia(e.target.value)}
             />
           </label>
+          <label>
+            QR
+            <input type="number" min={0} value={qr} onChange={(e) => setQr(e.target.value)} />
+          </label>
           <p>
             Venta total: <strong>{formatCLP(arqueoVentaTotal)}</strong>
           </p>
@@ -807,6 +817,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                   <th>Débito</th>
                   <th>Crédito</th>
                   <th>Transferencia</th>
+                  <th>QR</th>
                   <th>Venta total</th>
                   <th></th>
                 </tr>
@@ -818,6 +829,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     <td>{formatCLP(a.debito)}</td>
                     <td>{formatCLP(a.credito)}</td>
                     <td>{formatCLP(a.transferencia)}</td>
+                    <td>{formatCLP(a.qr)}</td>
                     <td>{formatCLP(ventaTotal(a))}</td>
                     <td>
                       {a.origen === 'pedido' || a.origen === 'abono' ? (
@@ -866,7 +878,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               </button>
               <h2>Editar arqueo</h2>
             </div>
-            {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((campo) => (
+            {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
               <label key={campo}>
                 {campo === 'efectivo'
                   ? 'Efectivo'
@@ -874,7 +886,9 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     ? 'Débito'
                     : campo === 'credito'
                       ? 'Crédito'
-                      : 'Transferencia'}
+                      : campo === 'transferencia'
+                        ? 'Transferencia'
+                        : 'QR'}
                 <input
                   type="number"
                   min={0}
@@ -894,6 +908,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     debito: Number(editArqueoValores.debito) || 0,
                     credito: Number(editArqueoValores.credito) || 0,
                     transferencia: Number(editArqueoValores.transferencia) || 0,
+                    qr: Number(editArqueoValores.qr) || 0,
                   }),
                 )}
               </strong>

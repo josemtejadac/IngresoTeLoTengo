@@ -39,7 +39,7 @@ export function PedidoManual({ onCreado }: Props) {
   const [telefono, setTelefono] = useState('')
   const [torre, setTorre] = useState('')
   const [depto, setDepto] = useState('')
-  const [metodo, setMetodo] = useState<'efectivo' | 'debito' | 'credito' | 'transferencia'>('efectivo')
+  const [metodo, setMetodo] = useState<'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr'>('efectivo')
   const [busqueda, setBusqueda] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -241,7 +241,7 @@ export function PedidoManual({ onCreado }: Props) {
 
         <fieldset className="pago-metodos">
           <legend>Paga en la entrega con</legend>
-          {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => {
+          {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((m) => {
             const bloqueado = (m === 'debito' || m === 'credito') && total < 1000
             return (
               <label key={m} className={bloqueado ? 'checkbox-label pago-disabled' : 'checkbox-label'}>

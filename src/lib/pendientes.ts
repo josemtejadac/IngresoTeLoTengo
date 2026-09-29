@@ -116,11 +116,12 @@ export async function abonarPendientes(ids: string[], monto: number, metodo: Met
 }
 
 /** Como pago el cliente un cobro o abono de deuda: define en que columna del arqueo entra el dinero. */
-export type MetodoAbono = 'efectivo' | 'debito' | 'credito' | 'transferencia'
+export type MetodoAbono = 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr'
 
 export const METODO_ABONO_LABEL: Record<MetodoAbono, string> = {
   efectivo: 'Efectivo',
   debito: 'Débito',
   credito: 'Crédito',
   transferencia: 'Transferencia',
+  qr: 'QR',
 }

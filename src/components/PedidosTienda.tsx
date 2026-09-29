@@ -161,7 +161,7 @@ export function PedidosTienda() {
     return `${it.nombre_producto} (${pedido}${it.aprox ? '≈ ' : ''}${formatGramos(it.cantidad)})`
   }
 
-  async function handleCambiarMetodo(p: PedidoTienda, nuevo: 'efectivo' | 'debito' | 'credito' | 'transferencia') {
+  async function handleCambiarMetodo(p: PedidoTienda, nuevo: 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr') {
     if (p.metodo_pago === nuevo) return
     if (!window.confirm(`¿Cambiar el pago de ${p.nombre_cliente} a ${METODO_PAGO_LABEL[nuevo]}?`)) return
     setBusyId(p.id)
@@ -392,7 +392,7 @@ export function PedidosTienda() {
               )}
               {p.metodo_pago !== 'online' && p.estado === 'pendiente' && (
                 <div className="metodo-cambiar">
-                  {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => {
+                  {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((m) => {
                     const bloqueado = (m === 'debito' || m === 'credito') && p.total < 1000
                     return (
                       <button

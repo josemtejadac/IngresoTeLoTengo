@@ -17,6 +17,7 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
   const [debito, setDebito] = useState('')
   const [credito, setCredito] = useState('')
   const [transferencia, setTransferencia] = useState('')
+  const [qr, setQr] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mensaje, setMensaje] = useState<string | null>(null)
@@ -26,6 +27,7 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
     debito: Number(debito) || 0,
     credito: Number(credito) || 0,
     transferencia: Number(transferencia) || 0,
+    qr: Number(qr) || 0,
   }
 
   async function guardar(e: React.FormEvent) {
@@ -43,6 +45,7 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
       setDebito('')
       setCredito('')
       setTransferencia('')
+      setQr('')
       setMensaje('Arqueo guardado correctamente.')
       onGuardado()
     } catch (err) {
@@ -79,6 +82,10 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
         <label>
           Transferencia
           <input type="number" min={0} value={transferencia} onChange={(e) => setTransferencia(e.target.value)} />
+        </label>
+        <label>
+          QR
+          <input type="number" min={0} value={qr} onChange={(e) => setQr(e.target.value)} />
         </label>
       </div>
       <p>

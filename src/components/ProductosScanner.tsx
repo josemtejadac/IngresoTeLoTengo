@@ -143,12 +143,9 @@ export function ProductosScanner() {
               🧾 Cargar factura
             </button>
           )}
-          {puedeEditar && (
-            <>
-              <Merma tipo="merma" />
-              <Merma tipo="gasto_operativo" />
-            </>
-          )}
+          {/* Merma y gasto operativo son para cualquier trabajador, aunque no tenga permiso de editar precios/stock. */}
+          <Merma tipo="merma" />
+          <Merma tipo="gasto_operativo" />
         </div>
       </div>
       <p className="subtitle">

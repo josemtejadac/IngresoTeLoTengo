@@ -11,6 +11,8 @@ export interface ProductoTienda {
   precio_original: number | null
   /** Porcentaje de descuento activo (0-90), o null si no tiene. */
   descuento_pct: number | null
+  /** Nota visible para el cliente en la tienda (ej. fecha de vencimiento). */
+  nota: string | null
   foto_path: string | null
   disponible: boolean
   /** Precio por kilo; la cantidad se pide en unidades aproximadas o en gramos. */

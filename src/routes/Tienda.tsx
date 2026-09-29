@@ -635,6 +635,7 @@ export function Tienda() {
                 {p.por_peso ? ' /kg' : ''}
               </span>
             </p>
+            {p.nota && <p className="tienda-nota-chica">📌 {p.nota}</p>}
             <button
               className="btn btn-primary btn-small"
               disabled={!p.disponible}
@@ -1120,6 +1121,7 @@ export function Tienda() {
               </span>
               {detalle.descuento_pct && <span className="tienda-descuento-badge">-{detalle.descuento_pct}%</span>}
             </p>
+            {detalle.nota && <p className="tienda-nota">📌 {detalle.nota}</p>}
             {detalle.combo_cantidad && detalle.combo_precio && (
               <p className="detalle-pack">
                 O pack de {detalle.combo_cantidad} por {formatCLP(detalle.combo_precio)}

@@ -47,6 +47,7 @@ export function InventarioAdmin() {
   const [editPorPeso, setEditPorPeso] = useState(false)
   const [editGramosUnidad, setEditGramosUnidad] = useState('')
   const [editDescuento, setEditDescuento] = useState('')
+  const [editNota, setEditNota] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
@@ -194,6 +195,7 @@ export function InventarioAdmin() {
     setEditPorPeso(p.por_peso)
     setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
     setEditDescuento(p.descuento_pct?.toString() ?? '')
+    setEditNota(p.nota ?? '')
     setError(null)
   }
 
@@ -250,6 +252,7 @@ export function InventarioAdmin() {
         por_peso: editPorPeso,
         gramos_unidad: gramosUnidad,
         descuento_pct: descuentoPct,
+        nota: editNota.trim() === '' ? null : editNota.trim(),
       })
       await runSearch()
       loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
@@ -619,6 +622,14 @@ export function InventarioAdmin() {
             <label>
               {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
               <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+            </label>
+            <label>
+              Nota para el cliente (opcional, se ve en la tienda)
+              <input
+                value={editNota}
+                onChange={(e) => setEditNota(e.target.value)}
+                placeholder="Ej: Fecha de vencimiento 23/08/2039"
+              />
             </label>
 
             {error && <p className="error-text">{error}</p>}

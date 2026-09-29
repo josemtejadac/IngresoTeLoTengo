@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
+import { AgregarProductoPedido } from './AgregarProductoPedido'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { PedidoManual } from './PedidoManual'
 import {
@@ -240,6 +241,9 @@ export function PedidosTienda() {
                     </div>
                   )
                 })}
+                {p.estado === 'pendiente' && (
+                  <AgregarProductoPedido pedidoId={p.id} onAgregado={load} />
+                )}
               </div>
             )}
             {(items[p.id] ?? [])

@@ -283,6 +283,17 @@ export async function eliminarPedidoTienda(pedidoId: string) {
   if (error) throw error
 }
 
+/** El personal agrega un producto extra a un pedido ya hecho (ej. el cliente pidio algo mas por telefono). */
+export async function agregarItemPedido(pedidoId: string, productoId: string, cantidad: number, esCombo = false) {
+  const { error } = await supabase.rpc('ingreso_agregar_item_pedido', {
+    p_pedido: pedidoId,
+    p_producto: productoId,
+    p_cantidad: cantidad,
+    p_es_combo: esCombo,
+  })
+  if (error) throw error
+}
+
 /** Productos vigentes del catalogo por id (para rearmar un carrito desde un pedido). */
 export async function loadProductosPorIds(ids: string[]): Promise<ProductoTienda[]> {
   const { data, error } = await supabase.rpc('ingreso_tienda_productos_por_ids', { p_ids: ids })

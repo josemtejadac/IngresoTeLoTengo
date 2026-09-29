@@ -1536,12 +1536,11 @@ textarea {
 }
 
 .manual-catalogo {
+  /* Sin alto ni scroll propio: crece libre y el que hace scroll es el modal completo (asi no queda
+     una cajita chica recortada dentro de otra ventana que ya se desplaza). */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 8px;
-  max-height: 48vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   padding: 2px;
 }
 

@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // El registro y la revision de version nueva se hacen a mano en src/registrarServiceWorker.ts,
+      // para que la app se actualice sola aunque quede abierta varios dias sin cerrarse del todo.
+      injectRegister: false,
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Te Lo Tengo Market - Ingreso',

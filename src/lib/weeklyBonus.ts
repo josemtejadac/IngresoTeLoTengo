@@ -45,17 +45,21 @@ export function getWeeksEndingInMonth(month: string): WeekRange[] {
   return weeks
 }
 
-/** La semana (lunes a domingo) a la que pertenece "hoy". */
-export function getCurrentWeek(): WeekRange {
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  // getDay(): 0=domingo..6=sabado. Queremos el lunes de esta semana.
-  const diffToMonday = (today.getDay() + 6) % 7
-  const start = new Date(today)
+/** La semana (lunes a domingo) a la que pertenece una fecha dada. */
+export function getWeekForDate(date: Date): WeekRange {
+  const dia = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  // getDay(): 0=domingo..6=sabado. Queremos el lunes de esa semana.
+  const diffToMonday = (dia.getDay() + 6) % 7
+  const start = new Date(dia)
   start.setDate(start.getDate() - diffToMonday)
   const end = new Date(start)
   end.setDate(end.getDate() + 6)
   return { start, end }
+}
+
+/** La semana (lunes a domingo) a la que pertenece "hoy". */
+export function getCurrentWeek(): WeekRange {
+  return getWeekForDate(new Date())
 }
 
 export function formatWeekLabel(week: WeekRange): string {

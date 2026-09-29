@@ -21,6 +21,7 @@ import {
   WEEKLY_BONUS_AMOUNT,
   formatWeekLabel,
   getCurrentWeek,
+  getWeekForDate,
   getWeeksEndingInMonth,
   isWeekEarned,
   loadWeeklyBonusForMonth,
@@ -182,6 +183,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [arqueoRows, setArqueoRows] = useState<ArqueoRowWithWorker[]>([])
   const [weeklySales, setWeeklySales] = useState<number>(0)
   const [salesReportMonth, setSalesReportMonth] = useState<string>(currentMonthValue())
+  const [salesReportWeekDate, setSalesReportWeekDate] = useState<string>(currentDateValue())
   const [salesReportBusy, setSalesReportBusy] = useState<'week' | 'month' | null>(null)
   const [salesReportError, setSalesReportError] = useState<string | null>(null)
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
@@ -692,7 +694,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     setSalesReportBusy('week')
     setSalesReportError(null)
     try {
-      const week = getCurrentWeek()
+      const week = getWeekForDate(new Date(`${salesReportWeekDate}T00:00:00`))
       await downloadSalesPdf({
         start: week.start,
         end: week.end,
@@ -1283,12 +1285,22 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           {Math.min(100, Math.round((weeklySales / WEEKLY_SALES_GOAL) * 100))}%)
         </p>
         <div className="report-row">
+          <label>
+            Semana (elige cualquier día de esa semana)
+            <input
+              type="date"
+              value={salesReportWeekDate}
+              onChange={(e) => setSalesReportWeekDate(e.target.value)}
+            />
+          </label>
           <button
             className="btn btn-primary"
             onClick={handleDownloadWeeklySales}
             disabled={salesReportBusy !== null}
           >
-            {salesReportBusy === 'week' ? 'Generando...' : 'Descargar PDF de esta semana'}
+            {salesReportBusy === 'week'
+              ? 'Generando...'
+              : `Descargar PDF · semana ${formatWeekLabel(getWeekForDate(new Date(`${salesReportWeekDate}T00:00:00`)))}`}
           </button>
           <label>
             Mes

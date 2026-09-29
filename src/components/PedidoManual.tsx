@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
 import { montoPorPeso } from '../lib/peso'
+import { useRealtimeRefresh } from '../lib/realtime'
 import { Stepper } from './Stepper'
 import {
   crearPedidoTienda,
@@ -39,6 +40,8 @@ export function PedidoManual({ onCreado }: Props) {
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<ProductoTienda[]>([])
+  const [cargandoProductos, setCargandoProductos] = useState(false)
+  const [errorProductos, setErrorProductos] = useState<string | null>(null)
   const [verTodos, setVerTodos] = useState(false)
   const [lineas, setLineas] = useState<Linea[]>([])
   const [pesoDe, setPesoDe] = useState<ProductoTienda | null>(null)
@@ -60,23 +63,31 @@ export function PedidoManual({ onCreado }: Props) {
     if (abierto && categorias.length === 0) loadCategoriasTienda().then(setCategorias).catch(() => {})
   }, [abierto, categorias.length])
 
+  const cargarProductos = useCallback(() => {
+    if (!abierto) return
+    setCargandoProductos(true)
+    loadCatalogoTienda({ search: busqueda.trim() || undefined, categoria: categoria || undefined })
+      .then((r) => {
+        setProductos(r)
+        setVerTodos(false)
+        setErrorProductos(null)
+      })
+      .catch((err) => {
+        // Antes esto se ocultaba y la lista quedaba vacia sin explicacion: ahora se muestra el motivo.
+        setErrorProductos(err instanceof Error ? err.message : 'No se pudieron cargar los productos')
+      })
+      .finally(() => setCargandoProductos(false))
+  }, [abierto, busqueda, categoria])
+
   useEffect(() => {
     if (!abierto) return
-    let vivo = true
-    const t = setTimeout(() => {
-      loadCatalogoTienda({ search: busqueda.trim() || undefined, categoria: categoria || undefined })
-        .then((r) => {
-          if (!vivo) return
-          setProductos(r)
-          setVerTodos(false)
-        })
-        .catch(() => vivo && setProductos([]))
-    }, 250)
-    return () => {
-      vivo = false
-      clearTimeout(t)
-    }
-  }, [abierto, busqueda, categoria])
+    const t = setTimeout(cargarProductos, 250)
+    return () => clearTimeout(t)
+  }, [abierto, cargarProductos])
+
+  // Si el stock cambia mientras el trabajador tiene el pedido manual abierto, la lista se pone al dia sola.
+  // (cargarProductos no hace nada si la ventana esta cerrada, asi que suscribirse siempre es inofensivo)
+  useRealtimeRefresh(['ingreso_productos'], cargarProductos)
 
   function agregar(p: ProductoTienda) {
     if (!p.disponible) return
@@ -274,6 +285,14 @@ export function PedidoManual({ onCreado }: Props) {
           </div>
         )}
 
+        {errorProductos && (
+          <p className="error-text">
+            {errorProductos}{' '}
+            <button type="button" className="btn-link" onClick={cargarProductos}>
+              Reintentar
+            </button>
+          </p>
+        )}
         <div className="manual-catalogo">
           {visibles.map((p) => {
             const n = enLinea(p.id)
@@ -302,7 +321,10 @@ export function PedidoManual({ onCreado }: Props) {
               </button>
             )
           })}
-          {productos.length === 0 && <p className="subtitle">No hay productos con esa búsqueda.</p>}
+          {cargandoProductos && productos.length === 0 && <p className="subtitle">Cargando productos...</p>}
+          {!cargandoProductos && !errorProductos && productos.length === 0 && (
+            <p className="subtitle">No hay productos con esa búsqueda.</p>
+          )}
         </div>
         {!verTodos && productos.length > MAX_VISIBLES && (
           <button type="button" className="btn btn-secondary btn-small" onClick={() => setVerTodos(true)}>

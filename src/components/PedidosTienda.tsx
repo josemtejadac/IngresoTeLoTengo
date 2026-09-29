@@ -4,6 +4,7 @@ import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { loadNameDirectory } from '../lib/directory'
 import { AgregarProductoPedido } from './AgregarProductoPedido'
+import { CambiarProductoItem } from './CambiarProductoItem'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { PedidoManual } from './PedidoManual'
 import {
@@ -19,6 +20,7 @@ import {
   marcarEntregaFisica,
   productoFotoUrl,
   marcarPedidoTiendaEntregado,
+  quitarItemPedido,
   whatsappEnCaminoUrl,
   type PedidoTienda,
   type PedidoTiendaItem,
@@ -91,6 +93,20 @@ export function PedidosTienda() {
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error marcando el pedido')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleQuitarItem(it: PedidoTiendaItem) {
+    if (!window.confirm(`¿Quitar ${it.nombre_producto} de este pedido? Se devuelve el stock y se descuenta del total.`)) return
+    setBusyId(it.id)
+    setError(null)
+    try {
+      await quitarItemPedido(it.id)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error quitando el producto')
     } finally {
       setBusyId(null)
     }
@@ -271,6 +287,21 @@ export function PedidosTienda() {
                       <span className="pedido-detalle-info">
                         <span className="pedido-detalle-nombre">{it.nombre_producto}</span>
                         <span className="subtitle">{textoItem(it).replace(it.nombre_producto, '').trim() || `${it.cantidad} un`}</span>
+                        {p.estado === 'pendiente' && (
+                          <span className="pedido-detalle-acciones">
+                            {!it.es_peso && !it.es_combo && (
+                              <CambiarProductoItem itemId={it.id} onCambiado={load} />
+                            )}
+                            <button
+                              type="button"
+                              className="btn-link btn-link-peligro"
+                              disabled={busyId === it.id}
+                              onClick={() => handleQuitarItem(it)}
+                            >
+                              ✕ Quitar
+                            </button>
+                          </span>
+                        )}
                       </span>
                       <strong>{formatCLP(it.subtotal)}</strong>
                     </div>

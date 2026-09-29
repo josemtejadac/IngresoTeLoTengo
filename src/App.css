@@ -1430,6 +1430,22 @@ textarea {
   color: #b45309;
 }
 
+.pedido-detalle-acciones {
+  display: flex;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.btn-link-peligro {
+  color: #dc2626;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
 .pedido-entrega-fisica {
   background: #eff6ff;
   color: #1d4ed8;

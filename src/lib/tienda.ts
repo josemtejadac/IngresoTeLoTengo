@@ -319,6 +319,21 @@ export async function agregarItemPedido(pedidoId: string, productoId: string, ca
   if (error) throw error
 }
 
+/** El personal quita un producto de un pedido ya hecho (ej. se olvido de marcar que no habia stock). Devuelve el stock y ajusta el total. */
+export async function quitarItemPedido(itemId: string) {
+  const { error } = await supabase.rpc('ingreso_quitar_item_pedido', { p_item: itemId })
+  if (error) throw error
+}
+
+/** El personal cambia un producto ya pedido por otro (ej. el cliente pidio Coca Zero y queria Original). */
+export async function cambiarProductoItem(itemId: string, productoNuevoId: string) {
+  const { error } = await supabase.rpc('ingreso_cambiar_producto_item', {
+    p_item: itemId,
+    p_producto_nuevo: productoNuevoId,
+  })
+  if (error) throw error
+}
+
 export type TipoMerma = 'merma' | 'gasto_operativo'
 
 /**

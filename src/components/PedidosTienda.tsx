@@ -301,11 +301,12 @@ export function PedidosTienda() {
                   </button>
                   <button
                     type="button"
-                    className="btn-link btn-link-peligro"
+                    className="btn btn-danger-outline btn-small"
                     disabled={busyId === p.id}
+                    title="Eliminar pedido hecho por error (ej. duplicado)"
                     onClick={() => handleEliminar(p)}
                   >
-                    🗑️ Eliminar (por error)
+                    🗑️ Eliminar
                   </button>
                 </>
               )}

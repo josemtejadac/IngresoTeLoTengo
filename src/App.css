@@ -120,6 +120,17 @@ select {
   color: white;
 }
 
+.btn-danger-outline {
+  background: #fff5f5;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
 .btn-link {
   background: none;
   border: none;
@@ -127,10 +138,6 @@ select {
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
-}
-
-.btn-link-peligro {
-  color: #dc2626;
 }
 
 .tab-nav {
@@ -1413,6 +1420,10 @@ textarea {
 .pedido-acciones .btn-small {
   padding: 4px 10px;
   font-size: 0.78rem;
+}
+
+.pedido-acciones .btn-danger-outline {
+  margin-left: auto;
 }
 
 /* ---------- Pedido manual ---------- */

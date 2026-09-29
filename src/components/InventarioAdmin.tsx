@@ -4,6 +4,7 @@ import { FotoProductoModal } from './FotoProductoModal'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
 import { formatCLP } from '../lib/payroll'
+import { formatGramos } from '../lib/peso'
 import {
   activarProductoPorBarra,
   coincideFiltroStock,
@@ -443,7 +444,7 @@ export function InventarioAdmin() {
               </td>
               <td className="col-nombre">{p.categoria ?? '—'}</td>
               <td>{p.precio !== null ? `${formatCLP(p.precio)}${p.por_peso ? ' /kg' : ''}` : 'Sin precio'}</td>
-              <td>{p.por_peso ? 'Por peso' : p.stock}</td>
+              <td>{p.por_peso ? formatGramos(p.stock) : p.stock}</td>
               <td>
                 <div className="table-controls">
                   <label className="btn btn-secondary btn-small foto-btn">
@@ -561,12 +562,10 @@ export function InventarioAdmin() {
                 onChange={(e) => setEditPrecio(e.target.value)}
               />
             </label>
-            {!editPorPeso && (
-              <label>
-                Stock
-                <input type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} />
-              </label>
-            )}
+            <label>
+              {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
+              <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+            </label>
 
             {error && <p className="error-text">{error}</p>}
 

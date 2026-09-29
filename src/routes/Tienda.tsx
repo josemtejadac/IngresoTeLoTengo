@@ -79,6 +79,7 @@ export function Tienda() {
   const [email, setEmail] = useState(guardado?.email ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sinConexion, setSinConexion] = useState(false)
   const [confirmacion, setConfirmacion] = useState<{
     total: number
     pedidoId: string
@@ -143,14 +144,29 @@ export function Tienda() {
         categoria: categoria || undefined,
       })
       setProductos(rows)
+      setSinConexion(false)
+      setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando el catálogo')
+      // Sin internet (o el servidor no respondio): no se muestra como error fatal, se reintenta sola.
+      setSinConexion(true)
     }
   }, [search, categoria])
 
   useEffect(() => {
     runSearch()
   }, [runSearch])
+
+  // La app se defiende sola si se corta el internet: reintenta cada pocos segundos y de inmediato al volver la conexion.
+  useEffect(() => {
+    if (!sinConexion) return
+    const t = setInterval(runSearch, 4000)
+    const alVolver = () => runSearch()
+    window.addEventListener('online', alVolver)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('online', alVolver)
+    }
+  }, [sinConexion, runSearch])
 
   // Tiempo real: si un producto se agota o cambia de precio, el catalogo se actualiza solo.
   useRealtimeRefresh(['ingreso_productos'], runSearch)
@@ -513,6 +529,9 @@ export function Tienda() {
         />
       </header>
 
+      {sinConexion && (
+        <p className="conexion-aviso">📶 Sin conexión. Reintentando solo, un momento...</p>
+      )}
       {error && <p className="error-text">{error}</p>}
 
       <div className="tienda-chips-wrap">
@@ -537,7 +556,7 @@ export function Tienda() {
         </div>
       </div>
 
-      {productos.length === 0 && <p className="subtitle">No encontramos productos con esa búsqueda.</p>}
+      {productos.length === 0 && !sinConexion && <p className="subtitle">No encontramos productos con esa búsqueda.</p>}
 
       <div className="tienda-grid">
         {productos.map((p) => (

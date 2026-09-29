@@ -13,6 +13,7 @@ import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { RegistrarArqueo } from '../../components/RegistrarArqueo'
 import { MesActual } from '../../components/MesActual'
+import { NotificacionesPush } from '../../components/NotificacionesPush'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
 import { formatCLP } from '../../lib/payroll'
 import {
@@ -864,9 +865,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             <p className="subtitle">Hola, {profile.full_name} (Administrador)</p>
           </div>
         </div>
-        <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
-          Cerrar sesión
-        </button>
+        <div className="table-controls">
+          <NotificacionesPush />
+          <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
+            Cerrar sesión
+          </button>
+        </div>
       </header>
 
       <nav className="tab-nav">

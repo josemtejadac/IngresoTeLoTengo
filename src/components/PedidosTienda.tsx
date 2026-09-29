@@ -170,7 +170,12 @@ export function PedidosTienda() {
     <section className="card">
       <div className="section-header">
         <h2>Pedidos de la tienda ({pedidos.length})</h2>
-        <PedidoManual onCreado={load} />
+        <div className="table-controls">
+          <button type="button" className="btn btn-secondary btn-small" onClick={() => load()}>
+            🔄 Refrescar
+          </button>
+          <PedidoManual onCreado={load} />
+        </div>
       </div>
       <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
       {error && <p className="error-text">{error}</p>}

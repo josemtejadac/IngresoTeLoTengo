@@ -11,6 +11,7 @@ import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
 import { MesActual } from '../../components/MesActual'
+import { NotificacionesPush } from '../../components/NotificacionesPush'
 import { HistorialPagos } from '../../components/HistorialPagos'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
@@ -552,9 +553,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
             <p className="subtitle">Registra tu entrada, colación o salida</p>
           </div>
         </div>
-        <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
-          Cerrar sesión
-        </button>
+        <div className="table-controls">
+          <NotificacionesPush />
+          <button className="btn btn-secondary" onClick={() => supabase.auth.signOut()}>
+            Cerrar sesión
+          </button>
+        </div>
       </header>
 
       <nav className="tab-nav">

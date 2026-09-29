@@ -40,6 +40,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png}'],
+        // Agrega el manejo de notificaciones push al service worker generado por workbox.
+        importScripts: ['push-handlers.js'],
       },
     }),
   ],

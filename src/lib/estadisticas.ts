@@ -26,6 +26,30 @@ export interface EstadisticasAdmin {
 /** Cuantas ventas (pedidos de tienda o manuales, entregados y pagados) hacen falta para desbloquear las estadisticas. */
 export const VENTAS_PARA_ESTADISTICAS = 100
 
+export interface HistorialIA {
+  role: 'user' | 'model'
+  text: string
+}
+
+/** Pide un analisis o responde una pregunta sobre las ventas, usando IA (misma clave gratuita del asistente de la tienda). */
+export async function preguntarEstadisticasIA(
+  estadisticas: EstadisticasAdmin,
+  question: string,
+  history: HistorialIA[],
+): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const token = sessionData.session?.access_token
+  if (!token) throw new Error('Debes iniciar sesión de nuevo.')
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingreso-chat-estadisticas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ question, history, estadisticas }),
+  })
+  const body = await res.json()
+  if (!res.ok) throw new Error(body?.error ?? 'No se pudo consultar a la IA')
+  return String(body.answer ?? '')
+}
+
 export async function loadEstadisticasAdmin(dias = 90): Promise<EstadisticasAdmin> {
   const { data, error } = await supabase.rpc('ingreso_estadisticas_admin', { p_dias: dias })
   if (error) throw error

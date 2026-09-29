@@ -1951,6 +1951,37 @@ textarea {
 .estad-consejos li {
   margin-bottom: 6px;
 }
+
+.estad-ia-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.estad-ia-pregunta {
+  align-self: flex-end;
+  background: #1d4ed8;
+  color: #fff;
+  border-radius: 12px 12px 2px 12px;
+  padding: 8px 12px;
+  max-width: 85%;
+  font-size: 0.9rem;
+}
+
+.estad-ia-respuesta {
+  align-self: flex-start;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #14532d;
+  border-radius: 12px 12px 12px 2px;
+  padding: 8px 12px;
+  max-width: 90%;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
 .fila-editando { background: #f0fdf4; }
 
 .filtro-descripcion {

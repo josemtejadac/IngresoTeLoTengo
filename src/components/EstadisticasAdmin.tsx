@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import {
   loadEstadisticasAdmin,
+  preguntarEstadisticasIA,
   VENTAS_PARA_ESTADISTICAS,
   type EstadisticasAdmin,
+  type HistorialIA,
 } from '../lib/estadisticas'
 
 function textoUnidades(p: { unidades: number; gramos: number }): string {
@@ -44,6 +46,11 @@ function generarConsejos(e: EstadisticasAdmin): string[] {
 export function EstadisticasAdmin() {
   const [datos, setDatos] = useState<EstadisticasAdmin | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [historialIA, setHistorialIA] = useState<HistorialIA[]>([])
+  const [preguntaIA, setPreguntaIA] = useState('')
+  const [cargandoIA, setCargandoIA] = useState(false)
+  const [errorIA, setErrorIA] = useState<string | null>(null)
+  const yaPidioAnalisis = useRef(false)
 
   const load = useCallback(async () => {
     try {
@@ -57,6 +64,33 @@ export function EstadisticasAdmin() {
   useEffect(() => {
     load()
   }, [load])
+
+  async function preguntarIA(pregunta: string) {
+    if (!datos) return
+    setCargandoIA(true)
+    setErrorIA(null)
+    try {
+      const respuesta = await preguntarEstadisticasIA(datos, pregunta, historialIA)
+      setHistorialIA((prev) => [
+        ...prev,
+        ...(pregunta ? [{ role: 'user' as const, text: pregunta }] : []),
+        { role: 'model' as const, text: respuesta },
+      ])
+      setPreguntaIA('')
+    } catch (err) {
+      setErrorIA(err instanceof Error ? err.message : 'No se pudo consultar a la IA')
+    } finally {
+      setCargandoIA(false)
+    }
+  }
+
+  // Al desbloquearse (100+ ventas), pide sola un primer analisis, sin que el admin tenga que preguntar nada.
+  useEffect(() => {
+    if (!datos || datos.total_ventas < VENTAS_PARA_ESTADISTICAS || yaPidioAnalisis.current) return
+    yaPidioAnalisis.current = true
+    preguntarIA('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [datos])
 
   // Se actualiza sola: cualquier pedido nuevo, entregado o cancelado recalcula las estadisticas.
   useEffect(() => {
@@ -115,7 +149,38 @@ export function EstadisticasAdmin() {
         <strong>{datos.total_ventas}</strong>
       </p>
 
-      <h3>Consejos</h3>
+      <h3>🤖 Asistente de datos (IA)</h3>
+      <p className="subtitle">
+        Analiza estas mismas cifras y te puede responder preguntas sobre tu negocio, en lenguaje natural.
+      </p>
+      <div className="estad-ia-chat">
+        {historialIA.map((h, i) => (
+          <p key={i} className={h.role === 'user' ? 'estad-ia-pregunta' : 'estad-ia-respuesta'}>
+            {h.role === 'user' ? h.text : h.text.split('\n').map((linea, j) => <span key={j}>{linea}<br /></span>)}
+          </p>
+        ))}
+        {cargandoIA && <p className="subtitle">Pensando...</p>}
+      </div>
+      {errorIA && <p className="error-text">{errorIA}</p>}
+      <form
+        className="report-row"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (preguntaIA.trim() && !cargandoIA) preguntarIA(preguntaIA.trim())
+        }}
+      >
+        <input
+          value={preguntaIA}
+          onChange={(e) => setPreguntaIA(e.target.value)}
+          placeholder="Ej: ¿qué producto debería promocionar esta semana?"
+          disabled={cargandoIA}
+        />
+        <button type="submit" className="btn btn-primary btn-small" disabled={cargandoIA || !preguntaIA.trim()}>
+          Preguntar
+        </button>
+      </form>
+
+      <h3>Consejos rápidos</h3>
       <ul className="estad-consejos">
         {generarConsejos(datos).map((c, i) => (
           <li key={i}>{c}</li>

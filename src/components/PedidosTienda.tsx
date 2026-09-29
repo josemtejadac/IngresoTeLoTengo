@@ -75,11 +75,12 @@ export function PedidosTienda() {
   // Tiempo real, con respaldo cada 20 s por si el celular pierde la conexion en vivo.
   useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 20000)
 
-  async function handleEntregado(id: string) {
-    setBusyId(id)
+  async function handleEntregado(p: PedidoTienda) {
+    if (!window.confirm(`¿Marcar como entregado el pedido de ${p.nombre_cliente} (${formatCLP(p.total)})?`)) return
+    setBusyId(p.id)
     setError(null)
     try {
-      await marcarPedidoTiendaEntregado(id)
+      await marcarPedidoTiendaEntregado(p.id)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error marcando el pedido')
@@ -299,7 +300,7 @@ export function PedidosTienda() {
                   <button
                     className="btn btn-secondary btn-small"
                     disabled={busyId === p.id}
-                    onClick={() => handleEntregado(p.id)}
+                    onClick={() => handleEntregado(p)}
                   >
                     {busyId === p.id ? '...' : 'Entregado'}
                   </button>

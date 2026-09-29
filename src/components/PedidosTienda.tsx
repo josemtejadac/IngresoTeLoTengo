@@ -8,6 +8,7 @@ import {
   ajustarPesoItem,
   cambiarMetodoPedido,
   coincideFiltroPago,
+  eliminarPedidoTienda,
   type FiltroPago,
   METODO_PAGO_LABEL,
   loadPedidosTiendaPendientes,
@@ -81,6 +82,20 @@ export function PedidosTienda() {
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error marcando el pedido')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleEliminar(p: PedidoTienda) {
+    if (!window.confirm(`¿Eliminar el pedido de ${p.nombre_cliente}? Esto es para pedidos hechos por error (ej. duplicados). No se puede deshacer.`)) return
+    setBusyId(p.id)
+    setError(null)
+    try {
+      await eliminarPedidoTienda(p.id)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error eliminando el pedido')
     } finally {
       setBusyId(null)
     }
@@ -283,6 +298,14 @@ export function PedidosTienda() {
                     onClick={() => handleEntregado(p.id)}
                   >
                     {busyId === p.id ? '...' : 'Entregado'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-link btn-link-peligro"
+                    disabled={busyId === p.id}
+                    onClick={() => handleEliminar(p)}
+                  >
+                    🗑️ Eliminar (por error)
                   </button>
                 </>
               )}

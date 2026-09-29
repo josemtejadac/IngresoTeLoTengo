@@ -277,6 +277,12 @@ export async function cancelarPedidoCliente(pedidoId: string) {
   if (error) throw error
 }
 
+/** El personal elimina un pedido por error del cliente (ej. lo hizo varias veces). Devuelve el stock reservado. */
+export async function eliminarPedidoTienda(pedidoId: string) {
+  const { error } = await supabase.rpc('ingreso_eliminar_pedido_tienda', { p_pedido: pedidoId })
+  if (error) throw error
+}
+
 /** Productos vigentes del catalogo por id (para rearmar un carrito desde un pedido). */
 export async function loadProductosPorIds(ids: string[]): Promise<ProductoTienda[]> {
   const { data, error } = await supabase.rpc('ingreso_tienda_productos_por_ids', { p_ids: ids })

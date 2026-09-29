@@ -129,6 +129,10 @@ select {
   padding: 0;
 }
 
+.btn-link-peligro {
+  color: #dc2626;
+}
+
 .tab-nav {
   display: flex;
   gap: 6px;

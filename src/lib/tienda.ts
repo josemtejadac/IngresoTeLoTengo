@@ -69,6 +69,8 @@ export interface PedidoTiendaInput {
   torre: string
   depto: string
   items: { producto_id: string; cantidad?: number; gramos?: number; unidades?: number; es_combo?: boolean }[]
+  /** Si paga en efectivo: con cuanto billete va a pagar, para que el trabajador lleve el vuelto listo. */
+  pagoCon?: number
 }
 
 export async function crearPedidoTienda(
@@ -81,6 +83,7 @@ export async function crearPedidoTienda(
     p_depto: input.depto,
     p_items: input.items,
     p_metodo: input.metodo,
+    p_pago_con: input.pagoCon || null,
   })
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
@@ -118,6 +121,8 @@ export interface PedidoTienda {
   created_at: string
   cancelado_por_cliente?: boolean
   cancelado_at?: string | null
+  /** Si pago en efectivo: con cuanto billete va a pagar el cliente. */
+  pago_con?: number | null
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {

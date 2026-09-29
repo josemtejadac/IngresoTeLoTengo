@@ -1426,6 +1426,10 @@ textarea {
   margin-left: auto;
 }
 
+.pago-con-aviso {
+  color: #b45309;
+}
+
 .agregar-item-pedido {
   border-top: 1px dashed #cbd5e1;
   margin-top: 8px;

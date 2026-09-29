@@ -88,6 +88,7 @@ export function Tienda() {
     metodo: MetodoPago
   } | null>(null)
   const [metodo, setMetodo] = useState<MetodoPago>('efectivo')
+  const [pagoCon, setPagoCon] = useState('')
   const [verHistorial, setVerHistorial] = useState(false)
   // Vuelta desde Flow: ?pago=ok|pendiente|fallo&pedido=<id>
   const [retorno, setRetorno] = useState<{ pago: string; pedido: MiPedido | null } | null>(null)
@@ -327,6 +328,7 @@ export function Tienda() {
         torre,
         depto,
         metodo,
+        pagoCon: metodo === 'efectivo' && pagoCon.trim() ? Number(pagoCon) : undefined,
         items: cart.map((l) => {
           if (l.producto.por_peso) {
             return l.modo === 'unidades'
@@ -351,6 +353,7 @@ export function Tienda() {
       setConfirmacion({ total: result.total, pedidoId: result.pedido_id, metodo })
       setCart([])
       setShowCheckout(false)
+      setPagoCon('')
       if (!guardarDatos) {
         setNombre('')
         setTelefono('')
@@ -811,6 +814,18 @@ export function Tienda() {
                     </label>
                   )
                 })}
+                {metodo === 'efectivo' && (
+                  <label className="chat-input">
+                    ¿Con cuánto vas a pagar? (opcional, para que te lleven el vuelto listo)
+                    <input
+                      type="number"
+                      min={0}
+                      value={pagoCon}
+                      onChange={(e) => setPagoCon(e.target.value)}
+                      placeholder={`Ej: ${formatCLP(Math.ceil(total / 1000) * 1000)}`}
+                    />
+                  </label>
+                )}
                 {total < 1000 && (
                   <p className="subtitle">
                     Con menos de $1.000 solo se puede pagar en efectivo o con pago online.

@@ -165,6 +165,14 @@ export function PedidosTienda() {
     return (
       <>
         {metodo} · <span className="badge-pendiente">Pago pendiente</span> (cobrar al entregar)
+        {p.metodo_pago === 'efectivo' && p.pago_con ? (
+          <>
+            {' · '}
+            <strong className="pago-con-aviso">
+              Paga con {formatCLP(p.pago_con)} (vuelto {formatCLP(Math.max(0, p.pago_con - p.total))})
+            </strong>
+          </>
+        ) : null}
       </>
     )
   }

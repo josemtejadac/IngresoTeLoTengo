@@ -13,6 +13,8 @@ export interface ProductoTienda {
   descuento_pct: number | null
   /** Nota visible para el cliente en la tienda (ej. fecha de vencimiento). */
   nota: string | null
+  /** Fijado: aparece primero en la tienda (antes que el resto, salvo que este sin stock). */
+  destacado: boolean
   foto_path: string | null
   disponible: boolean
   /** Precio por kilo; la cantidad se pide en unidades aproximadas o en gramos. */

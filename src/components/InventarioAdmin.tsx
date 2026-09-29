@@ -48,6 +48,7 @@ export function InventarioAdmin() {
   const [editGramosUnidad, setEditGramosUnidad] = useState('')
   const [editDescuento, setEditDescuento] = useState('')
   const [editNota, setEditNota] = useState('')
+  const [editDestacado, setEditDestacado] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
@@ -196,6 +197,7 @@ export function InventarioAdmin() {
     setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
     setEditDescuento(p.descuento_pct?.toString() ?? '')
     setEditNota(p.nota ?? '')
+    setEditDestacado(p.destacado)
     setError(null)
   }
 
@@ -253,6 +255,7 @@ export function InventarioAdmin() {
         gramos_unidad: gramosUnidad,
         descuento_pct: descuentoPct,
         nota: editNota.trim() === '' ? null : editNota.trim(),
+        destacado: editDestacado,
       })
       await runSearch()
       loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
@@ -470,6 +473,7 @@ export function InventarioAdmin() {
                 )}
               </td>
               <td className="col-nombre">
+                {p.destacado && '📌 '}
                 {p.nombre}
                 {!p.active && <span className="subtitle"> (oculto)</span>}
               </td>
@@ -622,6 +626,14 @@ export function InventarioAdmin() {
             <label>
               {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
               <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+            </label>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={editDestacado}
+                onChange={(e) => setEditDestacado(e.target.checked)}
+              />
+              Fijar arriba en la tienda (aparece primero, salvo que no tenga stock)
             </label>
             <label>
               Nota para el cliente (opcional, se ve en la tienda)

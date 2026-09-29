@@ -20,6 +20,8 @@ export interface Producto {
   descuento_pct: number | null
   /** Nota visible para el cliente en la tienda (ej. fecha de vencimiento). */
   nota: string | null
+  /** Fijado: aparece primero en la tienda (antes que el resto, salvo que este sin stock). */
+  destacado: boolean
 }
 
 export type FiltroStock = 'todos' | 'sinprecio' | 'sinstock' | 'bajostock'
@@ -171,7 +173,7 @@ export async function loadCategorias(incluirInactivos = false): Promise<string[]
 
 export async function updateProducto(
   id: string,
-  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active' | 'por_peso' | 'gramos_unidad' | 'codigo_barras' | 'descuento_pct' | 'nota'>>,
+  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active' | 'por_peso' | 'gramos_unidad' | 'codigo_barras' | 'descuento_pct' | 'nota' | 'destacado'>>,
 ) {
   const { error } = await supabase
     .from('ingreso_productos')

@@ -7,6 +7,7 @@ import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
+import { AgregarPendientes } from '../../components/AgregarPendientes'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
@@ -1382,6 +1383,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           <strong>{formatCLP(totalPendiente(pendientes))}</strong>
         </p>
         {pendienteError && <p className="error-text">{pendienteError}</p>}
+        <AgregarPendientes workerId={profile.id} pendientes={pendientes} onGuardado={loadPendientesRows} />
         <PendientesPorCliente
           pendientes={pendientes}
           nameDirectory={nameDirectory}

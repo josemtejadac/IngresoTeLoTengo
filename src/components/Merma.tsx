@@ -7,10 +7,41 @@ import {
   registrarMerma,
   type MermaHistorial,
   type ProductoTienda,
+  type TipoMerma,
 } from '../lib/tienda'
 
-/** El personal registra un producto perdido/echado a perder: descuenta stock y queda guardado con fecha. */
-export function Merma() {
+const COPY: Record<TipoMerma, { boton: string; titulo: string; intro: string; cantidadLabel: string; motivoLabel: string; motivoPlaceholder: string; guardarTexto: string; okTexto: string; vacioTexto: string }> = {
+  merma: {
+    boton: '🗑️ Merma',
+    titulo: 'Registrar merma',
+    intro: 'Para productos que se perdieron, se echaron a perder o se rompieron. Descuenta el stock y queda guardado con fecha y quién lo registró.',
+    cantidadLabel: 'perdida',
+    motivoLabel: 'Motivo (opcional)',
+    motivoPlaceholder: 'Ej: se echó a perder, se cayó...',
+    guardarTexto: 'Guardar merma',
+    okTexto: 'Merma guardada',
+    vacioTexto: 'Sin mermas registradas.',
+  },
+  gasto_operativo: {
+    boton: '📦 Gasto operativo',
+    titulo: 'Registrar gasto operativo',
+    intro: 'Para cuando se agarra un producto de la tienda para uso de la tienda (ej. bolsas, limpieza). Descuenta el stock y queda guardado con fecha, motivo y quién lo registró.',
+    cantidadLabel: 'usada',
+    motivoLabel: 'Motivo',
+    motivoPlaceholder: 'Ej: bolsas para embalar pedidos',
+    guardarTexto: 'Guardar gasto',
+    okTexto: 'Gasto guardado',
+    vacioTexto: 'Sin gastos operativos registrados.',
+  },
+}
+
+interface Props {
+  tipo: TipoMerma
+}
+
+/** El personal registra una salida de stock que no es venta: merma o gasto operativo. */
+export function Merma({ tipo }: Props) {
+  const c = COPY[tipo]
   const [abierto, setAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [productos, setProductos] = useState<ProductoTienda[]>([])
@@ -37,10 +68,10 @@ export function Merma() {
   }, [abierto, elegido, busqueda])
 
   const cargarHistorial = useCallback(() => {
-    loadMermasHistorial(30)
+    loadMermasHistorial(30, tipo)
       .then(setHistorial)
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar el historial'))
-  }, [])
+  }, [tipo])
 
   useEffect(() => {
     if (verHistorial) cargarHistorial()
@@ -60,18 +91,22 @@ export function Merma() {
       setError('Pon una cantidad válida.')
       return
     }
+    if (tipo === 'gasto_operativo' && !nota.trim()) {
+      setError('Pon el motivo.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await registrarMerma(elegido.id, n, nota)
-      setOk(`Merma guardada: ${elegido.nombre} · ${elegido.por_peso ? formatGramos(n) : `${n} un.`}`)
+      await registrarMerma(elegido.id, n, nota, tipo)
+      setOk(`${c.okTexto}: ${elegido.nombre} · ${elegido.por_peso ? formatGramos(n) : `${n} un.`}`)
       setElegido(null)
       setCantidad('')
       setNota('')
       setBusqueda('')
       if (verHistorial) cargarHistorial()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar la merma')
+      setError(err instanceof Error ? err.message : 'No se pudo guardar')
     } finally {
       setBusy(false)
     }
@@ -91,7 +126,7 @@ export function Merma() {
   if (!abierto) {
     return (
       <button type="button" className="btn btn-secondary btn-small" onClick={() => setAbierto(true)}>
-        🗑️ Merma
+        {c.boton}
       </button>
     )
   }
@@ -103,12 +138,9 @@ export function Merma() {
           <button type="button" className="btn btn-secondary btn-small" onClick={cerrar}>
             ← Cerrar
           </button>
-          <h2>Registrar merma</h2>
+          <h2>{c.titulo}</h2>
         </div>
-        <p className="subtitle">
-          Para productos que se perdieron, se echaron a perder o se rompieron. Descuenta el stock y queda guardado con
-          fecha y quién lo registró.
-        </p>
+        <p className="subtitle">{c.intro}</p>
 
         {error && <p className="error-text">{error}</p>}
         {ok && <p className="info-text">{ok}</p>}
@@ -149,7 +181,7 @@ export function Merma() {
               Cambiar producto
             </button>
             <label>
-              {elegido.por_peso ? 'Peso perdido (gramos)' : 'Cantidad perdida (unidades)'}
+              Cantidad {c.cantidadLabel} ({elegido.por_peso ? 'gramos' : 'unidades'})
               <input
                 type="number"
                 min={1}
@@ -160,15 +192,11 @@ export function Merma() {
               />
             </label>
             <label>
-              Motivo (opcional)
-              <input
-                value={nota}
-                onChange={(e) => setNota(e.target.value)}
-                placeholder="Ej: se echó a perder, se cayó..."
-              />
+              {c.motivoLabel}
+              <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder={c.motivoPlaceholder} />
             </label>
             <button type="button" className="btn btn-primary" disabled={busy} onClick={guardar}>
-              {busy ? 'Guardando...' : 'Guardar merma'}
+              {busy ? 'Guardando...' : c.guardarTexto}
             </button>
           </div>
         )}
@@ -178,7 +206,7 @@ export function Merma() {
         </button>
         {verHistorial && (
           <div className="agregar-item-lista">
-            {historial.length === 0 && <p className="subtitle">Sin mermas registradas.</p>}
+            {historial.length === 0 && <p className="subtitle">{c.vacioTexto}</p>}
             {historial.map((m) => (
               <div key={m.id} className="agregar-item-fila">
                 <span className="agregar-item-nombre">

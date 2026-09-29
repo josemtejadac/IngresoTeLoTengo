@@ -299,12 +299,18 @@ export async function agregarItemPedido(pedidoId: string, productoId: string, ca
   if (error) throw error
 }
 
-/** Registra una merma (producto que se perdio/echo a perder): descuenta el stock y queda con fecha y quien la hizo. */
-export async function registrarMerma(productoId: string, cantidad: number, nota?: string) {
+export type TipoMerma = 'merma' | 'gasto_operativo'
+
+/**
+ * Registra una salida de stock que no es venta: 'merma' (se perdio/echo a perder) o 'gasto_operativo'
+ * (se agarro un producto para uso de la tienda). Descuenta el stock y queda con fecha y quien lo hizo.
+ */
+export async function registrarMerma(productoId: string, cantidad: number, nota: string | undefined, tipo: TipoMerma) {
   const { error } = await supabase.rpc('ingreso_registrar_merma', {
     p_producto: productoId,
     p_cantidad: cantidad,
     p_nota: nota || null,
+    p_tipo: tipo,
   })
   if (error) throw error
 }
@@ -317,10 +323,11 @@ export interface MermaHistorial {
   nota: string | null
   created_at: string
   worker_name: string
+  tipo: TipoMerma
 }
 
-export async function loadMermasHistorial(dias = 30): Promise<MermaHistorial[]> {
-  const { data, error } = await supabase.rpc('ingreso_mermas_historial', { p_dias: dias })
+export async function loadMermasHistorial(dias = 30, tipo?: TipoMerma): Promise<MermaHistorial[]> {
+  const { data, error } = await supabase.rpc('ingreso_mermas_historial', { p_dias: dias, p_tipo: tipo || null })
   if (error) throw error
   return (data as MermaHistorial[]) ?? []
 }

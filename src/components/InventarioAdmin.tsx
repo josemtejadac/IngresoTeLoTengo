@@ -316,7 +316,8 @@ export function InventarioAdmin() {
           <button className="btn btn-primary" onClick={() => setVerFactura(true)}>
             🧾 Cargar factura
           </button>
-          <Merma />
+          <Merma tipo="merma" />
+          <Merma tipo="gasto_operativo" />
           <button className="btn btn-secondary" onClick={() => setOpen(false)}>
             Cerrar
           </button>

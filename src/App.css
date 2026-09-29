@@ -1430,6 +1430,24 @@ textarea {
   color: #b45309;
 }
 
+.btn-detalle {
+  align-self: flex-start;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 4px 0;
+}
+
+.btn-detalle:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
 .agregar-item-pedido {
   border-top: 1px dashed #cbd5e1;
   margin-top: 8px;

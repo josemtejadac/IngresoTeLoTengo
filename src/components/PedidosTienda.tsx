@@ -219,7 +219,7 @@ export function PedidosTienda() {
               {(items[p.id] ?? []).length} producto(s):{' '}
               {(items[p.id] ?? []).map(textoItem).join(', ')}
             </p>
-            <button type="button" className="btn-link" onClick={() => alternarDetalle(p.id)}>
+            <button type="button" className="btn-detalle" onClick={() => alternarDetalle(p.id)}>
               {abiertos.has(p.id) ? 'Ocultar detalle ▴' : 'Ver detalle del pedido ▾'}
             </button>
             {abiertos.has(p.id) && (

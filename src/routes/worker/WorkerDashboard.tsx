@@ -4,6 +4,7 @@ import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
+import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { ClienteSugerido, type ClienteOpcion } from '../../components/ClienteSugerido'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
@@ -120,6 +121,14 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [pedidosPendientes, setPedidosPendientes] = useState(0)
+  // Algunos trabajadores tienen habilitado el mismo inventario completo que usa el admin.
+  const [puedeInventarioCompleto, setPuedeInventarioCompleto] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .rpc('ingreso_puede_editar_productos')
+      .then(({ data }) => setPuedeInventarioCompleto(data === true))
+  }, [])
   const [activeTab, setActiveTab] = useState<
     'inicio' | 'productos' | 'pedidos' | 'arqueo' | 'pendientes' | 'limpieza' | 'historial'
   >('inicio')
@@ -717,7 +726,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
       {activeTab === 'inicio' && <HistorialPagos profile={profile} />}
 
-      {activeTab === 'productos' && <ProductosScanner />}
+      {activeTab === 'productos' && (puedeInventarioCompleto ? <InventarioAdmin /> : <ProductosScanner />)}
 
       {activeTab === 'pedidos' && <PedidosTienda />}
 

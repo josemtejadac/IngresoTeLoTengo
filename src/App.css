@@ -1608,17 +1608,31 @@ textarea {
 
 .merma-historial-fila {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 3px;
   border-bottom: 1px solid #f1f5f9;
-  padding: 6px 0;
-  font-size: 0.82rem;
+  padding: 9px 2px;
 }
 
 .merma-historial-fecha {
-  color: #64748b;
-  white-space: nowrap;
+  display: inline-block;
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 1px 7px;
   font-variant-numeric: tabular-nums;
+}
+
+.merma-historial-detalle {
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.merma-historial-detalle strong {
+  color: #1e293b;
 }
 
 /* ---------- Pedido manual ---------- */

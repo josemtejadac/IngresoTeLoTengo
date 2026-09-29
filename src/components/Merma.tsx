@@ -55,6 +55,16 @@ export function Merma({ tipo }: Props) {
   const [historial, setHistorial] = useState<MermaHistorial[]>([])
   const [verHistorial, setVerHistorial] = useState(false)
 
+  // Con la ventana abierta, la pagina de atras no se mueve.
+  useEffect(() => {
+    if (!abierto) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [abierto])
+
   useEffect(() => {
     if (!abierto || elegido) return
     setCargando(true)
@@ -214,7 +224,7 @@ export function Merma({ tipo }: Props) {
             {historial.map((m) => (
               <div key={m.id} className="merma-historial-fila">
                 <span className="merma-historial-fecha">{new Date(m.created_at).toLocaleDateString('es-CL')}</span>
-                <span>
+                <span className="merma-historial-detalle">
                   <strong>{m.nombre_producto}</strong> · {m.es_peso ? formatGramos(m.cantidad) : `${m.cantidad} un.`} ·{' '}
                   {m.worker_name}
                   {m.nota ? ` · ${m.nota}` : ''}

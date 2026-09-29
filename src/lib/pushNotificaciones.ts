@@ -24,17 +24,39 @@ export async function estadoNotificaciones(): Promise<'activadas' | 'desactivada
 
 /** Pide permiso (si hace falta) y guarda la suscripcion de este dispositivo para el trabajador logueado. */
 export async function activarNotificaciones() {
-  if (!pushSoportado()) throw new Error('Este navegador no soporta notificaciones.')
-  const permiso = await Notification.requestPermission()
-  if (permiso !== 'granted') throw new Error('No diste permiso para las notificaciones.')
+  if (!pushSoportado()) throw new Error('Este navegador no soporta notificaciones (prueba con Chrome).')
 
-  const reg = await navigator.serviceWorker.ready
+  // Si ya estaba bloqueado de antes, el navegador ni siquiera muestra el cuadro para pedir permiso.
+  if (Notification.permission === 'denied') {
+    throw new Error(
+      'Las notificaciones están bloqueadas para esta página. Actívalas desde el candado 🔒 o los permisos del sitio, en el navegador, y vuelve a intentar.',
+    )
+  }
+
+  const permiso = await Notification.requestPermission()
+  if (permiso !== 'granted') {
+    throw new Error(`No quedaron permitidas (el navegador respondió "${permiso}"). Vuelve a intentar y toca Permitir.`)
+  }
+
+  let reg: ServiceWorkerRegistration
+  try {
+    reg = await navigator.serviceWorker.ready
+  } catch {
+    throw new Error('La app todavía no terminó de instalarse en este navegador. Recarga la página y vuelve a intentar.')
+  }
+
   let sub = await reg.pushManager.getSubscription()
   if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-    })
+    try {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      })
+    } catch (err) {
+      // En ventanas privadas/incognito muchos navegadores no permiten suscripciones push.
+      const msg = err instanceof Error ? err.message : String(err)
+      throw new Error(`No se pudo activar en este navegador (${msg}). Prueba fuera de una ventana privada/incógnito.`)
+    }
   }
   const json = sub.toJSON()
   const { error } = await supabase.rpc('ingreso_push_suscribir', {

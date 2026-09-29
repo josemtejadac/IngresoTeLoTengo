@@ -13,8 +13,12 @@ self.addEventListener('push', (event) => {
       body: datos.texto,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      tag: 'ingreso-pedido',
+      tag: 'ingreso-pedido-' + Date.now(),
       renotify: true,
+      // Sin esto, algunos navegadores muestran la notificacion muda: se fuerza sonido y vibracion.
+      silent: false,
+      vibrate: [200, 100, 200],
+      requireInteraction: false,
       data: { pedidoId: datos.pedidoId },
     }),
   )

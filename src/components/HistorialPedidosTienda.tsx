@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
+import { downloadProductosVendidosPdf } from '../lib/productosVendidosReport'
 import {
   coincideFiltroPago,
   type FiltroPago,
@@ -30,6 +31,8 @@ export function HistorialPedidosTienda() {
   const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<FiltroPago>('todos')
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -72,9 +75,30 @@ export function HistorialPedidosTienda() {
     <section className="card">
       <div className="section-header">
         <h2>Historial de pedidos de la tienda</h2>
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        <div className="table-controls">
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            disabled={pdfBusy}
+            onClick={async () => {
+              setPdfError(null)
+              setPdfBusy(true)
+              try {
+                await downloadProductosVendidosPdf(fecha)
+              } catch (err) {
+                setPdfError(err instanceof Error ? err.message : 'No se pudo generar el PDF')
+              } finally {
+                setPdfBusy(false)
+              }
+            }}
+          >
+            {pdfBusy ? 'Generando...' : '📄 PDF de productos vendidos'}
+          </button>
+        </div>
       </div>
       <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
+      {pdfError && <p className="error-text">{pdfError}</p>}
       {error && <p className="error-text">{error}</p>}
       <p className="subtitle">
         {filtrados.length} pedido(s) · Total: <strong>{formatCLP(total)}</strong>

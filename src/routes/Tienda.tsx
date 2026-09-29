@@ -268,11 +268,18 @@ export function Tienda() {
 
   const total = cart.reduce((sum, l) => sum + totalLinea(l), 0)
   const hayAprox = cart.some((l) => l.producto.por_peso && l.modo === 'unidades')
+  // El peso real se sabe recien al pesar: con pago online no se puede cobrar ni devolver la diferencia.
+  const hayPorPeso = cart.some((l) => l.producto.por_peso)
 
   // Si el total baja de $1.000 mientras se edita el carrito, no se puede dejar elegido debito/credito.
   useEffect(() => {
     if ((metodo === 'debito' || metodo === 'credito') && total < 1000) setMetodo('efectivo')
   }, [total, metodo])
+
+  // Si se agrega un producto por peso mientras "online" estaba elegido, se cambia solo a efectivo.
+  useEffect(() => {
+    if (metodo === 'online' && hayPorPeso) setMetodo('efectivo')
+  }, [metodo, hayPorPeso])
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
@@ -766,15 +773,22 @@ export function Tienda() {
                     Con menos de $1.000 solo se puede pagar en efectivo o con pago online.
                   </p>
                 )}
-                <label className="checkbox-label">
+                <label className={hayPorPeso ? 'checkbox-label pago-disabled' : 'checkbox-label'}>
                   <input
                     type="radio"
                     name="metodo"
                     checked={metodo === 'online'}
+                    disabled={hayPorPeso}
                     onChange={() => setMetodo('online')}
                   />
                   Pago online (Flow) — tarjeta o transferencia
                 </label>
+                {hayPorPeso && (
+                  <p className="subtitle">
+                    Tu pedido tiene productos por peso (se pesan al entregar): con esos solo se puede pagar al
+                    recibir.
+                  </p>
+                )}
               </fieldset>
               {error && <p className="error-text">{error}</p>}
               <div className="report-row">

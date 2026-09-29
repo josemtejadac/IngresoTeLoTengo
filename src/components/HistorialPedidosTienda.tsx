@@ -42,8 +42,9 @@ export function HistorialPedidosTienda() {
         rows.map(async (p) => [p.id, await loadPedidoTiendaItems(p.id)] as const),
       )
       setItems(Object.fromEntries(entries))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando el historial')
+      setError(null)
+    } catch {
+      setError('Reconectando... la lista se actualiza sola en unos segundos.')
     }
   }, [fecha])
 

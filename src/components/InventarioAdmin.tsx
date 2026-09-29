@@ -71,8 +71,9 @@ export function InventarioAdmin() {
         .select('id', { count: 'exact', head: true })
         .eq('active', !catalogoOculto)
       setTotalModo(count)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando productos')
+      setError(null)
+    } catch {
+      setError('Reconectando... la lista se actualiza sola en unos segundos.')
     }
   }, [categoria, search, catalogoOculto])
 

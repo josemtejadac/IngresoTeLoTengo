@@ -108,6 +108,11 @@ export function PedidoManual({ onCreado }: Props) {
   }
 
   const total = lineas.reduce((sum, l) => sum + totalLinea(l), 0)
+
+  // Si el total baja de $1.000 mientras se edita el pedido, no se puede dejar seleccionado debito/credito.
+  useEffect(() => {
+    if ((metodo === 'debito' || metodo === 'credito') && total < 1000) setMetodo('efectivo')
+  }, [total, metodo])
   const enLinea = (id: string) => lineas.find((l) => l.producto.id === id)?.cantidad ?? 0
 
   async function guardar(e: React.FormEvent) {
@@ -196,13 +201,25 @@ export function PedidoManual({ onCreado }: Props) {
 
         <fieldset className="pago-metodos">
           <legend>Paga en la entrega con</legend>
-          {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => (
-            <label key={m} className="checkbox-label">
-              <input type="radio" name="metodo-manual" checked={metodo === m} onChange={() => setMetodo(m)} />
-              {METODO_PAGO_LABEL[m]}
-            </label>
-          ))}
+          {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => {
+            const bloqueado = (m === 'debito' || m === 'credito') && total < 1000
+            return (
+              <label key={m} className={bloqueado ? 'checkbox-label pago-disabled' : 'checkbox-label'}>
+                <input
+                  type="radio"
+                  name="metodo-manual"
+                  checked={metodo === m}
+                  disabled={bloqueado}
+                  onChange={() => setMetodo(m)}
+                />
+                {METODO_PAGO_LABEL[m]}
+              </label>
+            )
+          })}
         </fieldset>
+        {total > 0 && total < 1000 && (
+          <p className="subtitle">Con menos de $1.000 solo se puede pagar en efectivo o transferencia.</p>
+        )}
 
         <h3 className="manual-titulo">Productos</h3>
         <input

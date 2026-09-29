@@ -261,6 +261,11 @@ export function Tienda() {
   const total = cart.reduce((sum, l) => sum + totalLinea(l), 0)
   const hayAprox = cart.some((l) => l.producto.por_peso && l.modo === 'unidades')
 
+  // Si el total baja de $1.000 mientras se edita el carrito, no se puede dejar elegido debito/credito.
+  useEffect(() => {
+    if ((metodo === 'debito' || metodo === 'credito') && total < 1000) setMetodo('efectivo')
+  }, [total, metodo])
+
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
     if (cart.length === 0) return
@@ -733,17 +738,26 @@ export function Tienda() {
               )}
               <fieldset className="pago-metodos">
                 <legend>¿Cómo pagas?</legend>
-                {(['efectivo', 'debito', 'credito'] as MetodoPago[]).map((m) => (
-                  <label key={m} className="checkbox-label">
-                    <input
-                      type="radio"
-                      name="metodo"
-                      checked={metodo === m}
-                      onChange={() => setMetodo(m)}
-                    />
-                    {METODO_PAGO_LABEL[m]} al recibir
-                  </label>
-                ))}
+                {(['efectivo', 'debito', 'credito'] as MetodoPago[]).map((m) => {
+                  const bloqueado = (m === 'debito' || m === 'credito') && total < 1000
+                  return (
+                    <label key={m} className={bloqueado ? 'checkbox-label pago-disabled' : 'checkbox-label'}>
+                      <input
+                        type="radio"
+                        name="metodo"
+                        checked={metodo === m}
+                        disabled={bloqueado}
+                        onChange={() => setMetodo(m)}
+                      />
+                      {METODO_PAGO_LABEL[m]} al recibir
+                    </label>
+                  )
+                })}
+                {total < 1000 && (
+                  <p className="subtitle">
+                    Con menos de $1.000 solo se puede pagar en efectivo o con pago online.
+                  </p>
+                )}
                 <label className="checkbox-label">
                   <input
                     type="radio"

@@ -9,7 +9,6 @@ import {
   cambiarMetodoPedido,
   coincideFiltroPago,
   type FiltroPago,
-  marcarPedidoPagado,
   METODO_PAGO_LABEL,
   loadPedidosTiendaPendientes,
   loadFotosProductos,
@@ -58,8 +57,12 @@ export function PedidosTienda() {
       setItems(Object.fromEntries(entries))
       const idsProductos = [...new Set(entries.flatMap(([, its]) => its.map((i) => i.producto_id).filter((x): x is string => !!x)))]
       setFotos(await loadFotosProductos(idsProductos))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando pedidos de la tienda')
+      // Se limpia cualquier error viejo: si esto se ejecuto es porque la carga funciono.
+      setError(null)
+    } catch {
+      // Suele ser la app despertando de segundo plano con la conexion aun reconectandose: no es un error real,
+      // se reintenta sola (tiempo real + respaldo cada 20s) y se mantiene la ultima lista conocida en pantalla.
+      setError('Reconectando... la lista se actualiza sola en unos segundos.')
     }
   }, [])
 
@@ -100,19 +103,6 @@ export function PedidosTienda() {
     if (!it.es_peso) return `${it.cantidad}x ${it.nombre_producto}`
     const pedido = it.unidades ? `${it.unidades} un, ` : ''
     return `${it.nombre_producto} (${pedido}${it.aprox ? '≈ ' : ''}${formatGramos(it.cantidad)})`
-  }
-
-  async function handlePagado(id: string) {
-    setBusyId(id)
-    setError(null)
-    try {
-      await marcarPedidoPagado(id)
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error marcando el pago')
-    } finally {
-      setBusyId(null)
-    }
   }
 
   async function handleCambiarMetodo(p: PedidoTienda, nuevo: 'efectivo' | 'debito' | 'credito' | 'transferencia') {
@@ -294,31 +284,22 @@ export function PedidosTienda() {
               )}
               {p.metodo_pago !== 'online' && p.estado === 'pendiente' && (
                 <div className="metodo-cambiar">
-                  {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      className={p.metodo_pago === m ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-                      disabled={busyId === p.id}
-                      onClick={() => handleCambiarMetodo(p, m)}
-                    >
-                      {METODO_PAGO_LABEL[m]}
-                    </button>
-                  ))}
+                  {(['efectivo', 'debito', 'credito', 'transferencia'] as const).map((m) => {
+                    const bloqueado = (m === 'debito' || m === 'credito') && p.total < 1000
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        className={p.metodo_pago === m ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                        disabled={busyId === p.id || bloqueado}
+                        title={bloqueado ? 'Con menos de $1.000 no se puede con tarjeta' : undefined}
+                        onClick={() => handleCambiarMetodo(p, m)}
+                      >
+                        {METODO_PAGO_LABEL[m]}
+                      </button>
+                    )
+                  })}
                 </div>
-              )}
-              {p.pago_estado !== 'pagado' && (
-                <button
-                  className="btn btn-secondary btn-small"
-                  disabled={busyId === p.id}
-                  onClick={() => {
-                    if (window.confirm(`¿Confirmas que el pedido de ${p.nombre_cliente} está pagado?`)) {
-                      handlePagado(p.id)
-                    }
-                  }}
-                >
-                  Marcar pagado
-                </button>
               )}
             </div>
           </div>

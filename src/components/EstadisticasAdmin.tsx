@@ -48,8 +48,9 @@ export function EstadisticasAdmin() {
   const load = useCallback(async () => {
     try {
       setDatos(await loadEstadisticasAdmin(90))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error cargando las estadísticas')
+      setError(null)
+    } catch {
+      setError('Reconectando... esto se actualiza solo en unos segundos.')
     }
   }, [])
 

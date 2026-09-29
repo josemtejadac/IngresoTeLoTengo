@@ -169,7 +169,15 @@ export function Tienda() {
   }, [sinConexion, runSearch])
 
   // Tiempo real: si un producto se agota o cambia de precio, el catalogo se actualiza solo.
-  useRealtimeRefresh(['ingreso_productos'], runSearch)
+  // El respaldo cada 30s cubre el caso en que la conexion en vivo se corte sin avisar.
+  useRealtimeRefresh(['ingreso_productos'], runSearch, 30000)
+
+  // El detalle abierto de un producto tambien se actualiza en vivo (por si se agota mientras el cliente lo mira).
+  useEffect(() => {
+    if (!detalle) return
+    const actualizado = productos.find((p) => p.id === detalle.id)
+    if (actualizado && actualizado !== detalle) setDetalle(actualizado)
+  }, [productos, detalle])
 
   function abrirPeso(producto: ProductoTienda) {
     const existente = cart.find((l) => l.producto.id === producto.id)

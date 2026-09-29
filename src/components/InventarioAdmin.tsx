@@ -4,6 +4,7 @@ import { FotoProductoModal } from './FotoProductoModal'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
 import { Merma } from './Merma'
+import { downloadInventarioExcel } from '../lib/inventarioExcel'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import {
@@ -49,6 +50,19 @@ export function InventarioAdmin() {
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [descargandoExcel, setDescargandoExcel] = useState(false)
+
+  async function handleDescargarExcel() {
+    setDescargandoExcel(true)
+    setError(null)
+    try {
+      await downloadInventarioExcel()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error descargando el inventario')
+    } finally {
+      setDescargandoExcel(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -318,6 +332,9 @@ export function InventarioAdmin() {
           </button>
           <Merma tipo="merma" />
           <Merma tipo="gasto_operativo" />
+          <button className="btn btn-secondary" disabled={descargandoExcel} onClick={handleDescargarExcel}>
+            {descargandoExcel ? 'Descargando...' : '📊 Descargar inventario (Excel)'}
+          </button>
           <button className="btn btn-secondary" onClick={() => setOpen(false)}>
             Cerrar
           </button>

@@ -197,8 +197,8 @@ export function PedidoManual({ onCreado }: Props) {
             <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
           </label>
           <label>
-            Teléfono
-            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" required />
+            Teléfono (opcional)
+            <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" />
           </label>
           <label>
             Torre

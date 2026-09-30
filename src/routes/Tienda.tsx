@@ -561,9 +561,22 @@ export function Tienda() {
             {METODO_PAGO_LABEL[confirmacion.metodo]} al recibir
           </p>
           <p>Te avisaremos cuando estemos en camino.</p>
-          <button className="btn btn-primary" onClick={() => setConfirmacion(null)}>
-            Hacer otro pedido
-          </button>
+          <NotificacionesPedidoCliente pedidoId={confirmacion.pedidoId} />
+          <div className="report-row">
+            <button className="btn btn-primary" onClick={() => setConfirmacion(null)}>
+              Hacer otro pedido
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setConfirmacion(null)
+                abrirHistorial()
+              }}
+            >
+              Ver estado de mi pedido
+            </button>
+          </div>
         </div>
       </div>
     )

@@ -54,15 +54,14 @@ export function PedidosTienda() {
   function alternarDetalle(id: string) {
     setAbiertos((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-        // Al abrir el detalle, el cliente ya puede ver "empacando tu pedido" (no se espera respuesta).
-        marcarProgresoPedido(id, 'preparando').catch(() => {})
-      }
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
+    if (!abiertos.has(id)) {
+      // Al abrir el detalle, el cliente ya puede ver "empacando tu pedido" (no se espera respuesta).
+      marcarProgresoPedido(id, 'preparando').catch(() => {})
+    }
   }
 
   const load = useCallback(async () => {
@@ -361,15 +360,22 @@ export function PedidosTienda() {
             <div className="pedido-acciones">
               {p.estado === 'pendiente' && (
                 <>
-                  <a
+                  <button
+                    type="button"
                     className="btn btn-primary btn-small"
-                    href={whatsappEnCaminoUrl(p.telefono_cliente)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => marcarProgresoPedido(p.id, 'en_camino').catch(() => {})}
+                    onClick={async () => {
+                      // Se espera a que quede guardado ANTES de abrir WhatsApp: al abrir una app externa
+                      // desde el celular, la pestaña puede quedar en pausa y cortar la llamada a mitad de camino.
+                      try {
+                        await marcarProgresoPedido(p.id, 'en_camino')
+                      } catch {
+                        // si falla el aviso, igual se abre WhatsApp
+                      }
+                      window.open(whatsappEnCaminoUrl(p.telefono_cliente), '_blank', 'noopener,noreferrer')
+                    }}
                   >
                     Estoy en camino
-                  </a>
+                  </button>
                   <button
                     className="btn btn-secondary btn-small"
                     disabled={busyId === p.id}

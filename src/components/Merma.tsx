@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
-import {
-  loadCatalogoTienda,
-  loadMermasHistorial,
-  registrarMerma,
-  type MermaHistorial,
-  type ProductoTienda,
-  type TipoMerma,
-} from '../lib/tienda'
+import { loadProductos, type Producto } from '../lib/inventario'
+import { loadMermasHistorial, registrarMerma, type MermaHistorial, type TipoMerma } from '../lib/tienda'
 
 const COPY: Record<
   TipoMerma,
@@ -59,7 +53,7 @@ interface Props {
 
 interface ItemCarrito {
   key: string
-  producto: ProductoTienda
+  producto: Producto
   cantidad: string
   nota: string
 }
@@ -69,9 +63,9 @@ export function Merma({ tipo }: Props) {
   const c = COPY[tipo]
   const [abierto, setAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
-  const [productos, setProductos] = useState<ProductoTienda[]>([])
+  const [productos, setProductos] = useState<Producto[]>([])
   const [cargando, setCargando] = useState(false)
-  const [elegido, setElegido] = useState<ProductoTienda | null>(null)
+  const [elegido, setElegido] = useState<Producto | null>(null)
   const [cantidad, setCantidad] = useState('')
   const [nota, setNota] = useState('')
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
@@ -95,8 +89,8 @@ export function Merma({ tipo }: Props) {
     if (!abierto || elegido) return
     setCargando(true)
     const t = setTimeout(() => {
-      loadCatalogoTienda({ search: busqueda.trim() || undefined })
-        .then((r) => setProductos(r.slice(0, 8)))
+      loadProductos({ search: busqueda.trim() || undefined, limit: 8 })
+        .then(setProductos)
         .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar los productos'))
         .finally(() => setCargando(false))
     }, 250)
@@ -113,7 +107,7 @@ export function Merma({ tipo }: Props) {
     if (verHistorial) cargarHistorial()
   }, [verHistorial, cargarHistorial])
 
-  function elegir(p: ProductoTienda) {
+  function elegir(p: Producto) {
     setElegido(p)
     setCantidad('')
     setNota('')
@@ -224,8 +218,8 @@ export function Merma({ tipo }: Props) {
                   <span className="merma-picker-info">
                     <span className="merma-picker-nombre">{p.nombre}</span>
                     <span className="merma-picker-meta">
-                      {formatCLP(p.precio)}
-                      {p.por_peso ? '/kg' : ''} · stock {p.por_peso ? formatGramos(p.stock_max ?? 0) : (p.stock_max ?? 0)}
+                      {formatCLP(p.precio ?? 0)}
+                      {p.por_peso ? '/kg' : ''} · stock {p.por_peso ? formatGramos(p.stock) : p.stock}
                     </span>
                   </span>
                   <button type="button" className="btn btn-primary btn-small" onClick={() => elegir(p)}>

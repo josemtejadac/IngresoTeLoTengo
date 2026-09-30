@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { montoPorPeso } from '../lib/peso'
+import { formatGramos, montoPorPeso } from '../lib/peso'
+import { supabase } from '../lib/supabase'
 import { Stepper } from './Stepper'
 import { loadCatalogoTienda, productoFotoUrl, type ProductoTienda } from '../lib/tienda'
 import type { ItemFiadoInput } from '../lib/pendientes'
@@ -50,6 +51,9 @@ export function ElegirProductosPendiente({ inicial, onConfirmar, onCancelar }: P
   const [lineas, setLineas] = useState<LineaFiado[]>(inicial)
   const [pesoDe, setPesoDe] = useState<ProductoTienda | null>(null)
   const [gramos, setGramos] = useState('250')
+  // El catalogo de la tienda no trae el stock real en gramos de los productos por peso (el cliente pide
+  // aproximado); para elegir un fiado si hace falta el stock exacto, se consulta aparte.
+  const [stockPeso, setStockPeso] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -62,10 +66,17 @@ export function ElegirProductosPendiente({ inicial, onConfirmar, onCancelar }: P
   const cargarProductos = useCallback(() => {
     setCargando(true)
     loadCatalogoTienda({ search: busqueda.trim() || undefined })
-      .then((r) => {
+      .then(async (r) => {
         setProductos(r)
         setVerTodos(false)
         setErrorCarga(null)
+        const idsPorPeso = r.filter((p) => p.por_peso).map((p) => p.id)
+        if (idsPorPeso.length > 0) {
+          const { data } = await supabase.from('ingreso_productos').select('id, stock').in('id', idsPorPeso)
+          const mapa: Record<string, number> = {}
+          for (const row of (data as { id: string; stock: number }[]) ?? []) mapa[row.id] = row.stock
+          setStockPeso((prev) => ({ ...prev, ...mapa }))
+        }
       })
       .catch((err) => setErrorCarga(err instanceof Error ? err.message : 'No se pudieron cargar los productos'))
       .finally(() => setCargando(false))
@@ -145,10 +156,14 @@ export function ElegirProductosPendiente({ inicial, onConfirmar, onCancelar }: P
         {pesoDe && (
           <div className="manual-peso">
             <strong>{pesoDe.nombre}</strong> · {formatCLP(pesoDe.precio)}/kg
+            {stockPeso[pesoDe.id] !== undefined && (
+              <p className="subtitle">Stock disponible: {formatGramos(stockPeso[pesoDe.id])}</p>
+            )}
             <div className="report-row">
               <input
                 type="number"
                 min={50}
+                max={stockPeso[pesoDe.id]}
                 value={gramos}
                 onChange={(e) => setGramos(e.target.value)}
                 className="qty-input"
@@ -182,7 +197,15 @@ export function ElegirProductosPendiente({ inicial, onConfirmar, onCancelar }: P
                     <span className="manual-prod-precio">
                       {formatCLP(p.precio)}
                       {p.por_peso ? '/kg' : ''}
-                      {!p.disponible ? ' · Sin stock' : p.stock_max !== null ? ` · stock ${p.stock_max}` : ''}
+                      {!p.disponible
+                        ? ' · Sin stock'
+                        : p.por_peso
+                          ? stockPeso[p.id] !== undefined
+                            ? ` · stock ${formatGramos(stockPeso[p.id])}`
+                            : ''
+                          : p.stock_max !== null
+                            ? ` · stock ${p.stock_max}`
+                            : ''}
                     </span>
                   </span>
                 </button>

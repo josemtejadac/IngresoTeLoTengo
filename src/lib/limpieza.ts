@@ -3,15 +3,19 @@ import { compressImageFile } from './compressImage'
 
 const BUCKET = 'ingreso-limpieza'
 
+export type TipoReporteLimpieza = 'limpieza' | 'observacion'
+
 export interface ReporteLimpieza {
   id: string
   worker_id: string
   nota: string
   foto_path: string
-  /** Hasta 3 fotos del reporte (foto_path es solo la primera, por compatibilidad). */
+  /** Hasta 3 fotos del reporte (foto_path es solo la primera, por compatibilidad). Vacio si es observacion sin foto. */
   foto_paths: string[]
   tarea_id: string | null
   created_at: string
+  /** 'limpieza' (con foto) u 'observacion' (nota sola, la foto es opcional). */
+  tipo: TipoReporteLimpieza
 }
 
 export const MAX_FOTOS_LIMPIEZA = 3
@@ -35,8 +39,10 @@ export async function crearReporteLimpieza(
   fotos: (File | Blob)[],
   nota: string,
   tareaId: string | null = null,
+  tipo: TipoReporteLimpieza = 'limpieza',
 ) {
-  if (fotos.length === 0) throw new Error('Agrega al menos una foto.')
+  // Una observacion es solo una nota: la foto es opcional. Una limpieza siempre necesita al menos una.
+  if (tipo === 'limpieza' && fotos.length === 0) throw new Error('Agrega al menos una foto.')
   if (fotos.length > MAX_FOTOS_LIMPIEZA) throw new Error(`Máximo ${MAX_FOTOS_LIMPIEZA} fotos.`)
 
   const paths: string[] = []
@@ -50,9 +56,14 @@ export async function crearReporteLimpieza(
       if (uploadError) throw uploadError
       paths.push(path)
     }
-    const { error } = await supabase
-      .from('ingreso_reportes_limpieza')
-      .insert({ worker_id: workerId, nota: nota.trim(), foto_path: paths[0], foto_paths: paths, tarea_id: tareaId })
+    const { error } = await supabase.from('ingreso_reportes_limpieza').insert({
+      worker_id: workerId,
+      nota: nota.trim(),
+      foto_path: paths[0] ?? null,
+      foto_paths: paths,
+      tarea_id: tareaId,
+      tipo,
+    })
     if (error) throw error
   } catch (err) {
     // No dejar fotos huerfanas si algo del proceso falla.
@@ -76,8 +87,8 @@ export async function fotosLimpiezaUrls(paths: string[]): Promise<Record<string,
 export async function eliminarReporteLimpieza(r: ReporteLimpieza) {
   const { error } = await supabase.from('ingreso_reportes_limpieza').delete().eq('id', r.id)
   if (error) throw error
-  const paths = r.foto_paths?.length > 0 ? r.foto_paths : [r.foto_path]
-  await supabase.storage.from(BUCKET).remove(paths)
+  const paths = (r.foto_paths?.length > 0 ? r.foto_paths : [r.foto_path]).filter((p): p is string => !!p)
+  if (paths.length > 0) await supabase.storage.from(BUCKET).remove(paths)
 }
 
 export interface TareaLimpieza {

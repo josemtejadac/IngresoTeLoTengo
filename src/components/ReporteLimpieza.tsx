@@ -12,6 +12,7 @@ import {
   loadTareasLimpieza,
   MAX_FOTOS_LIMPIEZA,
   type TareaLimpieza,
+  type TipoReporteLimpieza,
   type ReporteLimpieza as Reporte,
 } from '../lib/limpieza'
 
@@ -30,6 +31,7 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
   const [reportes, setReportes] = useState<Reporte[]>([])
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [names, setNames] = useState<Record<string, string>>({})
+  const [tipo, setTipo] = useState<TipoReporteLimpieza>('limpieza')
   const [nota, setNota] = useState('')
   const [fotos, setFotos] = useState<FotoPendiente[]>([])
   const [camaraAbierta, setCamaraAbierta] = useState(false)
@@ -96,8 +98,12 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (busyRef.current) return
-    if (fotos.length === 0 || !nota.trim()) {
-      setError('Agrega al menos una foto y una nota (ej: limpieza nevera).')
+    if (!nota.trim() || (tipo === 'limpieza' && fotos.length === 0)) {
+      setError(
+        tipo === 'limpieza'
+          ? 'Agrega al menos una foto y una nota (ej: limpieza nevera).'
+          : 'Agrega una nota (la foto es opcional en una observación).',
+      )
       return
     }
     busyRef.current = true
@@ -109,9 +115,11 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
         fotos.map((f) => f.blob),
         nota,
         tareaActiva?.id ?? null,
+        tipo,
       )
       setTareaActiva(null)
       setNota('')
+      setTipo('limpieza')
       fotos.forEach((f) => URL.revokeObjectURL(f.previewUrl))
       setFotos([])
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -176,10 +184,10 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
 
   return (
     <section className="card">
-      <h2>🧹 Reporte de limpieza</h2>
+      <h2>🧹 Limpieza y observaciones</h2>
       <p className="subtitle">
-        Sube hasta {MAX_FOTOS_LIMPIEZA} fotos de lo que limpiaste y escribe qué fue. Los reportes se borran solos a
-        los 60 días. Lo ven todos los trabajadores y el administrador.
+        Registra una limpieza (con foto) o deja una observación (solo nota, sin foto obligatoria). Los reportes se
+        borran solos a los 60 días. Lo ven todos los trabajadores y el administrador.
       </p>
 
       {isAdmin && (
@@ -248,8 +256,24 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
         )}
 
         <form onSubmit={handleSubmit} className="worker-form limpieza-form">
+          <div className="limpieza-tipo-tabs">
+            <button
+              type="button"
+              className={tipo === 'limpieza' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+              onClick={() => setTipo('limpieza')}
+            >
+              🧹 Limpieza
+            </button>
+            <button
+              type="button"
+              className={tipo === 'observacion' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+              onClick={() => setTipo('observacion')}
+            >
+              📝 Observación
+            </button>
+          </div>
           <p className="campo-etiqueta">
-            Fotos ({fotos.length}/{MAX_FOTOS_LIMPIEZA})
+            Fotos ({fotos.length}/{MAX_FOTOS_LIMPIEZA}){tipo === 'observacion' ? ' — opcional' : ''}
           </p>
           <div className="limpieza-fotos-fila">
             {fotos.map((f) => (
@@ -288,7 +312,7 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
               value={nota}
               onChange={(e) => setNota(e.target.value)}
               maxLength={200}
-              placeholder="Ej: limpieza nevera"
+              placeholder={tipo === 'limpieza' ? 'Ej: limpieza nevera' : 'Ej: se acabó el detergente'}
             />
           </label>
           {error && <p className="error-text">{error}</p>}
@@ -316,9 +340,9 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
             const fotosR = fotosDe(r)
             return (
               <div key={r.id} className="limpieza-card">
-                <div className="limpieza-card-fotos">
-                  {fotosR.length > 0 ? (
-                    fotosR.map((u, i) => (
+                {fotosR.length > 0 ? (
+                  <div className="limpieza-card-fotos">
+                    {fotosR.map((u, i) => (
                       <img
                         key={i}
                         src={u}
@@ -326,12 +350,21 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
                         className="limpieza-card-foto"
                         onClick={() => setVerFoto({ nombre: r.nota, urls: fotosR, indice: i })}
                       />
-                    ))
-                  ) : (
-                    <div className="limpieza-card-foto limpieza-card-foto-vacia" />
+                    ))}
+                  </div>
+                ) : (
+                  <span className="limpieza-card-tipo-badge">
+                    {r.tipo === 'observacion' ? '📝 Observación' : '🧹 Limpieza'}
+                  </span>
+                )}
+                <p className="limpieza-card-nota">
+                  {fotosR.length > 0 && (
+                    <span className="limpieza-card-tipo-icono" title={r.tipo === 'observacion' ? 'Observación' : 'Limpieza'}>
+                      {r.tipo === 'observacion' ? '📝' : '🧹'}
+                    </span>
                   )}
-                </div>
-                <p className="limpieza-card-nota">{r.nota}</p>
+                  {r.nota}
+                </p>
                 <p className="subtitle">
                   {names[r.worker_id] ?? '—'} ·{' '}
                   {new Date(r.created_at).toLocaleString('es-CL', {

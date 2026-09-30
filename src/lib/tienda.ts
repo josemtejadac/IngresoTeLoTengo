@@ -416,8 +416,18 @@ export interface MermaHistorial {
   tipo: TipoMerma
 }
 
-export async function loadMermasHistorial(dias = 30, tipo?: TipoMerma): Promise<MermaHistorial[]> {
-  const { data, error } = await supabase.rpc('ingreso_mermas_historial', { p_dias: dias, p_tipo: tipo || null })
+/** Sin rango de fechas, trae los ultimos `dias` dias. Con rango, ese manda y `dias` se ignora. */
+export async function loadMermasHistorial(
+  dias = 30,
+  tipo?: TipoMerma,
+  rango?: { desde?: string; hasta?: string },
+): Promise<MermaHistorial[]> {
+  const { data, error } = await supabase.rpc('ingreso_mermas_historial', {
+    p_dias: dias,
+    p_tipo: tipo || null,
+    p_desde: rango?.desde || null,
+    p_hasta: rango?.hasta || null,
+  })
   if (error) throw error
   return (data as MermaHistorial[]) ?? []
 }

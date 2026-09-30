@@ -1827,6 +1827,145 @@ textarea {
   gap: 6px;
 }
 
+/* ---------- Reporte de limpieza ---------- */
+.limpieza-bloque {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #eef2f7;
+}
+
+.limpieza-form-tarea {
+  align-items: flex-end;
+}
+
+.limpieza-form {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.limpieza-fotos-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0 12px;
+}
+
+.limpieza-foto-miniatura {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.limpieza-foto-miniatura img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.limpieza-foto-quitar {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.limpieza-foto-agregar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+
+.limpieza-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.limpieza-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.limpieza-card-fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 4px;
+}
+
+.limpieza-card-fotos:has(img:only-child) {
+  grid-template-columns: 1fr;
+}
+
+.limpieza-card-foto {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f1f5f9;
+}
+
+.limpieza-card-foto-vacia {
+  cursor: default;
+}
+
+.limpieza-card-nota {
+  margin: 4px 0 0;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.limpieza-visor-miniaturas {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.limpieza-visor-mini {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.6;
+  border: 2px solid transparent;
+}
+
+.limpieza-visor-mini.activa {
+  opacity: 1;
+  border-color: #16a34a;
+}
+
+.merma-historial-filtro {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
 .merma-historial-fecha-grupo {
   margin: 0;
   font-size: 0.75rem;

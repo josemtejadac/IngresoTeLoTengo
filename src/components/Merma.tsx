@@ -98,6 +98,8 @@ export function Merma({ tipo }: Props) {
   const [ok, setOk] = useState<string | null>(null)
   const [historial, setHistorial] = useState<MermaHistorial[]>([])
   const [verHistorial, setVerHistorial] = useState(false)
+  const [filtroDesde, setFiltroDesde] = useState('')
+  const [filtroHasta, setFiltroHasta] = useState('')
 
   // Con la ventana abierta, la pagina de atras no se mueve.
   useEffect(() => {
@@ -122,10 +124,10 @@ export function Merma({ tipo }: Props) {
   }, [abierto, elegido, busqueda])
 
   const cargarHistorial = useCallback(() => {
-    loadMermasHistorial(30, tipo)
+    loadMermasHistorial(30, tipo, { desde: filtroDesde || undefined, hasta: filtroHasta || undefined })
       .then(setHistorial)
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar el historial'))
-  }, [tipo])
+  }, [tipo, filtroDesde, filtroHasta])
 
   useEffect(() => {
     if (verHistorial) cargarHistorial()
@@ -317,10 +319,32 @@ export function Merma({ tipo }: Props) {
         )}
 
         <button type="button" className="btn-detalle" onClick={() => setVerHistorial((v) => !v)}>
-          {verHistorial ? 'Ocultar historial ▴' : 'Ver historial (30 días) ▾'}
+          {verHistorial ? 'Ocultar historial ▴' : `Ver historial (${filtroDesde || filtroHasta ? 'filtrado' : '30 días'}) ▾`}
         </button>
         {verHistorial && (
           <div className="merma-historial">
+            <div className="merma-historial-filtro">
+              <label>
+                Desde
+                <input type="date" value={filtroDesde} onChange={(e) => setFiltroDesde(e.target.value)} />
+              </label>
+              <label>
+                Hasta
+                <input type="date" value={filtroHasta} onChange={(e) => setFiltroHasta(e.target.value)} />
+              </label>
+              {(filtroDesde || filtroHasta) && (
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={() => {
+                    setFiltroDesde('')
+                    setFiltroHasta('')
+                  }}
+                >
+                  Quitar filtro
+                </button>
+              )}
+            </div>
             {historial.length === 0 && <p className="subtitle">{c.vacioTexto}</p>}
             {gruposHistorialPorFecha(historial).map((grupo) => (
               <div key={grupo.fecha} className="merma-historial-grupo">

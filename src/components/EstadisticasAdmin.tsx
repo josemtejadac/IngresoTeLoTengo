@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
+import { updateProducto } from '../lib/inventario'
 import {
   loadEstadisticasAdmin,
   preguntarEstadisticasIA,
@@ -50,6 +51,8 @@ export function EstadisticasAdmin() {
   const [preguntaIA, setPreguntaIA] = useState('')
   const [cargandoIA, setCargandoIA] = useState(false)
   const [errorIA, setErrorIA] = useState<string | null>(null)
+  const [destacados, setDestacados] = useState<Record<string, boolean>>({})
+  const [fijandoId, setFijandoId] = useState<string | null>(null)
   const yaPidioAnalisis = useRef(false)
 
   const load = useCallback(async () => {
@@ -64,6 +67,33 @@ export function EstadisticasAdmin() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Para saber cuales de "Lo que más se vende" ya están fijados en la tienda (y poder marcarlos aquí mismo).
+  useEffect(() => {
+    const ids = datos?.top_productos.map((p) => p.producto_id) ?? []
+    if (ids.length === 0) return
+    supabase
+      .from('ingreso_productos')
+      .select('id, destacado')
+      .in('id', ids)
+      .then(({ data }) => {
+        const mapa: Record<string, boolean> = {}
+        for (const r of (data as { id: string; destacado: boolean }[]) ?? []) mapa[r.id] = r.destacado
+        setDestacados(mapa)
+      })
+  }, [datos])
+
+  async function alternarFijado(productoId: string, actual: boolean) {
+    setFijandoId(productoId)
+    try {
+      await updateProducto(productoId, { destacado: !actual })
+      setDestacados((prev) => ({ ...prev, [productoId]: !actual }))
+    } catch {
+      // si falla, el estado no cambia visualmente y el admin puede reintentar
+    } finally {
+      setFijandoId(null)
+    }
+  }
 
   async function preguntarIA(pregunta: string) {
     if (!datos) return
@@ -188,6 +218,9 @@ export function EstadisticasAdmin() {
       </ul>
 
       <h3>Lo que más se vende</h3>
+      <p className="subtitle">
+        Fija los que quieras que aparezcan siempre primero en la tienda (antes que el resto, salvo que se agoten).
+      </p>
       {datos.top_productos.length === 0 ? (
         <p className="subtitle">Sin ventas en este período.</p>
       ) : (
@@ -197,16 +230,30 @@ export function EstadisticasAdmin() {
               <th>Producto</th>
               <th>Vendido</th>
               <th>Ingresos</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {datos.top_productos.map((p) => (
-              <tr key={p.producto_id}>
-                <td className="col-nombre">{p.nombre}</td>
-                <td>{textoUnidades(p)}</td>
-                <td>{formatCLP(p.ingresos)}</td>
-              </tr>
-            ))}
+            {datos.top_productos.map((p) => {
+              const fijado = destacados[p.producto_id] ?? false
+              return (
+                <tr key={p.producto_id}>
+                  <td className="col-nombre">{p.nombre}</td>
+                  <td>{textoUnidades(p)}</td>
+                  <td>{formatCLP(p.ingresos)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className={fijado ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                      disabled={fijandoId === p.producto_id}
+                      onClick={() => alternarFijado(p.producto_id, fijado)}
+                    >
+                      {fijandoId === p.producto_id ? '...' : fijado ? '📌 Fijado' : '📌 Fijar'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}

@@ -305,6 +305,17 @@ select {
   width: 70px;
 }
 
+.stock-llego {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.stock-llego .qty-input {
+  width: 56px;
+}
+
 .tienda-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

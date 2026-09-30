@@ -44,6 +44,7 @@ export function InventarioAdmin() {
   const [editCategoria, setEditCategoria] = useState('')
   const [editPrecio, setEditPrecio] = useState('')
   const [editStock, setEditStock] = useState('0')
+  const [editLlego, setEditLlego] = useState('')
   const [editPorPeso, setEditPorPeso] = useState(false)
   const [editGramosUnidad, setEditGramosUnidad] = useState('')
   const [editDescuento, setEditDescuento] = useState('')
@@ -203,6 +204,7 @@ export function InventarioAdmin() {
     setEditCategoria(p.categoria ?? '')
     setEditPrecio(p.precio?.toString() ?? '')
     setEditStock(p.stock.toString())
+    setEditLlego('')
     setEditPorPeso(p.por_peso)
     setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
     setEditDescuento(p.descuento_pct?.toString() ?? '')
@@ -654,6 +656,30 @@ export function InventarioAdmin() {
               {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
               <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />
             </label>
+            <div className="report-row">
+              <label>
+                Llegó ahora {editPorPeso ? '(gramos)' : '(unidades)'}
+                <input
+                  type="number"
+                  min={0}
+                  value={editLlego}
+                  onChange={(e) => setEditLlego(e.target.value)}
+                  placeholder="0"
+                  className="qty-input"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                disabled={!editLlego.trim() || !Number(editLlego)}
+                onClick={() => {
+                  setEditStock(String((Number(editStock) || 0) + (Number(editLlego) || 0)))
+                  setEditLlego('')
+                }}
+              >
+                Sumar al stock actual
+              </button>
+            </div>
             <label className="checkbox-label">
               <input
                 type="checkbox"

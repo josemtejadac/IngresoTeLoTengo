@@ -19,10 +19,11 @@ import {
 interface Borrador {
   precio: string
   stock: string
+  llego: string
 }
 
 function borradorDe(p: Producto): Borrador {
-  return { precio: p.precio !== null ? String(p.precio) : '', stock: String(p.stock) }
+  return { precio: p.precio !== null ? String(p.precio) : '', stock: String(p.stock), llego: '' }
 }
 
 export function ProductosScanner() {
@@ -34,7 +35,7 @@ export function ProductosScanner() {
   const [error, setError] = useState<string | null>(null)
   // Solo se edita una fila a la vez: primero se toca Editar, recien ahi se pueden cambiar precio y stock.
   const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '' })
+  const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '', llego: '' })
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
   // El admin decide quien puede editar; se consulta cada vez que se abre esta pestaña.
   const [puedeEditar, setPuedeEditar] = useState(false)
@@ -249,6 +250,31 @@ export function ProductosScanner() {
                         className="qty-input"
                       />
                       {p.por_peso && <span className="subtitle"> g</span>}
+                      <div className="stock-llego">
+                        <input
+                          type="number"
+                          min={0}
+                          value={borrador.llego}
+                          onChange={(e) => setBorrador((b) => ({ ...b, llego: e.target.value }))}
+                          placeholder="llegó"
+                          className="qty-input"
+                          title="Cantidad que llegó ahora: se suma al stock de arriba"
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-small"
+                          disabled={!borrador.llego.trim() || !Number(borrador.llego)}
+                          onClick={() =>
+                            setBorrador((b) => ({
+                              ...b,
+                              stock: String((Number(b.stock) || 0) + (Number(b.llego) || 0)),
+                              llego: '',
+                            }))
+                          }
+                        >
+                          + Sumar
+                        </button>
+                      </div>
                     </>
                   ) : p.por_peso ? (
                     `${p.stock} g`

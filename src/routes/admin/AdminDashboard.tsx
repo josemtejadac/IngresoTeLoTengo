@@ -37,6 +37,7 @@ import {
   type ArqueoRowWithWorker,
 } from '../../lib/arqueo'
 import { downloadSalesPdf } from '../../lib/salesReport'
+import { downloadArqueoPdf } from '../../lib/arqueoReport'
 import {
   loadPendientes,
   markPendientesPagados,
@@ -181,6 +182,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [salidaError, setSalidaError] = useState<string | null>(null)
   const [arqueoDate, setArqueoDate] = useState<string>(currentDateValue())
   const [arqueoRows, setArqueoRows] = useState<ArqueoRowWithWorker[]>([])
+  const [arqueoDescargaWorker, setArqueoDescargaWorker] = useState('')
+  const [arqueoPdfError, setArqueoPdfError] = useState<string | null>(null)
   const [weeklySales, setWeeklySales] = useState<number>(0)
   const [salesReportMonth, setSalesReportMonth] = useState<string>(currentMonthValue())
   const [salesReportWeekDate, setSalesReportWeekDate] = useState<string>(currentDateValue())
@@ -1324,8 +1327,32 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       <section className="card">
         <div className="section-header">
           <h2>Arqueo diario</h2>
-          <input type="date" value={arqueoDate} onChange={(e) => setArqueoDate(e.target.value)} />
+          <div className="table-controls">
+            <input type="date" value={arqueoDate} onChange={(e) => setArqueoDate(e.target.value)} />
+            <select value={arqueoDescargaWorker} onChange={(e) => setArqueoDescargaWorker(e.target.value)}>
+              <option value="">Todos los trabajadores</option>
+              {workers.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.full_name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn btn-secondary btn-small"
+              onClick={() => {
+                setArqueoPdfError(null)
+                try {
+                  downloadArqueoPdf(arqueoRows, arqueoDate, arqueoDescargaWorker || undefined)
+                } catch (err) {
+                  setArqueoPdfError(err instanceof Error ? err.message : 'No se pudo generar el PDF')
+                }
+              }}
+            >
+              📄 Descargar arqueo
+            </button>
+          </div>
         </div>
+        {arqueoPdfError && <p className="error-text">{arqueoPdfError}</p>}
         <RegistrarArqueo
           workerId={profile.id}
           fecha={currentDateValue()}

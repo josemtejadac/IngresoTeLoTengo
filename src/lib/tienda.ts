@@ -145,6 +145,8 @@ export interface PedidoTienda {
   entrega_fisica_at?: string | null
   /** Solo si metodo_pago = 'mixto': cuanto se pago con cada metodo, ej. {"debito": 2200, "efectivo": 450}. */
   pago_mixto?: Partial<Record<MetodoArqueo, number>> | null
+  /** Quien lo marco como entregado (para poder filtrar el historial por trabajador). */
+  entregado_por?: string | null
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {

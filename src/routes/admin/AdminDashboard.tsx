@@ -30,8 +30,12 @@ import {
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
 import {
+  corregirArqueoDia,
   loadArqueoForDate,
+  loadArqueoManualHabilitado,
   loadWeeklySalesTotal,
+  setArqueoManualHabilitado as guardarArqueoManualHabilitado,
+  textoOrigenArqueo,
   ventaTotal,
   WEEKLY_SALES_GOAL,
   type ArqueoRowWithWorker,
@@ -184,6 +188,81 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [arqueoRows, setArqueoRows] = useState<ArqueoRowWithWorker[]>([])
   const [arqueoDescargaWorker, setArqueoDescargaWorker] = useState('')
   const [arqueoPdfError, setArqueoPdfError] = useState<string | null>(null)
+  const [arqueoManualHabilitado, setArqueoManualHabilitadoState] = useState(false)
+  const [arqueoManualBusy, setArqueoManualBusy] = useState(false)
+  const [corrigiendoWorkerId, setCorrigiendoWorkerId] = useState<string | null>(null)
+  const [corrigiendoValores, setCorrigiendoValores] = useState({
+    efectivo: '', debito: '', credito: '', transferencia: '', qr: '',
+  })
+  const [corrigiendoBusy, setCorrigiendoBusy] = useState(false)
+  const [corrigiendoError, setCorrigiendoError] = useState<string | null>(null)
+
+  useEffect(() => {
+    loadArqueoManualHabilitado().then(setArqueoManualHabilitadoState).catch(() => {})
+  }, [])
+
+  async function handleToggleArqueoManual() {
+    setArqueoManualBusy(true)
+    try {
+      const nuevo = !arqueoManualHabilitado
+      await guardarArqueoManualHabilitado(nuevo)
+      setArqueoManualHabilitadoState(nuevo)
+    } catch {
+      // se deja como estaba si falla
+    } finally {
+      setArqueoManualBusy(false)
+    }
+  }
+
+  function abrirCorregirArqueo(workerId: string) {
+    const filas = arqueoRows.filter((a) => a.worker_id === workerId)
+    const suma = filas.reduce(
+      (acc, a) => ({
+        efectivo: acc.efectivo + Number(a.efectivo),
+        debito: acc.debito + Number(a.debito),
+        credito: acc.credito + Number(a.credito),
+        transferencia: acc.transferencia + Number(a.transferencia),
+        qr: acc.qr + Number(a.qr),
+      }),
+      { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 },
+    )
+    setCorrigiendoWorkerId(workerId)
+    setCorrigiendoError(null)
+    setCorrigiendoValores({
+      efectivo: String(suma.efectivo),
+      debito: String(suma.debito),
+      credito: String(suma.credito),
+      transferencia: String(suma.transferencia),
+      qr: String(suma.qr),
+    })
+  }
+
+  async function handleGuardarCorreccionArqueo() {
+    if (!corrigiendoWorkerId || corrigiendoBusy) return
+    const valores = {
+      efectivo: Number(corrigiendoValores.efectivo) || 0,
+      debito: Number(corrigiendoValores.debito) || 0,
+      credito: Number(corrigiendoValores.credito) || 0,
+      transferencia: Number(corrigiendoValores.transferencia) || 0,
+      qr: Number(corrigiendoValores.qr) || 0,
+    }
+    if (Object.values(valores).some((v) => v < 0)) {
+      setCorrigiendoError('Los montos no pueden ser negativos.')
+      return
+    }
+    setCorrigiendoBusy(true)
+    setCorrigiendoError(null)
+    try {
+      await corregirArqueoDia(corrigiendoWorkerId, arqueoDate, valores)
+      setCorrigiendoWorkerId(null)
+      await loadArqueoRows()
+      await loadWeeklySales()
+    } catch (err) {
+      setCorrigiendoError(err instanceof Error ? err.message : 'Error guardando la corrección')
+    } finally {
+      setCorrigiendoBusy(false)
+    }
+  }
   const [weeklySales, setWeeklySales] = useState<number>(0)
   const [salesReportMonth, setSalesReportMonth] = useState<string>(currentMonthValue())
   const [salesReportWeekDate, setSalesReportWeekDate] = useState<string>(currentDateValue())
@@ -1328,6 +1407,15 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         <div className="section-header">
           <h2>Arqueo diario</h2>
           <div className="table-controls">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={arqueoManualHabilitado}
+                disabled={arqueoManualBusy}
+                onChange={handleToggleArqueoManual}
+              />
+              Permitir arqueo manual
+            </label>
             <input type="date" value={arqueoDate} onChange={(e) => setArqueoDate(e.target.value)} />
             <select value={arqueoDescargaWorker} onChange={(e) => setArqueoDescargaWorker(e.target.value)}>
               <option value="">Todos los trabajadores</option>
@@ -1353,14 +1441,16 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </div>
         </div>
         {arqueoPdfError && <p className="error-text">{arqueoPdfError}</p>}
-        <RegistrarArqueo
-          workerId={profile.id}
-          fecha={currentDateValue()}
-          onGuardado={() => {
-            loadArqueoRows()
-            loadWeeklySales()
-          }}
-        />
+        {arqueoManualHabilitado && (
+          <RegistrarArqueo
+            workerId={profile.id}
+            fecha={currentDateValue()}
+            onGuardado={() => {
+              loadArqueoRows()
+              loadWeeklySales()
+            }}
+          />
+        )}
         <table className="table">
           <thead>
             <tr>
@@ -1372,6 +1462,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               <th>QR</th>
               <th>Venta total</th>
               <th>Origen</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -1384,7 +1475,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <td>{formatCLP(a.transferencia)}</td>
                 <td>{formatCLP(a.qr)}</td>
                 <td>{formatCLP(ventaTotal(a))}</td>
-                <td className="subtitle">{a.origen === 'pedido' ? 'Pedido de la tienda' : a.origen === 'abono' ? 'Abono de deuda' : 'Arqueo manual'}</td>
+                <td className="subtitle">{textoOrigenArqueo(a)}</td>
+                <td>
+                  <button className="btn btn-secondary btn-small" onClick={() => abrirCorregirArqueo(a.worker_id)}>
+                    Corregir
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1397,6 +1493,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <strong>{formatCLP(arqueoRows.reduce((sum, a) => sum + ventaTotal(a), 0))}</strong>
               </td>
               <td></td>
+              <td></td>
             </tr>
           </tfoot>
         </table>
@@ -1406,6 +1503,55 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           esAdmin
         />
       </section>
+
+      {corrigiendoWorkerId && (
+        <div className="camera-overlay">
+          <div className="camera-modal">
+            <div className="modal-top">
+              <button
+                type="button"
+                className="btn btn-secondary btn-small"
+                onClick={() => setCorrigiendoWorkerId(null)}
+                disabled={corrigiendoBusy}
+              >
+                ← Cancelar
+              </button>
+              <h2>Corregir totales del día</h2>
+            </div>
+            <p className="subtitle">
+              Pon el total real de {arqueoDate} para{' '}
+              {arqueoRows.find((a) => a.worker_id === corrigiendoWorkerId)?.ingreso_profiles?.full_name ?? 'este trabajador'}
+              ; la diferencia con lo que ya hay se guarda como una fila nueva, sin borrar la de la app.
+            </p>
+            {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
+              <label key={campo}>
+                {campo === 'efectivo'
+                  ? 'Efectivo'
+                  : campo === 'debito'
+                    ? 'Débito'
+                    : campo === 'credito'
+                      ? 'Crédito'
+                      : campo === 'transferencia'
+                        ? 'Transferencia'
+                        : 'QR'}
+                <input
+                  type="number"
+                  min={0}
+                  value={corrigiendoValores[campo]}
+                  onChange={(e) => setCorrigiendoValores({ ...corrigiendoValores, [campo]: e.target.value })}
+                />
+              </label>
+            ))}
+            {corrigiendoError && <p className="error-text">{corrigiendoError}</p>}
+            <div className="camera-actions">
+              <button className="btn btn-primary" onClick={handleGuardarCorreccionArqueo} disabled={corrigiendoBusy}>
+                {corrigiendoBusy ? 'Guardando...' : 'Guardar corrección'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <HistorialPedidosTienda />
       </>
       )}

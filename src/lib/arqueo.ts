@@ -15,9 +15,11 @@ export interface ArqueoEntry {
   qr: number
   /** Fecha de la ultima correccion (null si nunca se edito). */
   editado_at?: string | null
-  /** 'pedido' = la sumo sola la app al entregar un pedido de la tienda; no se puede editar. */
+  /** 'pedido'/'abono' quedan de filas viejas; ahora casi todo llega con origen 'manual' (lo exige la regla de edicion). */
   origen?: 'manual' | 'pedido' | 'abono'
   pedido_id?: string | null
+  /** true solo si alguien realmente escribio/confirmo estos montos (formulario manual o Editar); false = la sumo sola la app. */
+  tiene_ingreso_manual?: boolean
 }
 
 export interface ArqueoRowWithWorker extends ArqueoEntry {
@@ -36,30 +38,58 @@ export function ventaTotal(a: ArqueoInput): number {
   return a.efectivo + a.debito + a.credito + a.transferencia + a.qr
 }
 
+/** Como mostrar el origen de una fila de arqueo: prioriza que se edito, luego si alguien la confirmo a mano. */
+export function textoOrigenArqueo(a: Pick<ArqueoEntry, 'editado_at' | 'tiene_ingreso_manual'>): string {
+  if (a.editado_at) return 'Arqueo editado'
+  if (a.tiene_ingreso_manual) return 'Arqueo manual'
+  return 'Automático (pedidos/abonos)'
+}
+
 function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export async function submitArqueo(workerId: string, date: string, values: ArqueoInput) {
-  const { error } = await supabase.from('ingreso_arqueo').insert({
-    worker_id: workerId,
-    arqueo_date: date,
-    ...values,
+/** Solo se usa si el arqueo manual esta habilitado. Suma lo declarado a la fila del dia (si ya existia una, ej. creada sola por un pedido). */
+export async function submitArqueo(workerId: string, _date: string, values: ArqueoInput) {
+  const { error } = await supabase.rpc('ingreso_submit_arqueo_manual', {
+    p_worker: workerId,
+    p_efectivo: values.efectivo,
+    p_debito: values.debito,
+    p_credito: values.credito,
+    p_transferencia: values.transferencia,
+    p_qr: values.qr,
   })
   if (error) throw error
 }
 
-/** Corrige un arqueo propio. La base de datos solo lo permite el mismo dia. */
-export async function updateArqueo(id: string, values: ArqueoInput) {
-  const { data, error } = await supabase
-    .from('ingreso_arqueo')
-    .update(values)
-    .eq('id', id)
-    .select('id')
+/**
+ * Corrige el TOTAL del dia (sumando todas las filas que ya haya, ej. la que crea sola la app): se guarda
+ * como una fila nueva con solo la diferencia, para no perder el numero original y poder comparar ambos.
+ * Un trabajador solo puede corregir su propio dia de hoy; el admin puede corregir cualquier trabajador y fecha.
+ */
+export async function corregirArqueoDia(workerId: string, date: string, valores: ArqueoInput) {
+  const { error } = await supabase.rpc('ingreso_corregir_arqueo', {
+    p_worker: workerId,
+    p_date: date,
+    p_efectivo: valores.efectivo,
+    p_debito: valores.debito,
+    p_credito: valores.credito,
+    p_transferencia: valores.transferencia,
+    p_qr: valores.qr,
+  })
   if (error) throw error
-  if (!data || data.length === 0) {
-    throw new Error('Este arqueo ya no se puede editar: solo se corrige el mismo día.')
-  }
+}
+
+/** El admin (ej. Xioyerlin) decide si el formulario de arqueo manual esta disponible; por defecto esta apagado. */
+export async function loadArqueoManualHabilitado(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('ingreso_get_config', { p_clave: 'arqueo_manual_habilitado' })
+  if (error) throw error
+  return data === true
+}
+
+export async function setArqueoManualHabilitado(valor: boolean) {
+  const { error } = await supabase.rpc('ingreso_set_config', { p_clave: 'arqueo_manual_habilitado', p_valor: valor })
+  if (error) throw error
 }
 
 export async function loadArqueoForWorkerDay(

@@ -34,10 +34,12 @@ import {
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
 import {
+  corregirArqueoDia,
   loadArqueoForWorkerDay,
+  loadArqueoManualHabilitado,
   loadWeeklySalesTotal,
   submitArqueo,
-  updateArqueo,
+  textoOrigenArqueo,
   ventaTotal,
   WEEKLY_SALES_GOAL,
   type ArqueoEntry,
@@ -103,7 +105,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [transferencia, setTransferencia] = useState('')
   const [qr, setQr] = useState('')
   const [arqueoBusy, setArqueoBusy] = useState(false)
-  const [editandoArqueo, setEditandoArqueo] = useState<ArqueoEntry | null>(null)
+  const [arqueoManualHabilitado, setArqueoManualHabilitado] = useState(false)
+  const [corrigiendoArqueo, setCorrigiendoArqueo] = useState(false)
   const [editArqueoValores, setEditArqueoValores] = useState({
     efectivo: '',
     debito: '',
@@ -231,6 +234,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const loadDirectory = useCallback(async () => {
     const map = await loadNameDirectory()
     setNameDirectory(map)
+  }, [])
+
+  useEffect(() => {
+    loadArqueoManualHabilitado().then(setArqueoManualHabilitado).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -414,20 +421,30 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   }
   const arqueoVentaTotal = ventaTotal(arqueoValues)
 
-  function abrirEditarArqueo(a: ArqueoEntry) {
-    setEditandoArqueo(a)
+  function abrirCorregirArqueo() {
+    const sumaActual = todayArqueo.reduce(
+      (acc, a) => ({
+        efectivo: acc.efectivo + Number(a.efectivo),
+        debito: acc.debito + Number(a.debito),
+        credito: acc.credito + Number(a.credito),
+        transferencia: acc.transferencia + Number(a.transferencia),
+        qr: acc.qr + Number(a.qr),
+      }),
+      { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 },
+    )
+    setCorrigiendoArqueo(true)
     setEditArqueoError(null)
     setEditArqueoValores({
-      efectivo: String(a.efectivo),
-      debito: String(a.debito),
-      credito: String(a.credito),
-      transferencia: String(a.transferencia),
-      qr: String(a.qr),
+      efectivo: String(sumaActual.efectivo),
+      debito: String(sumaActual.debito),
+      credito: String(sumaActual.credito),
+      transferencia: String(sumaActual.transferencia),
+      qr: String(sumaActual.qr),
     })
   }
 
   async function handleGuardarEdicionArqueo() {
-    if (!editandoArqueo || editArqueoBusy) return
+    if (editArqueoBusy) return
     const valores = {
       efectivo: Number(editArqueoValores.efectivo) || 0,
       debito: Number(editArqueoValores.debito) || 0,
@@ -442,8 +459,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     setEditArqueoBusy(true)
     setEditArqueoError(null)
     try {
-      await updateArqueo(editandoArqueo.id, valores)
-      setEditandoArqueo(null)
+      await corregirArqueoDia(profile.id, currentDateValue(), valores)
+      setCorrigiendoArqueo(false)
       await loadTodayArqueo()
       await loadWeeklySales()
     } catch (err) {
@@ -755,57 +772,66 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
           <section className="card">
             <h2>Arqueo del día</h2>
-            <p className="subtitle">Ingresa las ventas de tu turno de hoy.</p>
-            <form onSubmit={handleSubmitArqueo} className="worker-form">
-          <label>
-            Efectivo
-            <input
-              type="number"
-              min={0}
-              value={efectivo}
-              onChange={(e) => setEfectivo(e.target.value)}
-            />
-          </label>
-          <label>
-            Débito
-            <input
-              type="number"
-              min={0}
-              value={debito}
-              onChange={(e) => setDebito(e.target.value)}
-            />
-          </label>
-          <label>
-            Crédito
-            <input
-              type="number"
-              min={0}
-              value={credito}
-              onChange={(e) => setCredito(e.target.value)}
-            />
-          </label>
-          <label>
-            Transferencia
-            <input
-              type="number"
-              min={0}
-              value={transferencia}
-              onChange={(e) => setTransferencia(e.target.value)}
-            />
-          </label>
-          <label>
-            QR
-            <input type="number" min={0} value={qr} onChange={(e) => setQr(e.target.value)} />
-          </label>
-          <p>
-            Venta total: <strong>{formatCLP(arqueoVentaTotal)}</strong>
-          </p>
-          {arqueoError && <p className="error-text">{arqueoError}</p>}
-          {arqueoMessage && <p className="info-text">{arqueoMessage}</p>}
-          <button type="submit" className="btn btn-primary" disabled={arqueoBusy}>
-            {arqueoBusy ? 'Guardando...' : 'Guardar arqueo'}
-          </button>
-        </form>
+            {arqueoManualHabilitado ? (
+              <>
+                <p className="subtitle">Ingresa las ventas de tu turno de hoy.</p>
+                <form onSubmit={handleSubmitArqueo} className="worker-form">
+                  <label>
+                    Efectivo
+                    <input
+                      type="number"
+                      min={0}
+                      value={efectivo}
+                      onChange={(e) => setEfectivo(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Débito
+                    <input
+                      type="number"
+                      min={0}
+                      value={debito}
+                      onChange={(e) => setDebito(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Crédito
+                    <input
+                      type="number"
+                      min={0}
+                      value={credito}
+                      onChange={(e) => setCredito(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Transferencia
+                    <input
+                      type="number"
+                      min={0}
+                      value={transferencia}
+                      onChange={(e) => setTransferencia(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    QR
+                    <input type="number" min={0} value={qr} onChange={(e) => setQr(e.target.value)} />
+                  </label>
+                  <p>
+                    Venta total: <strong>{formatCLP(arqueoVentaTotal)}</strong>
+                  </p>
+                  {arqueoError && <p className="error-text">{arqueoError}</p>}
+                  {arqueoMessage && <p className="info-text">{arqueoMessage}</p>}
+                  <button type="submit" className="btn btn-primary" disabled={arqueoBusy}>
+                    {arqueoBusy ? 'Guardando...' : 'Guardar arqueo'}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <p className="subtitle">
+                El arqueo se completa solo con tus pedidos y abonos cobrados. Si algún monto está mal, usa
+                "Corregir totales del día" más abajo.
+              </p>
+            )}
 
         {todayArqueo.length > 0 && (
           <>
@@ -832,28 +858,20 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     <td>{formatCLP(a.qr)}</td>
                     <td>{formatCLP(ventaTotal(a))}</td>
                     <td>
-                      {a.origen === 'pedido' || a.origen === 'abono' ? (
-                        <span className="subtitle">{a.origen === 'abono' ? 'Abono de deuda' : 'Pedido de la tienda'}</span>
-                      ) : (
-                        <>
-                          <button
-                            className="btn btn-secondary btn-small"
-                            onClick={() => abrirEditarArqueo(a)}
-                          >
-                            Editar
-                          </button>
-                          {a.editado_at && <span className="subtitle"> (editado)</span>}
-                        </>
-                      )}
+                      <span className="subtitle">{textoOrigenArqueo(a)}</span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <button type="button" className="btn btn-secondary btn-small" onClick={abrirCorregirArqueo}>
+              Corregir totales del día
+            </button>
           </>
         )}
         <p className="subtitle">
-          Puedes corregir tu arqueo solo durante el mismo día; después ya no se puede editar.
+          Puedes corregir tu arqueo solo durante el mismo día; después ya no se puede editar. La corrección queda
+          como una fila nueva, sin borrar la que dejó la app.
         </p>
         <VentasOnlineDia
           fecha={currentDateValue()}
@@ -864,20 +882,24 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         </>
       )}
 
-      {editandoArqueo && (
+      {corrigiendoArqueo && (
         <div className="camera-overlay">
           <div className="camera-modal">
             <div className="modal-top">
               <button
                 type="button"
                 className="btn btn-secondary btn-small"
-                onClick={() => setEditandoArqueo(null)}
+                onClick={() => setCorrigiendoArqueo(false)}
                 disabled={editArqueoBusy}
               >
                 ← Cancelar
               </button>
-              <h2>Editar arqueo</h2>
+              <h2>Corregir totales del día</h2>
             </div>
+            <p className="subtitle">
+              Pon el total real de hoy en cada método; la diferencia con lo que ya hay se guarda como una fila
+              nueva, sin borrar la de la app.
+            </p>
             {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
               <label key={campo}>
                 {campo === 'efectivo'

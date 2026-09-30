@@ -4,6 +4,7 @@ import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { downloadProductosVendidosPdf } from '../lib/productosVendidosReport'
+import { loadNameDirectory } from '../lib/directory'
 import {
   coincideFiltroPago,
   type FiltroPago,
@@ -46,6 +47,12 @@ export function HistorialPedidosTienda() {
   const [filtro, setFiltro] = useState<FiltroPago>('todos')
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
+  const [nombres, setNombres] = useState<Record<string, string>>({})
+  const [filtroWorker, setFiltroWorker] = useState('')
+
+  useEffect(() => {
+    loadNameDirectory().then(setNombres).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -77,7 +84,13 @@ export function HistorialPedidosTienda() {
     }
   }, [load])
 
-  const filtrados = pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
+  const trabajadoresDelDia = [
+    ...new Set(pedidos.map((p) => p.entregado_por).filter((id): id is string => !!id)),
+  ]
+
+  const filtrados = pedidos
+    .filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
+    .filter((p) => !filtroWorker || p.entregado_por === filtroWorker)
   const cuentas: Record<FiltroPago, number> = {
     todos: pedidos.length,
     online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
@@ -91,6 +104,14 @@ export function HistorialPedidosTienda() {
         <h2>Historial de pedidos de la tienda</h2>
         <div className="table-controls">
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <select value={filtroWorker} onChange={(e) => setFiltroWorker(e.target.value)}>
+            <option value="">Todos los trabajadores</option>
+            {trabajadoresDelDia.map((id) => (
+              <option key={id} value={id}>
+                {nombres[id] ?? 'Desconocido'}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             className="btn btn-secondary btn-small"
@@ -139,6 +160,7 @@ export function HistorialPedidosTienda() {
           <p>
             <strong>{p.nombre_cliente}</strong> — Torre {p.torre}, Depto {p.depto} ·{' '}
             {new Date(p.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+            {p.entregado_por && <> · Entregó: {nombres[p.entregado_por] ?? 'Desconocido'}</>}
           </p>
           <p className="subtitle">{(items[p.id] ?? []).map(textoItem).join(', ')}</p>
           {p.estado === 'cancelado' ? (

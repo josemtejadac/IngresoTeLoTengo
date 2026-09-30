@@ -54,12 +54,13 @@ export function InventarioAdmin() {
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [descargandoExcel, setDescargandoExcel] = useState(false)
+  const [filtroExcel, setFiltroExcel] = useState<FiltroStock>('todos')
 
   async function handleDescargarExcel() {
     setDescargandoExcel(true)
     setError(null)
     try {
-      await downloadInventarioExcel()
+      await downloadInventarioExcel(filtroExcel)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error descargando el inventario')
     } finally {
@@ -349,8 +350,17 @@ export function InventarioAdmin() {
           </button>
           <Merma tipo="merma" />
           <Merma tipo="gasto_operativo" />
+          <label className="chat-input">
+            <span className="subtitle">Excel de</span>
+            <select value={filtroExcel} onChange={(e) => setFiltroExcel(e.target.value as FiltroStock)}>
+              <option value="todos">Todos los productos</option>
+              <option value="sinstock">Solo sin stock</option>
+              <option value="bajostock">Solo bajo stock</option>
+              <option value="sinprecio">Solo sin precio</option>
+            </select>
+          </label>
           <button className="btn btn-secondary" disabled={descargandoExcel} onClick={handleDescargarExcel}>
-            {descargandoExcel ? 'Descargando...' : '📊 Descargar inventario (Excel)'}
+            {descargandoExcel ? 'Descargando...' : '📊 Descargar Excel'}
           </button>
           <button className="btn btn-secondary" onClick={() => setOpen(false)}>
             Cerrar

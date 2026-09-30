@@ -1,10 +1,18 @@
 import * as XLSX from 'xlsx'
-import { loadProductos } from './inventario'
+import { coincideFiltroStock, loadProductos, type FiltroStock } from './inventario'
 
-/** Descarga en Excel el catalogo activo completo (con y sin stock), no el catalogo interno/oculto. */
-export async function downloadInventarioExcel() {
-  const productos = await loadProductos({ orden: 'nombre', limit: 5000 })
-  if (productos.length === 0) throw new Error('No hay productos activos para descargar.')
+const NOMBRE_FILTRO: Record<FiltroStock, string> = {
+  todos: 'todos',
+  sinprecio: 'sin-precio',
+  sinstock: 'sin-stock',
+  bajostock: 'bajo-stock',
+}
+
+/** Descarga en Excel el catalogo activo (con o sin stock segun el filtro elegido), no el catalogo oculto. */
+export async function downloadInventarioExcel(filtro: FiltroStock = 'todos') {
+  const todos = await loadProductos({ orden: 'nombre', limit: 5000 })
+  const productos = todos.filter((p) => coincideFiltroStock(p, filtro))
+  if (productos.length === 0) throw new Error('No hay productos que coincidan con ese filtro.')
 
   const filas = productos.map((p) => ({
     Producto: p.nombre,
@@ -23,5 +31,5 @@ export async function downloadInventarioExcel() {
   XLSX.utils.book_append_sheet(libro, hoja, 'Inventario')
 
   const hoy = new Date().toISOString().slice(0, 10)
-  XLSX.writeFile(libro, `inventario-${hoy}.xlsx`)
+  XLSX.writeFile(libro, `inventario-${NOMBRE_FILTRO[filtro]}-${hoy}.xlsx`)
 }

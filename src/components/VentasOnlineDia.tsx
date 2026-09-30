@@ -94,12 +94,15 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
           )}
           {esAdmin && (
             <div className="subtitle">
-              {/* Solo contra entrega: el pago online no pasa por la caja de nadie, no se le suma a ningun trabajador. */}
-              {[...new Set(contraEntrega.map((v) => v.worker_id))].map((id) => {
-                const propias = contraEntrega.filter((v) => v.worker_id === id)
+              {[...new Set(ventas.map((v) => v.worker_id))].map((id) => {
+                const propias = ventas.filter((v) => v.worker_id === id)
+                const propiasOnline = propias.filter((v) => v.metodo === 'online')
+                const totalPropio = propias.reduce((sum, v) => sum + v.monto, 0)
+                const totalPropioOnline = propiasOnline.reduce((sum, v) => sum + v.monto, 0)
                 return (
                   <p key={id}>
-                    {propias[0].nombre ?? '—'}: {formatCLP(propias.reduce((sum, v) => sum + v.monto, 0))}
+                    {propias[0].nombre ?? '—'}: {formatCLP(totalPropio)}
+                    {totalPropioOnline > 0 && ` (incluye ${formatCLP(totalPropioOnline)} de Flow, no pasa por su caja)`}
                   </p>
                 )
               })}

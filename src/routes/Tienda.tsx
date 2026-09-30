@@ -4,6 +4,7 @@ import { Stepper } from '../components/Stepper'
 import { FotoImg } from '../components/FotoImg'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
+import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
 import { useAtrasCierra } from '../lib/atras'
 import { tiendaAbierta, TIENDA_ABRE_TEXTO, TIENDA_CIERRA_TEXTO } from '../lib/horarioTienda'
 import { formatCLP } from '../lib/payroll'
@@ -24,7 +25,14 @@ import {
   loadCategoriasTienda,
   productoFotoUrl,
   type ProductoTienda,
+  type ProgresoPedido,
 } from '../lib/tienda'
+
+const PROGRESO_LABEL: Record<ProgresoPedido, string> = {
+  recibido: 'Pedido recibido',
+  preparando: 'Empacando tus productos',
+  en_camino: '¡Va en camino!',
+}
 
 interface CartLine {
   producto: ProductoTienda
@@ -182,6 +190,14 @@ export function Tienda() {
   // Tiempo real: si un producto se agota o cambia de precio, el catalogo se actualiza solo.
   // El respaldo cada 30s cubre el caso en que la conexion en vivo se corte sin avisar.
   useRealtimeRefresh(['ingreso_productos'], runSearch, 30000)
+
+  // Con "Mis pedidos" abierto, el estado (recibido/empacando/en camino/entregado) se actualiza solo,
+  // sin que el cliente tenga que cerrar y volver a abrir.
+  const recargarMisPedidos = useCallback(() => {
+    if (!verHistorial) return
+    loadMisPedidos().then(setMisPedidos).catch(() => {})
+  }, [verHistorial])
+  useRealtimeRefresh(['ingreso_pedidos_tienda'], recargarMisPedidos)
 
   // El detalle abierto de un producto tambien se actualiza en vivo (por si se agota mientras el cliente lo mira).
   useEffect(() => {
@@ -1028,7 +1044,7 @@ export function Tienda() {
                           : 'Cancelado'
                       : p.pago_estado === 'esperando_pago'
                         ? 'Sin pagar'
-                        : 'En curso'}
+                        : PROGRESO_LABEL[p.progreso] ?? 'En curso'}
                 </p>
                 <p className="subtitle">
                   {p.items
@@ -1089,6 +1105,7 @@ export function Tienda() {
                     </button>
                   </div>
                 )}
+                {p.estado === 'pendiente' && <NotificacionesPedidoCliente pedidoId={p.id} />}
                 {p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && p.estado === 'cancelado' && !p.cancelado_por_cliente && (
                   <div className="report-row">
                     <button

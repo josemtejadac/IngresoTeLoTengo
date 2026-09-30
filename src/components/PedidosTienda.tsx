@@ -21,6 +21,7 @@ import {
   marcarEntregaFisica,
   productoFotoUrl,
   marcarPedidoTiendaEntregado,
+  marcarProgresoPedido,
   quitarItemPedido,
   whatsappEnCaminoUrl,
   type PedidoTienda,
@@ -53,8 +54,13 @@ export function PedidosTienda() {
   function alternarDetalle(id: string) {
     setAbiertos((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+        // Al abrir el detalle, el cliente ya puede ver "empacando tu pedido" (no se espera respuesta).
+        marcarProgresoPedido(id, 'preparando').catch(() => {})
+      }
       return next
     })
   }
@@ -360,6 +366,7 @@ export function PedidosTienda() {
                     href={whatsappEnCaminoUrl(p.telefono_cliente)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => marcarProgresoPedido(p.id, 'en_camino').catch(() => {})}
                   >
                     Estoy en camino
                   </a>

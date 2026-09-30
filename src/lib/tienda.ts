@@ -133,6 +133,7 @@ export interface PedidoTienda {
   depto: string
   total: number
   estado: 'pendiente' | 'entregado' | 'cancelado'
+  progreso?: ProgresoPedido
   metodo_pago: MetodoPago | null
   pago_estado: PagoEstado
   created_at: string
@@ -219,6 +220,18 @@ export function whatsappEnCaminoUrl(telefono: string): string {
   return `https://wa.me/${numero}?text=${mensaje}`
 }
 
+/**
+ * Avanza el progreso del pedido para que el cliente lo vea en su app (y le llegue la notificación si
+ * la activó). Nunca retrocede: si ya estaba en "en_camino" y se llama con "preparando", no hace nada.
+ */
+export async function marcarProgresoPedido(pedidoId: string, progreso: 'preparando' | 'en_camino') {
+  const { error } = await supabase.rpc('ingreso_pedido_marcar_progreso', {
+    p_pedido: pedidoId,
+    p_progreso: progreso,
+  })
+  if (error) throw error
+}
+
 /** El personal registra el peso real de una linea pedida por unidad; recalcula el total del pedido. */
 export async function ajustarPesoItem(itemId: string, gramos: number): Promise<number> {
   const { data, error } = await supabase.rpc('ingreso_ajustar_peso_item', {
@@ -295,12 +308,16 @@ function leerPedidoIdsLocal(): string[] {
   }
 }
 
+/** Progreso mas fino mientras el pedido esta pendiente (una vez entregado/cancelado, ya no importa). */
+export type ProgresoPedido = 'recibido' | 'preparando' | 'en_camino'
+
 export interface MiPedido {
   id: string
   created_at: string
   total: number
   cancelado_por_cliente?: boolean
   estado: 'pendiente' | 'entregado' | 'cancelado'
+  progreso: ProgresoPedido
   metodo_pago: MetodoPago | null
   pago_estado: PagoEstado
   items: {

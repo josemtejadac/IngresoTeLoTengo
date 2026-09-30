@@ -249,6 +249,12 @@ export async function fijarPagoMixto(pedidoId: string, montos: Partial<Record<Me
   if (error) throw error
 }
 
+/** Marca entregado (y pagado) un pedido pendiente, repartiendo el cobro entre varios metodos de una vez. */
+export async function marcarEntregadoMixto(pedidoId: string, montos: Partial<Record<MetodoArqueo, number>>) {
+  const { error } = await supabase.rpc('ingreso_marcar_entregado_mixto', { p_pedido: pedidoId, p_montos: montos })
+  if (error) throw error
+}
+
 /** Pedidos de la tienda de un dia (cualquier estado), para el historial del personal. */
 export async function loadPedidosTiendaDelDia(date: string): Promise<PedidoTienda[]> {
   const start = new Date(`${date}T00:00:00`)

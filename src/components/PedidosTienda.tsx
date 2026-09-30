@@ -5,6 +5,7 @@ import { formatGramos } from '../lib/peso'
 import { loadNameDirectory } from '../lib/directory'
 import { AgregarProductoPedido } from './AgregarProductoPedido'
 import { CambiarProductoItem } from './CambiarProductoItem'
+import { EntregarMixto } from './EntregarMixto'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { PedidoManual } from './PedidoManual'
 import {
@@ -407,6 +408,7 @@ export function PedidosTienda() {
                       </button>
                     )
                   })}
+                  <EntregarMixto pedido={p} onEntregado={load} />
                 </div>
               )}
             </div>

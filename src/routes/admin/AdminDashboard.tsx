@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
+import { HistorialPagos } from '../../components/HistorialPagos'
 import { SueldosEnVivo } from '../../components/SueldosEnVivo'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
@@ -174,6 +175,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [reportWorker, setReportWorker] = useState<string>('')
   const [reportMonth, setReportMonth] = useState<string>(currentMonthValue())
   const [reportBusy, setReportBusy] = useState(false)
+  const [historialSueldoWorkerId, setHistorialSueldoWorkerId] = useState<string>('')
   const [reportError, setReportError] = useState<string | null>(null)
   const [scheduleEditingId, setScheduleEditingId] = useState<string | null>(null)
   const [scheduleForm, setScheduleForm] = useState<ScheduleForm | null>(null)
@@ -482,6 +484,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       setReportWorker(workers[0].id)
     }
   }, [workers, reportWorker])
+
+  useEffect(() => {
+    if (!historialSueldoWorkerId && workers.length > 0) {
+      setHistorialSueldoWorkerId(workers[0].id)
+    }
+  }, [workers, historialSueldoWorkerId])
 
   const loadBonusRows = useCallback(async () => {
     try {
@@ -1187,6 +1195,31 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       )}
 
       {activeTab === 'trabajadores' && <SueldosEnVivo workers={workers} />}
+
+      {activeTab === 'trabajadores' && (
+      <section className="card">
+        <h2>Historial de sueldos</h2>
+        <p className="subtitle">
+          El detalle de sueldo de meses o semanas ya cerrados de cada trabajador (según cobre mensual o semanal).
+        </p>
+        <label>
+          Trabajador
+          <select value={historialSueldoWorkerId} onChange={(e) => setHistorialSueldoWorkerId(e.target.value)}>
+            {workers.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.full_name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+      )}
+
+      {activeTab === 'trabajadores' &&
+        (() => {
+          const worker = workers.find((w) => w.id === historialSueldoWorkerId)
+          return worker ? <HistorialPagos profile={worker} /> : null
+        })()}
 
       {activeTab === 'trabajadores' && (
       <section className="card">

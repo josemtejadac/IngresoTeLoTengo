@@ -10,27 +10,45 @@ import {
   type TipoMerma,
 } from '../lib/tienda'
 
-const COPY: Record<TipoMerma, { boton: string; titulo: string; intro: string; cantidadLabel: string; motivoLabel: string; motivoPlaceholder: string; guardarTexto: string; okTexto: string; vacioTexto: string }> = {
+const COPY: Record<
+  TipoMerma,
+  {
+    boton: string
+    titulo: string
+    intro: string
+    cantidadLabel: string
+    motivoLabel: string
+    motivoPlaceholder: string
+    agregarTexto: string
+    guardarTexto: string
+    okTexto: string
+    vacioTexto: string
+  }
+> = {
   merma: {
     boton: '🗑️ Merma',
     titulo: 'Registrar merma',
-    intro: 'Para productos que se perdieron, se echaron a perder o se rompieron. Descuenta el stock y queda guardado con fecha y quién lo registró.',
+    intro:
+      'Para productos que se perdieron, se echaron a perder o se rompieron. Descuenta el stock y queda guardado con fecha y quién lo registró.',
     cantidadLabel: 'perdida',
     motivoLabel: 'Motivo (opcional)',
     motivoPlaceholder: 'Ej: se echó a perder, se cayó...',
-    guardarTexto: 'Guardar merma',
-    okTexto: 'Merma guardada',
+    agregarTexto: 'Agregar a la lista',
+    guardarTexto: 'Guardar',
+    okTexto: 'Mermas guardadas',
     vacioTexto: 'Sin mermas registradas.',
   },
   gasto_operativo: {
     boton: '📦 Gasto operativo',
     titulo: 'Registrar gasto operativo',
-    intro: 'Para cuando se agarra un producto de la tienda para uso de la tienda (ej. bolsas, limpieza). Descuenta el stock y queda guardado con fecha, motivo y quién lo registró.',
+    intro:
+      'Para cuando se agarran productos de la tienda para uso de la tienda (ej. bolsas, limpieza). Descuenta el stock y queda guardado con fecha, motivo y quién lo registró.',
     cantidadLabel: 'usada',
     motivoLabel: 'Motivo',
     motivoPlaceholder: 'Ej: bolsas para embalar pedidos',
-    guardarTexto: 'Guardar gasto',
-    okTexto: 'Gasto guardado',
+    agregarTexto: 'Agregar a la lista',
+    guardarTexto: 'Guardar',
+    okTexto: 'Gastos guardados',
     vacioTexto: 'Sin gastos operativos registrados.',
   },
 }
@@ -39,7 +57,14 @@ interface Props {
   tipo: TipoMerma
 }
 
-/** El personal registra una salida de stock que no es venta: merma o gasto operativo. */
+interface ItemCarrito {
+  key: string
+  producto: ProductoTienda
+  cantidad: string
+  nota: string
+}
+
+/** El personal registra una o varias salidas de stock que no son venta: merma o gasto operativo. */
 export function Merma({ tipo }: Props) {
   const c = COPY[tipo]
   const [abierto, setAbierto] = useState(false)
@@ -49,6 +74,7 @@ export function Merma({ tipo }: Props) {
   const [elegido, setElegido] = useState<ProductoTienda | null>(null)
   const [cantidad, setCantidad] = useState('')
   const [nota, setNota] = useState('')
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
@@ -90,11 +116,12 @@ export function Merma({ tipo }: Props) {
   function elegir(p: ProductoTienda) {
     setElegido(p)
     setCantidad('')
+    setNota('')
     setError(null)
     setOk(null)
   }
 
-  async function guardar() {
+  function agregarAlCarrito() {
     if (!elegido) return
     const n = Number(cantidad)
     if (!n || n <= 0) {
@@ -105,21 +132,45 @@ export function Merma({ tipo }: Props) {
       setError('Pon el motivo.')
       return
     }
+    setCarrito((prev) => [
+      ...prev,
+      { key: `${elegido.id}-${Date.now()}`, producto: elegido, cantidad: cantidad, nota: nota.trim() },
+    ])
+    setError(null)
+    setElegido(null)
+    setCantidad('')
+    setNota('')
+    setBusqueda('')
+  }
+
+  function quitarDelCarrito(key: string) {
+    setCarrito((prev) => prev.filter((i) => i.key !== key))
+  }
+
+  async function guardarTodo() {
+    if (carrito.length === 0) return
     setBusy(true)
     setError(null)
-    try {
-      await registrarMerma(elegido.id, n, nota, tipo)
-      setOk(`${c.okTexto}: ${elegido.nombre} · ${elegido.por_peso ? formatGramos(n) : `${n} un.`}`)
-      // Se mantiene la misma busqueda (no se borra) para que se vea el stock ya actualizado de una.
-      setElegido(null)
-      setCantidad('')
-      setNota('')
-      if (verHistorial) cargarHistorial()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar')
-    } finally {
-      setBusy(false)
+    setOk(null)
+    const okKeys: string[] = []
+    const fallidos: { nombre: string; motivo: string }[] = []
+    for (const item of carrito) {
+      try {
+        await registrarMerma(item.producto.id, Number(item.cantidad), item.nota, tipo)
+        okKeys.push(item.key)
+      } catch (err) {
+        fallidos.push({ nombre: item.producto.nombre, motivo: err instanceof Error ? err.message : 'error' })
+      }
     }
+    setBusy(false)
+    setCarrito((prev) => prev.filter((i) => !okKeys.includes(i.key)))
+    if (fallidos.length === 0) {
+      setOk(`${c.okTexto}: ${okKeys.length} producto${okKeys.length === 1 ? '' : 's'}.`)
+    } else {
+      setError(`No se pudo guardar: ${fallidos.map((f) => `${f.nombre} (${f.motivo})`).join(', ')}`)
+      if (okKeys.length > 0) setOk(`Se guardaron ${okKeys.length} de ${okKeys.length + fallidos.length}.`)
+    }
+    if (verHistorial) cargarHistorial()
   }
 
   function cerrar() {
@@ -128,6 +179,7 @@ export function Merma({ tipo }: Props) {
     setBusqueda('')
     setCantidad('')
     setNota('')
+    setCarrito([])
     setError(null)
     setOk(null)
     setVerHistorial(false)
@@ -185,6 +237,33 @@ export function Merma({ tipo }: Props) {
                 <p className="subtitle">Sin resultados.</p>
               )}
             </div>
+
+            {carrito.length > 0 && (
+              <div className="merma-carrito">
+                <p className="merma-carrito-titulo">
+                  En la lista ({carrito.length} producto{carrito.length === 1 ? '' : 's'})
+                </p>
+                <div className="agregar-item-lista">
+                  {carrito.map((item) => (
+                    <div key={item.key} className="merma-carrito-item">
+                      <span className="merma-picker-info">
+                        <span className="merma-picker-nombre">{item.producto.nombre}</span>
+                        <span className="merma-picker-meta">
+                          {item.producto.por_peso ? formatGramos(Number(item.cantidad)) : `${item.cantidad} un.`}
+                          {item.nota ? ` · ${item.nota}` : ''}
+                        </span>
+                      </span>
+                      <button type="button" className="btn-link btn-quitar" onClick={() => quitarDelCarrito(item.key)}>
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="btn btn-primary" disabled={busy} onClick={guardarTodo}>
+                  {busy ? 'Guardando...' : `${c.guardarTexto} (${carrito.length})`}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="merma-elegido">
@@ -209,10 +288,14 @@ export function Merma({ tipo }: Props) {
               {c.motivoLabel}
               <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder={c.motivoPlaceholder} />
             </label>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={guardar}>
-              {busy ? 'Guardando...' : c.guardarTexto}
+            <button type="button" className="btn btn-primary" onClick={agregarAlCarrito}>
+              {c.agregarTexto}
             </button>
           </div>
+        )}
+
+        {!elegido && carrito.length === 0 && (
+          <p className="subtitle merma-hint">Elige uno o varios productos: se guardan todos juntos al final.</p>
         )}
 
         <button type="button" className="btn-detalle" onClick={() => setVerHistorial((v) => !v)}>

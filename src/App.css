@@ -1,3 +1,8 @@
+:root {
+  /* Cambia el hash del archivo CSS para saltar una copia vieja cacheada en Cloudflare. */
+  --build-cache-bust: 2026-09-30-1;
+}
+
 .page-center {
   min-height: 100vh;
   display: flex;

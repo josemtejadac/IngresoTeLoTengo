@@ -55,11 +55,9 @@ export function filasVigentesPorTrabajador<T extends Pick<ArqueoEntry, 'worker_i
   return [...porTrabajador.values()]
 }
 
-/** Como mostrar el origen de una fila de arqueo: prioriza que se edito, luego si alguien la confirmo a mano. */
-export function textoOrigenArqueo(a: Pick<ArqueoEntry, 'editado_at' | 'tiene_ingreso_manual'>): string {
-  if (a.editado_at) return 'Arqueo editado'
-  if (a.tiene_ingreso_manual) return 'Arqueo manual'
-  return 'Automático (pedidos/abonos)'
+/** Como mostrar el origen de una fila de arqueo: "Arqueo editado" solo si se corrigio con Corregir; el resto es de la app. */
+export function textoOrigenArqueo(a: Pick<ArqueoEntry, 'editado_at'>): string {
+  return a.editado_at ? 'Arqueo editado' : 'Arqueo app'
 }
 
 function toISODate(d: Date): string {

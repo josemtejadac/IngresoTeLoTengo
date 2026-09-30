@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { FotoProductoModal } from './FotoProductoModal'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
 import { Merma } from './Merma'
@@ -16,7 +15,6 @@ import {
   productoFotoUrl,
   updateProducto,
   uploadProductoFoto,
-  uploadProductoFotoBlob,
   type FiltroStock,
   type Producto,
 } from '../lib/inventario'
@@ -53,7 +51,6 @@ export function InventarioAdmin() {
   const [editDestacado, setEditDestacado] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
-  const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [descargandoExcel, setDescargandoExcel] = useState(false)
 
@@ -287,31 +284,22 @@ export function InventarioAdmin() {
     }
   }
 
-  /** Al elegir una foto se abre la vista previa (original y con fondo blanco) antes de guardar. */
-  function elegirFoto(p: Producto, file: File | undefined) {
+  /** La foto se sube siempre tal cual (original), sin recorte ni fondo blanco. */
+  async function elegirFoto(p: Producto, file: File | undefined) {
     if (!file || uploadingId) return
-    setError(null)
-    setFotoPendiente({ producto: p, file })
-  }
-
-  async function guardarFoto(resultado: Blob | null) {
-    if (!fotoPendiente) return
-    const { producto, file } = fotoPendiente
-    setUploadingId(producto.id)
+    setUploadingId(p.id)
     setError(null)
     try {
-      if (resultado) await uploadProductoFotoBlob(producto.id, resultado)
-      else await uploadProductoFoto(producto.id, file)
+      await uploadProductoFoto(p.id, file)
       await runSearch()
-      if (editing?.id === producto.id) {
+      if (editing?.id === p.id) {
         const { data: updated } = await supabase
           .from('ingreso_productos')
           .select('*')
-          .eq('id', producto.id)
+          .eq('id', p.id)
           .single()
         if (updated) setEditing(updated as Producto)
       }
-      setFotoPendiente(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error subiendo la foto')
     } finally {
@@ -705,15 +693,6 @@ export function InventarioAdmin() {
       )}
 
       {verFactura && <FacturaStock onCerrar={() => setVerFactura(false)} onListo={() => runSearch()} />}
-
-      {fotoPendiente && (
-        <FotoProductoModal
-          nombre={fotoPendiente.producto.nombre}
-          file={fotoPendiente.file}
-          onUsar={guardarFoto}
-          onCancelar={() => setFotoPendiente(null)}
-        />
-      )}
     </section>
   )
 }

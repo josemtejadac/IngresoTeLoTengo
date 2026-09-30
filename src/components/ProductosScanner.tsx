@@ -3,7 +3,6 @@ import { formatCLP } from '../lib/payroll'
 import { supabase } from '../lib/supabase'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { FiltroStockBotones } from './FiltroStockBotones'
-import { FotoProductoModal } from './FotoProductoModal'
 import { FacturaStock } from './FacturaStock'
 import { Merma } from './Merma'
 import {
@@ -13,7 +12,6 @@ import {
   loadProductos,
   productoFotoUrl,
   uploadProductoFoto,
-  uploadProductoFotoBlob,
   type FiltroStock,
   type Producto,
 } from '../lib/inventario'
@@ -42,7 +40,6 @@ export function ProductosScanner() {
   const [puedeEditar, setPuedeEditar] = useState(false)
   const [puedeFacturas, setPuedeFacturas] = useState(false)
   const [verFactura, setVerFactura] = useState(false)
-  const [fotoPendiente, setFotoPendiente] = useState<{ producto: Producto; file: File } | null>(null)
   const [subiendoFotoId, setSubiendoFotoId] = useState<string | null>(null)
   const buscarInputRef = useRef<HTMLInputElement>(null)
 
@@ -79,16 +76,13 @@ export function ProductosScanner() {
     setBorrador(borradorDe(p))
   }
 
-  async function guardarFoto(resultado: Blob | null) {
-    if (!fotoPendiente) return
-    const { producto, file } = fotoPendiente
+  /** La foto se sube siempre tal cual (original), sin recorte ni fondo blanco. */
+  async function subirFoto(producto: Producto, file: File) {
     setSubiendoFotoId(producto.id)
     setError(null)
     try {
-      if (resultado) await uploadProductoFotoBlob(producto.id, resultado)
-      else await uploadProductoFoto(producto.id, file)
+      await uploadProductoFoto(producto.id, file)
       await runSearch()
-      setFotoPendiente(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error subiendo la foto')
     } finally {
@@ -215,7 +209,7 @@ export function ProductosScanner() {
                         disabled={subiendoFotoId !== null}
                         onChange={(e) => {
                           const f = e.target.files?.[0]
-                          if (f) setFotoPendiente({ producto: p, file: f })
+                          if (f) subirFoto(p, f)
                           e.target.value = ''
                         }}
                       />
@@ -301,14 +295,6 @@ export function ProductosScanner() {
         </tbody>
       </table>
       {verFactura && <FacturaStock onCerrar={() => setVerFactura(false)} onListo={() => runSearch()} />}
-      {fotoPendiente && (
-        <FotoProductoModal
-          nombre={fotoPendiente.producto.nombre}
-          file={fotoPendiente.file}
-          onUsar={guardarFoto}
-          onCancelar={() => setFotoPendiente(null)}
-        />
-      )}
       <p className="subtitle">
         Precio: el precio de venta al público (por kilo en los productos por peso). Stock: unidades disponibles
         (gramos en los productos por peso).

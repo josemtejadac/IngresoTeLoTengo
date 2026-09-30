@@ -94,8 +94,9 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
           )}
           {esAdmin && (
             <div className="subtitle">
-              {[...new Set(ventas.map((v) => v.worker_id))].map((id) => {
-                const propias = ventas.filter((v) => v.worker_id === id)
+              {/* Solo contra entrega: el pago online no pasa por la caja de nadie, no se le suma a ningun trabajador. */}
+              {[...new Set(contraEntrega.map((v) => v.worker_id))].map((id) => {
+                const propias = contraEntrega.filter((v) => v.worker_id === id)
                 return (
                   <p key={id}>
                     {propias[0].nombre ?? '—'}: {formatCLP(propias.reduce((sum, v) => sum + v.monto, 0))}

@@ -18,19 +18,36 @@ export function useRealtimeRefresh(tablas: string[], recargar: () => void, cadaM
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
+    let reintentoTimer: ReturnType<typeof setTimeout> | null = null
+    let canal: ReturnType<typeof supabase.channel> | null = null
+    let vivo = true
+
     const programar = () => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => recargarRef.current(), 300)
     }
 
-    const canal = supabase.channel(`rt_refresh_${clave}_${++contador}`)
-    for (const table of clave.split(',')) {
-      canal.on('postgres_changes', { event: '*', schema: 'public', table }, programar)
+    const crearCanal = () => {
+      if (!vivo) return
+      canal = supabase.channel(`rt_refresh_${clave}_${++contador}`)
+      for (const table of clave.split(',')) {
+        canal.on('postgres_changes', { event: '*', schema: 'public', table }, programar)
+      }
+      canal.subscribe((estado) => {
+        if (!vivo) return
+        // Si la conexion se cae o se reconecta, se pone al dia de inmediato.
+        if (estado === 'SUBSCRIBED') {
+          programar()
+          // Si el canal se corta (celular bloqueado, red inestable), se arma uno nuevo en vez de
+          // quedar mudo esperando al respaldo por tiempo o a que el usuario vuelva a la pagina.
+        } else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') {
+          if (canal) supabase.removeChannel(canal)
+          if (reintentoTimer) clearTimeout(reintentoTimer)
+          reintentoTimer = setTimeout(crearCanal, 2000)
+        }
+      })
     }
-    canal.subscribe((estado) => {
-      // Si la conexion se cae o se reconecta, se pone al dia de inmediato.
-      if (estado === 'SUBSCRIBED') programar()
-    })
+    crearCanal()
 
     const alVolver = () => {
       if (document.visibilityState === 'visible') programar()
@@ -41,12 +58,14 @@ export function useRealtimeRefresh(tablas: string[], recargar: () => void, cadaM
     const intervalo = cadaMs ? setInterval(() => recargarRef.current(), cadaMs) : null
 
     return () => {
+      vivo = false
       if (timer) clearTimeout(timer)
+      if (reintentoTimer) clearTimeout(reintentoTimer)
       if (intervalo) clearInterval(intervalo)
       document.removeEventListener('visibilitychange', alVolver)
       window.removeEventListener('focus', programar)
       window.removeEventListener('online', programar)
-      supabase.removeChannel(canal)
+      if (canal) supabase.removeChannel(canal)
     }
   }, [clave, cadaMs])
 }

@@ -87,8 +87,9 @@ export function PedidosTienda() {
     load()
   }, [load])
 
-  // Tiempo real, con respaldo cada 20 s por si el celular pierde la conexion en vivo.
-  useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 20000)
+  // Tiempo real, con respaldo cada 8 s por si el celular pierde la conexion en vivo (el celular bloqueado
+  // corta el WebSocket y a veces no lo retoma solo hasta volver a abrir la app).
+  useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 8000)
 
   async function handleEntregado(p: PedidoTienda) {
     if (!window.confirm(`¿Marcar como entregado el pedido de ${p.nombre_cliente} (${formatCLP(p.total)})? Esto se suma a tu arqueo.`)) return

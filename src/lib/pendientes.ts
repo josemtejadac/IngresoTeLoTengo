@@ -1,5 +1,15 @@
 import { supabase } from './supabase'
 
+export interface ItemPendiente {
+  producto_id: string
+  nombre_producto: string
+  cantidad: number
+  es_peso?: boolean
+  unidades?: number | null
+  es_combo?: boolean
+  subtotal: number
+}
+
 export interface PendienteEntry {
   id: string
   worker_id: string
@@ -14,6 +24,8 @@ export interface PendienteEntry {
   paid_by: string | null
   paid_at: string | null
   created_at: string
+  /** Si se fio eligiendo productos del inventario (y se descontó el stock), queda el detalle acá. */
+  items: ItemPendiente[] | null
 }
 
 /**
@@ -54,6 +66,30 @@ export async function addPendientes(
     })),
   )
   if (error) throw error
+}
+
+export interface ItemFiadoInput {
+  producto_id: string
+  /** Gramos si es por peso (o usa `unidades` si el producto tiene unidad definida), cantidad si no. */
+  cantidad?: number
+  gramos?: number
+  unidades?: number
+  es_combo?: boolean
+}
+
+/**
+ * Registra un fiado eligiendo productos reales del catálogo: calcula el monto con el precio de cada
+ * uno y descuenta el stock de una, igual que una venta (pero queda pendiente de cobro).
+ */
+export async function fiarProductos(cliente: string, detalle: string, items: ItemFiadoInput[]): Promise<number> {
+  const { data, error } = await supabase.rpc('ingreso_fiar_productos', {
+    p_cliente: cliente,
+    p_detalle: detalle,
+    p_items: items,
+  })
+  if (error) throw error
+  const row = (data as { pendiente_id: string; total: number }[] | null)?.[0]
+  return row ? Number(row.total) : 0
 }
 
 /** Cobra todo el saldo de las deudas: queda registrado como dinero cobrado en la fecha de hoy. */

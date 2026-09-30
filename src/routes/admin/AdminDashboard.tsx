@@ -1474,9 +1474,11 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <td>{formatCLP(ventaTotal(a))}</td>
                 <td className="subtitle">{textoOrigenArqueo(a)}</td>
                 <td>
-                  <button className="btn btn-secondary btn-small" onClick={() => abrirCorregirArqueo(a.worker_id)}>
-                    Corregir
-                  </button>
+                  {arqueoDate === currentDateValue() && (
+                    <button className="btn btn-secondary btn-small" onClick={() => abrirCorregirArqueo(a.worker_id)}>
+                      Corregir
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

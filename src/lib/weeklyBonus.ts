@@ -110,6 +110,18 @@ export async function setWeeklyBonusEarned(workerId: string, week: WeekRange, ea
   if (error) throw error
 }
 
+/** Fila de bono semanal de una semana puntual (para el sueldo semanal en tiempo real). */
+export async function loadWeeklyBonusRow(workerId: string, week: WeekRange): Promise<WeeklyBonusRow | null> {
+  const { data, error } = await supabase
+    .from('ingreso_weekly_bonus')
+    .select('*')
+    .eq('worker_id', workerId)
+    .eq('week_end', toISODate(week.end))
+    .maybeSingle()
+  if (error) throw error
+  return (data as WeeklyBonusRow) ?? null
+}
+
 export function isWeekEarned(rows: WeeklyBonusRow[], week: WeekRange): boolean {
   const weekEndIso = toISODate(week.end)
   return rows.some((r) => r.week_end === weekEndIso && r.earned)

@@ -25,11 +25,13 @@ import {
   type PaySummary,
 } from '../../lib/payroll'
 import {
+  WEEKLY_BONUS_AMOUNT,
   formatWeekLabel,
   getCurrentWeek,
   getWeeksEndingInMonth,
   isWeekEarned,
   loadWeeklyBonusForWorker,
+  loadWeeklyBonusRow,
   totalEarned,
   type WeeklyBonusRow,
 } from '../../lib/weeklyBonus'
@@ -185,8 +187,16 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
   const loadPaySummary = useCallback(async () => {
     const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0)
+    let start: Date
+    let end: Date
+    if (profile.pay_frequency === 'weekly') {
+      const week = getCurrentWeek()
+      start = new Date(week.start.getFullYear(), week.start.getMonth(), week.start.getDate(), 0, 0, 0)
+      end = new Date(week.end.getFullYear(), week.end.getMonth(), week.end.getDate() + 1, 0, 0, 0)
+    } else {
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0)
+    }
 
     const { data } = await supabase
       .from('ingreso_attendance')
@@ -210,6 +220,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   }, [loadPaySummary])
 
   const loadBonusRows = useCallback(async () => {
+    if (profile.pay_frequency === 'weekly') {
+      // La semana en curso puede terminar (domingo) en el mes siguiente; se pide aparte para no perderla.
+      const row = await loadWeeklyBonusRow(profile.id, getCurrentWeek())
+      setWeeklyBonusRows(row ? [row] : [])
+      return
+    }
     const rows = await loadWeeklyBonusForWorker(profile.id, currentMonthValue())
     setWeeklyBonusRows(rows)
   }, [profile.id])
@@ -687,7 +703,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
             Cada hora extra vale <strong>{formatCLP(OVERTIME_RATE_PER_HOUR)}</strong>
           </p>
           <p>
-            Horas extra este mes: <strong>{formatHoursMinutes(paySummary.overtimeMs)}</strong> →{' '}
+            Horas extra {paySummary.payFrequency === 'weekly' ? 'esta semana' : 'este mes'}:{' '}
+            <strong>{formatHoursMinutes(paySummary.overtimeMs)}</strong> →{' '}
             <strong>{formatCLP(paySummary.overtimePay)}</strong>
           </p>
           {paySummary.tuesdayBonusCount > 0 && (
@@ -696,7 +713,19 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               <strong>{formatCLP(paySummary.tuesdayBonusTotal)}</strong>
             </p>
           )}
-          {profile.weekly_bonus_eligible && (
+          {profile.weekly_bonus_eligible && paySummary.payFrequency === 'weekly' && (
+            <p>
+              Bono semanal esta semana:{' '}
+              <span className={isWeekEarned(weeklyBonusRows, getCurrentWeek()) ? 'bonus-week earned' : 'bonus-week'}>
+                {formatWeekLabel(getCurrentWeek())}
+              </span>{' '}
+              →{' '}
+              <strong>
+                {formatCLP(isWeekEarned(weeklyBonusRows, getCurrentWeek()) ? WEEKLY_BONUS_AMOUNT : 0)}
+              </strong>
+            </p>
+          )}
+          {profile.weekly_bonus_eligible && paySummary.payFrequency !== 'weekly' && (
             <p>
               Bono semanal este mes:{' '}
               {weeksThisMonth.map((week) => {
@@ -716,7 +745,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           )}
           {feriadoSummary && feriadoSummary.days.length > 0 && (
             <p>
-              Feriados/irrenunciables trabajados este mes:{' '}
+              Feriados/irrenunciables trabajados {paySummary.payFrequency === 'weekly' ? 'esta semana' : 'este mes'}:{' '}
               {feriadoSummary.days.map((d) => (
                 <span key={d.fecha}>
                   {d.nombre} ({formatCLP(d.monto)}){' '}
@@ -734,6 +763,20 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     paySummary.overtimePay +
                     paySummary.tuesdayBonusTotal +
                     totalEarned(weeklyBonusRows) +
+                    (feriadoSummary?.total ?? 0),
+                )}
+              </strong>
+            </p>
+          )}
+          {paySummary.payFrequency === 'weekly' && (
+            <p className="pay-total">
+              Total de esta semana ({formatWeekLabel(getCurrentWeek())}):{' '}
+              <strong>
+                {formatCLP(
+                  paySummary.baseAmount +
+                    paySummary.overtimePay +
+                    paySummary.tuesdayBonusTotal +
+                    (isWeekEarned(weeklyBonusRows, getCurrentWeek()) ? WEEKLY_BONUS_AMOUNT : 0) +
                     (feriadoSummary?.total ?? 0),
                 )}
               </strong>

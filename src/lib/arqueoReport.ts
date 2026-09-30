@@ -1,11 +1,11 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatCLP } from './payroll'
-import { ventaTotal, type ArqueoRowWithWorker } from './arqueo'
+import { filasVigentesPorTrabajador, ventaTotal, type ArqueoRowWithWorker } from './arqueo'
 
 /**
  * Descarga en PDF el arqueo de un dia: de todos los trabajadores, o de uno solo si se pasa workerId.
- * Suma todas las filas (manual/pedido/abono) por trabajador, para que quede un total limpio por persona.
+ * Si un trabajador quedo con mas de una fila (ej. se corrigio despues), solo cuenta la mas reciente.
  */
 export function downloadArqueoPdf(rows: ArqueoRowWithWorker[], date: string, workerId?: string) {
   const filas = workerId ? rows.filter((r) => r.worker_id === workerId) : rows
@@ -13,29 +13,16 @@ export function downloadArqueoPdf(rows: ArqueoRowWithWorker[], date: string, wor
     throw new Error('No hay arqueo registrado para esta selección.')
   }
 
-  const porTrabajador = new Map<
-    string,
-    { nombre: string; efectivo: number; debito: number; credito: number; transferencia: number; qr: number }
-  >()
-  for (const r of filas) {
-    const nombre = r.ingreso_profiles?.full_name ?? 'Desconocido'
-    const entry = porTrabajador.get(r.worker_id) ?? {
-      nombre,
-      efectivo: 0,
-      debito: 0,
-      credito: 0,
-      transferencia: 0,
-      qr: 0,
-    }
-    entry.efectivo += Number(r.efectivo)
-    entry.debito += Number(r.debito)
-    entry.credito += Number(r.credito)
-    entry.transferencia += Number(r.transferencia)
-    entry.qr += Number(r.qr)
-    porTrabajador.set(r.worker_id, entry)
-  }
-
-  const filasOrdenadas = [...porTrabajador.values()].sort((a, b) => a.nombre.localeCompare(b.nombre))
+  const filasOrdenadas = filasVigentesPorTrabajador(filas)
+    .map((r) => ({
+      nombre: r.ingreso_profiles?.full_name ?? 'Desconocido',
+      efectivo: Number(r.efectivo),
+      debito: Number(r.debito),
+      credito: Number(r.credito),
+      transferencia: Number(r.transferencia),
+      qr: Number(r.qr),
+    }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre))
   const grandTotal = filasOrdenadas.reduce((sum, f) => sum + ventaTotal(f), 0)
 
   const doc = new jsPDF()

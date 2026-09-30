@@ -35,6 +35,7 @@ import {
 } from '../../lib/weeklyBonus'
 import {
   corregirArqueoDia,
+  filasVigentesPorTrabajador,
   loadArqueoForWorkerDay,
   loadArqueoManualHabilitado,
   loadWeeklySalesTotal,
@@ -422,16 +423,9 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const arqueoVentaTotal = ventaTotal(arqueoValues)
 
   function abrirCorregirArqueo() {
-    const sumaActual = todayArqueo.reduce(
-      (acc, a) => ({
-        efectivo: acc.efectivo + Number(a.efectivo),
-        debito: acc.debito + Number(a.debito),
-        credito: acc.credito + Number(a.credito),
-        transferencia: acc.transferencia + Number(a.transferencia),
-        qr: acc.qr + Number(a.qr),
-      }),
-      { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 },
-    )
+    // Se parte desde la fila mas reciente (la que vale para el total hoy), no de la suma de todas.
+    const [vigente] = filasVigentesPorTrabajador(todayArqueo)
+    const sumaActual = vigente ?? { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
     setCorrigiendoArqueo(true)
     setEditArqueoError(null)
     setEditArqueoValores({
@@ -875,7 +869,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         </p>
         <VentasOnlineDia
           fecha={currentDateValue()}
-          arqueoTotal={todayArqueo.reduce((sum, a) => sum + ventaTotal(a), 0)}
+          arqueoTotal={filasVigentesPorTrabajador(todayArqueo).reduce((sum, a) => sum + ventaTotal(a), 0)}
         />
           </section>
           <HistorialPedidosTienda />

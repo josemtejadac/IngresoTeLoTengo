@@ -3,9 +3,12 @@ import autoTable from 'jspdf-autotable'
 import { supabase } from './supabase'
 import { formatCLP } from './payroll'
 import { loadVentasPedidos } from './tienda'
+import { filasVigentesPorTrabajador } from './arqueo'
 
 interface ArqueoRowRaw {
+  worker_id: string
   arqueo_date: string
+  created_at: string
   efectivo: number
   debito: number
   credito: number
@@ -34,7 +37,7 @@ export async function downloadSalesPdf({
 }: DownloadSalesPdfParams) {
   const { data, error } = await supabase
     .from('ingreso_arqueo')
-    .select('arqueo_date, efectivo, debito, credito, transferencia, qr')
+    .select('worker_id, arqueo_date, created_at, efectivo, debito, credito, transferencia, qr')
     .gte('arqueo_date', toISODate(start))
     .lte('arqueo_date', toISODate(end))
     .order('arqueo_date', { ascending: true })
@@ -67,24 +70,26 @@ export async function downloadSalesPdf({
     mapa.set(v.fecha, (mapa.get(v.fecha) ?? 0) + v.monto)
   }
 
+  // Si un trabajador quedo con mas de una fila el mismo dia (ej. se corrigio despues), solo cuenta la mas
+  // reciente: se agrupa por dia+trabajador antes de sumar, para no duplicar plata.
   const byDate = new Map<
     string,
     { efectivo: number; debito: number; credito: number; transferencia: number; qr: number }
   >()
+  const porDia = new Map<string, ArqueoRowRaw[]>()
   for (const r of rows) {
-    const entry = byDate.get(r.arqueo_date) ?? {
-      efectivo: 0,
-      debito: 0,
-      credito: 0,
-      transferencia: 0,
-      qr: 0,
+    porDia.set(r.arqueo_date, [...(porDia.get(r.arqueo_date) ?? []), r])
+  }
+  for (const [fecha, filasDelDia] of porDia) {
+    const entry = byDate.get(fecha) ?? { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
+    for (const r of filasVigentesPorTrabajador(filasDelDia)) {
+      entry.efectivo += Number(r.efectivo)
+      entry.debito += Number(r.debito)
+      entry.credito += Number(r.credito)
+      entry.transferencia += Number(r.transferencia)
+      entry.qr += Number(r.qr)
     }
-    entry.efectivo += Number(r.efectivo)
-    entry.debito += Number(r.debito)
-    entry.credito += Number(r.credito)
-    entry.transferencia += Number(r.transferencia)
-    entry.qr += Number(r.qr)
-    byDate.set(r.arqueo_date, entry)
+    byDate.set(fecha, entry)
   }
 
   const dates = [

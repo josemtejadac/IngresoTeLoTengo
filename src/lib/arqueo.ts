@@ -8,6 +8,7 @@ export interface ArqueoEntry {
   id: string
   worker_id: string
   arqueo_date: string
+  created_at: string
   efectivo: number
   debito: number
   credito: number
@@ -36,6 +37,22 @@ export interface ArqueoInput {
 
 export function ventaTotal(a: ArqueoInput): number {
   return a.efectivo + a.debito + a.credito + a.transferencia + a.qr
+}
+
+/**
+ * Si un trabajador (o dia) tiene varias filas (ej. la de la app y una corregida despues), la que vale para
+ * el total es la MAS RECIENTE: una correccion reemplaza a la fila vieja para el total, no se suman ambas.
+ * Las demas quedan solo como historial para comparar.
+ */
+export function filasVigentesPorTrabajador<T extends Pick<ArqueoEntry, 'worker_id' | 'created_at'>>(rows: T[]): T[] {
+  const porTrabajador = new Map<string, T>()
+  for (const r of rows) {
+    const actual = porTrabajador.get(r.worker_id)
+    if (!actual || new Date(r.created_at) > new Date(actual.created_at)) {
+      porTrabajador.set(r.worker_id, r)
+    }
+  }
+  return [...porTrabajador.values()]
 }
 
 /** Como mostrar el origen de una fila de arqueo: prioriza que se edito, luego si alguien la confirmo a mano. */

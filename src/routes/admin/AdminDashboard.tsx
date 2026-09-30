@@ -31,6 +31,7 @@ import {
 } from '../../lib/weeklyBonus'
 import {
   corregirArqueoDia,
+  filasVigentesPorTrabajador,
   loadArqueoForDate,
   loadArqueoManualHabilitado,
   loadWeeklySalesTotal,
@@ -1451,6 +1452,10 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             }}
           />
         )}
+        <p className="subtitle">
+          Cada fila queda para poder comparar (ej. la de la app vs. la corregida); el total del día solo cuenta la
+          más reciente de cada trabajador.
+        </p>
         <table className="table">
           <thead>
             <tr>
@@ -1490,7 +1495,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                 <strong>Venta bruta del día</strong>
               </td>
               <td>
-                <strong>{formatCLP(arqueoRows.reduce((sum, a) => sum + ventaTotal(a), 0))}</strong>
+                <strong>{formatCLP(filasVigentesPorTrabajador(arqueoRows).reduce((sum, a) => sum + ventaTotal(a), 0))}</strong>
               </td>
               <td></td>
               <td></td>
@@ -1499,7 +1504,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         </table>
         <VentasOnlineDia
           fecha={arqueoDate}
-          arqueoTotal={arqueoRows.reduce((sum, a) => sum + ventaTotal(a), 0)}
+          arqueoTotal={filasVigentesPorTrabajador(arqueoRows).reduce((sum, a) => sum + ventaTotal(a), 0)}
           esAdmin
         />
       </section>

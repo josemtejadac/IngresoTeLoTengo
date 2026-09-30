@@ -875,7 +875,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           como una fila nueva, sin borrar la que dejó la app.
         </p>
         <VentasOnlineDia
-          fecha={currentDateValue()}
+          fecha={verArqueoFecha}
           arqueoTotal={filasVigentesPorTrabajador(todayArqueo).reduce((sum, a) => sum + ventaTotal(a), 0)}
         />
           </section>

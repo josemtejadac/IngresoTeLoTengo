@@ -585,6 +585,7 @@ export function Tienda() {
         <div className="tienda-beneficios">
           <span>🚚 Te lo llevamos a tu depto</span>
           <span>💳 Paga online o al recibir</span>
+          <span>🕒 Atendemos de {TIENDA_ABRE_TEXTO} a {TIENDA_CIERRA_TEXTO}</span>
         </div>
         <input
           type="search"

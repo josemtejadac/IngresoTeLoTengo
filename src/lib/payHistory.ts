@@ -34,6 +34,10 @@ function currentMonthValue(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // El historial solo muestra meses desde que se empezo a llevar bien (los de antes usaban otro sueldo/horario
 // y no reflejan lo que realmente se pago). Se ajusta una sola vez si hace falta correr el inicio mas adelante.
 const HISTORIAL_DESDE = '2026-09'
@@ -111,7 +115,11 @@ export interface WeekPaySummary {
   total: number
 }
 
-/** Semanas (lunes a domingo) anteriores a la semana en curso, de la mas reciente a la mas antigua. */
+// El historial semanal solo muestra semanas desde que Ricardo empezo a cobrar semanal (antes no se llevaba
+// asi). Se ajusta una sola vez si hace falta correr el inicio mas atras.
+const WEEKLY_HISTORIAL_DESDE = '2026-09-14'
+
+/** Semanas (lunes a domingo) anteriores a la semana en curso, de la mas reciente a la mas antigua (nunca antes de WEEKLY_HISTORIAL_DESDE). */
 export function previousWeeks(cantidad: number): WeekRange[] {
   const current = getCurrentWeek()
   const weeks: WeekRange[] = []
@@ -120,6 +128,7 @@ export function previousWeeks(cantidad: number): WeekRange[] {
     end.setDate(end.getDate() - 1 - 7 * (i - 1))
     const start = new Date(end)
     start.setDate(start.getDate() - 6)
+    if (toISODate(start) < WEEKLY_HISTORIAL_DESDE) break
     weeks.push({ start, end })
   }
   return weeks

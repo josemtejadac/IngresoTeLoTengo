@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
+import { SueldosEnVivo } from '../../components/SueldosEnVivo'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
 import { AsistenteTienda } from '../../components/AsistenteTienda'
 import { AlertaPedidosNuevos } from '../../components/AlertaPedidosNuevos'
@@ -1184,6 +1185,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         {reportError && <p className="error-text">{reportError}</p>}
       </section>
       )}
+
+      {activeTab === 'trabajadores' && <SueldosEnVivo workers={workers} />}
 
       {activeTab === 'trabajadores' && (
       <section className="card">

@@ -26,6 +26,7 @@ const ETIQUETA: Record<string, string> = {
   transferencia: 'Transferencia',
   qr: 'QR',
   tarjeta: 'Tarjeta',
+  mixto: 'Pago mixto',
 }
 
 /**

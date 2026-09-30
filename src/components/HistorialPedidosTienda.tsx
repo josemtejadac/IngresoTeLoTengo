@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
+import { PagoMixto } from './PagoMixto'
 import { downloadProductosVendidosPdf } from '../lib/productosVendidosReport'
 import {
   coincideFiltroPago,
@@ -17,6 +18,16 @@ import {
 function hoyISO(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function textoMetodoPago(p: PedidoTienda): string {
+  if (p.metodo_pago === 'mixto' && p.pago_mixto) {
+    const partes = Object.entries(p.pago_mixto)
+      .filter(([, monto]) => (monto ?? 0) > 0)
+      .map(([m, monto]) => `${METODO_PAGO_LABEL[m as keyof typeof METODO_PAGO_LABEL]} ${formatCLP(monto ?? 0)}`)
+    return partes.length > 0 ? `Mixto (${partes.join(' + ')})` : 'Pago mixto'
+  }
+  return p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'
 }
 
 function textoItem(it: PedidoTiendaItem): string {
@@ -139,7 +150,7 @@ export function HistorialPedidosTienda() {
           ) : (
             <p>
               {formatCLP(p.total)} · {p.estado === 'entregado' ? 'Entregado' : 'Por entregar'} ·{' '}
-              {p.metodo_pago ? METODO_PAGO_LABEL[p.metodo_pago] : 'Sin dato'}
+              {textoMetodoPago(p)}
               {p.pago_estado === 'pagado' ? (
                 <>
                   {' · '}
@@ -150,6 +161,7 @@ export function HistorialPedidosTienda() {
               )}
             </p>
           )}
+          {p.estado === 'entregado' && <PagoMixto pedido={p} onFijado={load} />}
         </div>
       ))}
     </section>

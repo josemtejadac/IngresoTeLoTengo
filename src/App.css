@@ -1200,6 +1200,20 @@ textarea {
   margin: 2px 0;
 }
 
+.pago-mixto-form {
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 6px 0;
+}
+
+.pago-mixto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+
 .tienda-cerrada-aviso {
   background: #1e293b;
   color: #fff;

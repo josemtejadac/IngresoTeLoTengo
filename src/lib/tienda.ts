@@ -60,7 +60,9 @@ export function coincideFiltroPago(metodo: MetodoPago | null, filtro: FiltroPago
 
 // 'tarjeta' solo aparece en pedidos viejos, de antes de separar debito/credito; ya no se genera.
 // 'transferencia' y 'qr' solo las marca el personal (el cliente no las elige en la tienda).
-export type MetodoPago = 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr' | 'tarjeta' | 'online'
+// 'mixto' = el cliente pago con mas de un metodo (ej. parte debito, parte efectivo); el reparto exacto
+// queda en pago_mixto, y cada monto se suma a la columna de arqueo que corresponde.
+export type MetodoPago = 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr' | 'tarjeta' | 'online' | 'mixto'
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
   efectivo: 'Efectivo',
@@ -70,7 +72,12 @@ export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
   qr: 'QR',
   tarjeta: 'Tarjeta',
   online: 'Pago online',
+  mixto: 'Pago mixto',
 }
+
+/** Metodos que de verdad se suman al arqueo (excluye 'online', que va directo a Flow, y 'mixto', que es el contenedor). */
+export const METODOS_ARQUEO = ['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const
+export type MetodoArqueo = (typeof METODOS_ARQUEO)[number]
 
 export interface PedidoTiendaInput {
   metodo: MetodoPago
@@ -136,6 +143,8 @@ export interface PedidoTienda {
   /** Quien salio fisicamente a entregarlo (ej. el turno que entra), sin ser necesariamente quien lo cobra/confirma. */
   entrega_fisica_por?: string | null
   entrega_fisica_at?: string | null
+  /** Solo si metodo_pago = 'mixto': cuanto se pago con cada metodo, ej. {"debito": 2200, "efectivo": 450}. */
+  pago_mixto?: Partial<Record<MetodoArqueo, number>> | null
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {
@@ -226,6 +235,17 @@ export async function marcarPedidoPagado(pedidoId: string) {
 /** El personal cambia entre efectivo/debito/credito en un pedido contra entrega (online no se puede cambiar). */
 export async function cambiarMetodoPedido(pedidoId: string, metodo: 'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr') {
   const { error } = await supabase.rpc('ingreso_cambiar_metodo_pedido', { p_pedido: pedidoId, p_metodo: metodo })
+  if (error) throw error
+}
+
+/**
+ * Fija (o corrige) el pago de un pedido YA ENTREGADO como mixto: cada monto entra a la columna de
+ * arqueo que corresponde, y si el pedido ya tenia un metodo (o mixto) sumado, primero se revierte
+ * ese monto viejo antes de sumar el nuevo reparto. `montos` no necesita traer todos los metodos, solo
+ * los que tengan algo (deben sumar exacto el total del pedido).
+ */
+export async function fijarPagoMixto(pedidoId: string, montos: Partial<Record<MetodoArqueo, number>>) {
+  const { error } = await supabase.rpc('ingreso_fijar_pago_mixto', { p_pedido: pedidoId, p_montos: montos })
   if (error) throw error
 }
 

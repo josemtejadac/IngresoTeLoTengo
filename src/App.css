@@ -982,6 +982,61 @@ textarea {
   padding-left: 10px;
 }
 
+.pedido-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin: 2px 0 8px;
+}
+
+.pedido-badge-recibido {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.pedido-badge-preparando {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pedido-badge-en_camino {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.pedido-badge-entregado {
+  background: #16a34a;
+  color: #fff;
+}
+
+.pedido-badge-cancelado {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.pedido-badge-pendiente {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.pedido-badge-activo {
+  animation: pedido-badge-pulso 1.6s ease-in-out infinite;
+}
+
+@keyframes pedido-badge-pulso {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.04);
+  }
+}
+
 .retorno-pago {
   border: 2px solid #16a34a;
   border-radius: 12px;

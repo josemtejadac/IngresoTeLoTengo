@@ -29,9 +29,29 @@ import {
 } from '../lib/tienda'
 
 const PROGRESO_LABEL: Record<ProgresoPedido, string> = {
-  recibido: 'Pedido recibido',
-  preparando: 'Empacando tus productos',
-  en_camino: '¡Va en camino!',
+  recibido: '📥 Pedido recibido',
+  preparando: '📦 Empacando tus productos',
+  en_camino: '🛵 ¡Va en camino!',
+}
+
+/** Insignia bien visible del estado del pedido, para "Mis pedidos". */
+function estadoPedidoBadge(p: MiPedido): { texto: string; clase: string } {
+  if (p.estado === 'entregado') return { texto: '✅ Entregado', clase: 'pedido-badge pedido-badge-entregado' }
+  if (p.estado === 'cancelado') {
+    if (p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && !p.cancelado_por_cliente) {
+      return { texto: 'Pago no completado', clase: 'pedido-badge pedido-badge-cancelado' }
+    }
+    return {
+      texto: p.cancelado_por_cliente ? 'Cancelado por ti' : 'Cancelado',
+      clase: 'pedido-badge pedido-badge-cancelado',
+    }
+  }
+  if (p.pago_estado === 'esperando_pago') return { texto: 'Sin pagar', clase: 'pedido-badge pedido-badge-pendiente' }
+  const activo = p.progreso === 'preparando' || p.progreso === 'en_camino'
+  return {
+    texto: PROGRESO_LABEL[p.progreso] ?? PROGRESO_LABEL.recibido,
+    clase: `pedido-badge pedido-badge-${p.progreso}${activo ? ' pedido-badge-activo' : ''}`,
+  }
 }
 
 interface CartLine {
@@ -1017,32 +1037,22 @@ export function Tienda() {
                 Todavía no tienes pedidos en este teléfono. Aquí verás los que hagas desde ahora.
               </p>
             )}
-            {(misPedidos ?? []).map((p) => (
+            {(misPedidos ?? []).map((p) => {
+              const badge = estadoPedidoBadge(p)
+              return (
               <div
                 key={p.id}
                 className={p.pago_estado === 'pagado' ? 'pedido-tienda-item pedido-pagado' : 'pedido-tienda-item'}
               >
-                <p>
-                  <strong>
-                    {new Date(p.created_at).toLocaleString('es-CL', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </strong>{' '}
-                  · {p.estado === 'entregado'
-                    ? 'Entregado'
-                    : p.estado === 'cancelado'
-                      ? p.metodo_pago === 'online' && p.pago_estado !== 'pagado' && !p.cancelado_por_cliente
-                        ? 'Pago no completado'
-                        : p.cancelado_por_cliente
-                          ? 'Cancelado por ti'
-                          : 'Cancelado'
-                      : p.pago_estado === 'esperando_pago'
-                        ? 'Sin pagar'
-                        : PROGRESO_LABEL[p.progreso] ?? 'En curso'}
+                <p className="subtitle">
+                  {new Date(p.created_at).toLocaleString('es-CL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </p>
+                <span className={badge.clase}>{badge.texto}</span>
                 <p className="subtitle">
                   {p.items
                     .map((it) =>
@@ -1122,7 +1132,8 @@ export function Tienda() {
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
             <div className="camera-actions">
               <button className="btn btn-secondary" onClick={() => setVerHistorial(false)}>
                 Cerrar

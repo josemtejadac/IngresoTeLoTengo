@@ -196,7 +196,17 @@ export function ElegirProductosPendiente({ inicial, onConfirmar, onCancelar }: P
                     + Pack {p.combo_cantidad} × {formatCLP(p.combo_precio)}
                   </button>
                 )}
-                {n > 0 && <span className="manual-en-pedido">{p.por_peso ? `${n}g` : `×${n}`}</span>}
+                {n > 0 && p.por_peso && <span className="manual-en-pedido">{n}g</span>}
+                {n > 0 && !p.por_peso && (
+                  <div className="manual-prod-stepper">
+                    <Stepper
+                      value={n}
+                      min={0}
+                      max={p.stock_max}
+                      onChange={(v) => cambiar(p.id, false, v)}
+                    />
+                  </div>
+                )}
               </div>
             )
           })}

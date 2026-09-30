@@ -1,11 +1,11 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
 import { Logo } from '../../components/Logo'
 import { ProductosScanner } from '../../components/ProductosScanner'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
-import { ClienteSugerido, type ClienteOpcion } from '../../components/ClienteSugerido'
+import { AgregarPendientes } from '../../components/AgregarPendientes'
 import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { HistorialPedidosTienda } from '../../components/HistorialPedidosTienda'
 import { ReporteLimpieza } from '../../components/ReporteLimpieza'
@@ -48,13 +48,10 @@ import {
   type ArqueoEntry,
 } from '../../lib/arqueo'
 import {
-  addPendientes,
   loadPendientes,
   markPendientesPagados,
   abonarPendientes,
   type MetodoAbono,
-  agruparPorCliente,
-  clienteNombre,
   totalPendiente,
   type PendienteEntry,
 } from '../../lib/pendientes'
@@ -124,9 +121,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [arqueoError, setArqueoError] = useState<string | null>(null)
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
   const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
-  const pendienteBusyRef = useRef(false)
-  const [pendienteRows, setPendienteRows] = useState([{ cliente: '', detalle: '', monto: '' }])
-  const [pendienteBusy, setPendienteBusy] = useState(false)
   const [pendienteError, setPendienteError] = useState<string | null>(null)
   const [payingId, setPayingId] = useState<string | null>(null)
   const [pedidosPendientes, setPedidosPendientes] = useState(0)
@@ -500,59 +494,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       setArqueoError(err instanceof Error ? err.message : 'Error guardando el arqueo')
     } finally {
       setArqueoBusy(false)
-    }
-  }
-
-  function updatePendienteRow(i: number, field: 'cliente' | 'detalle' | 'monto', value: string) {
-    setPendienteRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
-  }
-
-  // Todos los clientes que alguna vez tuvieron deuda (con o sin deuda hoy), para sugerirlos al escribir.
-  const clientesConocidos: ClienteOpcion[] = (() => {
-    const deudaPorClave = new Map(agruparPorCliente(pendientes).map((g) => [g.key, g.total]))
-    const vistos = new Map<string, ClienteOpcion>()
-    for (const p of pendientes) {
-      const nombre = clienteNombre(p)
-      const clave = nombre.toLowerCase().replace(/\s+/g, ' ')
-      if (!vistos.has(clave)) vistos.set(clave, { nombre, deuda: deudaPorClave.get(clave) ?? 0 })
-    }
-    return [...vistos.values()]
-  })()
-
-  /** Si el nombre coincide con uno ya registrado (sin importar mayusculas/tildes), usa esa escritura. */
-  function canonico(nombre: string): string {
-    const norm = (t: string) =>
-      t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
-    const igual = clientesConocidos.find((c) => norm(c.nombre) === norm(nombre))
-    return igual ? igual.nombre : nombre
-  }
-
-  async function handleAddPendiente(e: React.FormEvent) {
-    e.preventDefault()
-    if (pendienteBusyRef.current) return
-    // Filas completamente vacias se ignoran; las incompletas o invalidas frenan el envio.
-    const filled = pendienteRows.filter((r) => r.monto.trim() || r.cliente.trim())
-    const parsed = filled.map((r) => ({
-      monto: Number(r.monto),
-      cliente: canonico(r.cliente.trim()),
-      detalle: r.detalle.trim(),
-    }))
-    if (parsed.length === 0 || parsed.some((r) => !r.monto || r.monto <= 0 || !r.cliente)) {
-      setPendienteError('Cada deuda necesita el nombre del cliente y un monto válido.')
-      return
-    }
-    pendienteBusyRef.current = true
-    setPendienteBusy(true)
-    setPendienteError(null)
-    try {
-      await addPendientes(profile.id, parsed)
-      setPendienteRows([{ cliente: '', detalle: '', monto: '' }])
-      await loadPendientesRows()
-    } catch (err) {
-      setPendienteError(err instanceof Error ? err.message : 'Error registrando el pendiente')
-    } finally {
-      pendienteBusyRef.current = false
-      setPendienteBusy(false)
     }
   }
 
@@ -1000,58 +941,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           Si le fiaste algo a alguien, regístralo aquí con su nombre. Las deudas de una misma
           persona se juntan, y se puede cobrar una por una o todas juntas.
         </p>
-        <form onSubmit={handleAddPendiente} className="worker-form">
-          {pendienteRows.map((r, i) => (
-            <div key={i} className="report-row">
-              <div className="chat-input">
-                <span className="campo-etiqueta">Cliente</span>
-                <ClienteSugerido
-                  value={r.cliente}
-                  onChange={(v) => updatePendienteRow(i, 'cliente', v)}
-                  opciones={clientesConocidos}
-                  placeholder="Ej: Juan, depto 202"
-                />
-              </div>
-              <label className="chat-input">
-                Detalle (opcional)
-                <input
-                  value={r.detalle}
-                  onChange={(e) => updatePendienteRow(i, 'detalle', e.target.value)}
-                  placeholder="Ej: 2 Coca-Cola y pan"
-                />
-              </label>
-              <label>
-                Monto
-                <input
-                  type="number"
-                  min={0}
-                  value={r.monto}
-                  onChange={(e) => updatePendienteRow(i, 'monto', e.target.value)}
-                />
-              </label>
-              {pendienteRows.length > 1 && (
-                <button
-                  type="button"
-                  className="btn-link"
-                  onClick={() => setPendienteRows((prev) => prev.filter((_, idx) => idx !== i))}
-                >
-                  Quitar
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            className="btn btn-secondary btn-small"
-            onClick={() => setPendienteRows((prev) => [...prev, { cliente: '', detalle: '', monto: '' }])}
-          >
-            + Agregar otro cliente
-          </button>
-          {pendienteError && <p className="error-text">{pendienteError}</p>}
-          <button type="submit" className="btn btn-primary" disabled={pendienteBusy}>
-            {pendienteBusy ? 'Guardando...' : pendienteRows.length > 1 ? 'Registrar pendientes' : 'Registrar pendiente'}
-          </button>
-        </form>
+        {pendienteError && <p className="error-text">{pendienteError}</p>}
+        <AgregarPendientes workerId={profile.id} pendientes={pendientes} onGuardado={loadPendientesRows} />
 
         <p>
           Total pendiente por cobrar: <strong>{formatCLP(totalPendiente(pendientes))}</strong>

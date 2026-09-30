@@ -123,16 +123,19 @@ export function AgregarPendientes({ workerId, pendientes, onGuardado }: Props) {
           {r.lineas.length > 0 ? (
             <div className="chat-input">
               <span className="campo-etiqueta">Productos (descuentan stock)</span>
-              <p className="subtitle">
-                {lineasATextoResumen(r.lineas)} · {formatCLP(r.lineas.reduce((sum, l) => sum + totalLineaFiado(l), 0))}
-              </p>
-              <div className="report-row">
-                <button type="button" className="btn-link" onClick={() => setEligiendoProductosIdx(i)}>
-                  Cambiar
-                </button>
-                <button type="button" className="btn-link" onClick={() => quitarProductos(i)}>
-                  Quitar productos
-                </button>
+              <div className="fiado-productos-resumen">
+                <p>
+                  {lineasATextoResumen(r.lineas)}
+                  <strong> · {formatCLP(r.lineas.reduce((sum, l) => sum + totalLineaFiado(l), 0))}</strong>
+                </p>
+                <div className="report-row">
+                  <button type="button" className="btn btn-secondary btn-small" onClick={() => setEligiendoProductosIdx(i)}>
+                    ✏️ Cambiar
+                  </button>
+                  <button type="button" className="btn btn-danger-outline btn-small" onClick={() => quitarProductos(i)}>
+                    ✕ Quitar productos
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

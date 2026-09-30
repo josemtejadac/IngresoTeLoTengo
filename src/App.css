@@ -2453,6 +2453,27 @@ textarea {
   min-width: 0;
 }
 
+.manual-prod-stepper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.manual-prod-stepper .stepper {
+  transform: scale(0.9);
+}
+
+.fiado-productos-resumen {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .manual-pack-btn {
   margin-top: 6px;
   width: 100%;

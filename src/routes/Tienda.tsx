@@ -926,24 +926,6 @@ export function Tienda() {
               <h2>{pesoSel.producto.nombre}</h2>
             </div>
             <p className="subtitle">{formatCLP(pesoSel.producto.precio)} el kilo</p>
-            {pesoSel.producto.gramos_unidad && (
-              <div className="action-row">
-                <button
-                  type="button"
-                  className={pesoSel.modo === 'unidades' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-                  onClick={() => setPesoSel({ ...pesoSel, modo: 'unidades', valor: '1' })}
-                >
-                  Por unidad
-                </button>
-                <button
-                  type="button"
-                  className={pesoSel.modo === 'gramos' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-                  onClick={() => setPesoSel({ ...pesoSel, modo: 'gramos', valor: '500' })}
-                >
-                  Por gramos
-                </button>
-              </div>
-            )}
             {pesoSel.modo === 'gramos' && (
               <div className="action-row">
                 {GRAMOS_RAPIDOS.map((g) => (

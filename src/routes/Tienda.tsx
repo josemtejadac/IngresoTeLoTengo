@@ -6,7 +6,7 @@ import { useRealtimeRefresh } from '../lib/realtime'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
 import { useAtrasCierra } from '../lib/atras'
-import { tiendaAbierta, TIENDA_ABRE_TEXTO, TIENDA_CIERRA_TEXTO } from '../lib/horarioTienda'
+import { tiendaAbierta, horarioHoyTexto } from '../lib/horarioTienda'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
@@ -360,7 +360,7 @@ export function Tienda() {
     e.preventDefault()
     if (cart.length === 0) return
     if (!tiendaAbierta()) {
-      setError(`La tienda está cerrada. Recibimos pedidos de ${TIENDA_ABRE_TEXTO} a ${TIENDA_CIERRA_TEXTO}.`)
+      setError(`La tienda está cerrada. Recibimos pedidos de ${horarioHoyTexto()}.`)
       return
     }
     if (metodo === 'online' && total < 350) {
@@ -631,7 +631,7 @@ export function Tienda() {
         <div className="tienda-beneficios">
           <span>🚚 Te lo llevamos a tu depto</span>
           <span>💳 Paga online o al recibir</span>
-          <span>🕒 Atendemos de {TIENDA_ABRE_TEXTO} a {TIENDA_CIERRA_TEXTO}</span>
+          <span>🕒 Atendemos hoy de {horarioHoyTexto()}</span>
         </div>
         <input
           type="search"
@@ -672,7 +672,7 @@ export function Tienda() {
 
       {!abierta && (
         <div className="tienda-cerrada-aviso">
-          🔒 Tienda cerrada. Recibimos pedidos de {TIENDA_ABRE_TEXTO} a {TIENDA_CIERRA_TEXTO}. ¡Vuelve pronto!
+          🔒 Tienda cerrada. Recibimos pedidos de {horarioHoyTexto()}. ¡Vuelve pronto!
         </div>
       )}
 

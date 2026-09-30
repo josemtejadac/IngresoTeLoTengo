@@ -148,7 +148,7 @@ export function PendientesPorCliente({
                 {g.deudas.map((d) => (
                   <tr key={d.id}>
                     <td>{new Date(d.created_at).toLocaleDateString('es-CL')}</td>
-                    <td>{d.cliente?.trim() ? d.comentario || '—' : '—'}</td>
+                    <td className="col-detalle">{d.cliente?.trim() ? d.comentario || '—' : '—'}</td>
                     <td>
                       {formatCLP(d.monto)}
                       {d.abonado > 0 && (

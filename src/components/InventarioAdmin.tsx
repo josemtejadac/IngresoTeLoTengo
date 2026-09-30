@@ -45,6 +45,7 @@ export function InventarioAdmin() {
   const [editPrecio, setEditPrecio] = useState('')
   const [editStock, setEditStock] = useState('0')
   const [editLlego, setEditLlego] = useState('')
+  const [editBaseNombre, setEditBaseNombre] = useState<string | null>(null)
   const [editPorPeso, setEditPorPeso] = useState(false)
   const [editGramosUnidad, setEditGramosUnidad] = useState('')
   const [editDescuento, setEditDescuento] = useState('')
@@ -206,6 +207,15 @@ export function InventarioAdmin() {
     setEditPrecio(p.precio?.toString() ?? '')
     setEditStock(p.stock.toString())
     setEditLlego('')
+    setEditBaseNombre(null)
+    if (p.stock_base_producto_id) {
+      supabase
+        .from('ingreso_productos')
+        .select('nombre')
+        .eq('id', p.stock_base_producto_id)
+        .single()
+        .then(({ data }) => setEditBaseNombre((data as { nombre: string } | null)?.nombre ?? null))
+    }
     setEditPorPeso(p.por_peso)
     setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
     setEditDescuento(p.descuento_pct?.toString() ?? '')
@@ -662,34 +672,44 @@ export function InventarioAdmin() {
                 Precio con descuento: {formatCLP(Math.round(Number(editPrecio) * (1 - Number(editDescuento) / 100)))}
               </p>
             )}
-            <label>
-              {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
-              <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />
-            </label>
-            <div className="report-row">
-              <label>
-                Llegó ahora {editPorPeso ? '(gramos)' : '(unidades)'}
-                <input
-                  type="number"
-                  min={0}
-                  value={editLlego}
-                  onChange={(e) => setEditLlego(e.target.value)}
-                  placeholder="0"
-                  className="qty-input"
-                />
-              </label>
-              <button
-                type="button"
-                className="btn btn-secondary btn-small"
-                disabled={!editLlego.trim() || !Number(editLlego)}
-                onClick={() => {
-                  setEditStock(String((Number(editStock) || 0) + (Number(editLlego) || 0)))
-                  setEditLlego('')
-                }}
-              >
-                Sumar al stock actual
-              </button>
-            </div>
+            {editing?.stock_base_producto_id ? (
+              <p className="subtitle">
+                Stock: <strong>{editStock}</strong> (se calcula solo desde{' '}
+                <strong>{editBaseNombre ?? 'el producto base'}</strong> · consume {editing.unidades_por_producto} de
+                esa unidad por cada uno). Para cambiar el stock, edita {editBaseNombre ?? 'el producto base'}.
+              </p>
+            ) : (
+              <>
+                <label>
+                  {editPorPeso ? 'Stock (en gramos, ej. 1000 = 1kg. 0 = sin stock)' : 'Stock'}
+                  <input type="number" min={0} value={editStock} onChange={(e) => setEditStock(e.target.value)} />
+                </label>
+                <div className="report-row">
+                  <label>
+                    Llegó ahora {editPorPeso ? '(gramos)' : '(unidades)'}
+                    <input
+                      type="number"
+                      min={0}
+                      value={editLlego}
+                      onChange={(e) => setEditLlego(e.target.value)}
+                      placeholder="0"
+                      className="qty-input"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    disabled={!editLlego.trim() || !Number(editLlego)}
+                    onClick={() => {
+                      setEditStock(String((Number(editStock) || 0) + (Number(editLlego) || 0)))
+                      setEditLlego('')
+                    }}
+                  >
+                    Sumar al stock actual
+                  </button>
+                </div>
+              </>
+            )}
             <label className="checkbox-label">
               <input
                 type="checkbox"

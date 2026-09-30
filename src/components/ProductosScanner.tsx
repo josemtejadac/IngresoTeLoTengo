@@ -240,7 +240,11 @@ export function ProductosScanner() {
                   )}
                 </td>
                 <td>
-                  {editando ? (
+                  {editando && p.stock_base_producto_id ? (
+                    <span className="subtitle" title="El stock se calcula solo desde el producto base">
+                      {p.stock} (calculado)
+                    </span>
+                  ) : editando ? (
                     <>
                       <input
                         type="number"

@@ -22,6 +22,11 @@ export interface Producto {
   nota: string | null
   /** Fijado: aparece primero en la tienda (antes que el resto, salvo que este sin stock). */
   destacado: boolean
+  /** Si no es null, este producto comparte stock con otro (ej. "media bandeja" con "huevo unidad"):
+   *  su stock se calcula solo y no se edita a mano. */
+  stock_base_producto_id: string | null
+  /** Cuantas unidades del producto base consume 1 de este producto (ej. 15 para media bandeja). */
+  unidades_por_producto: number
 }
 
 export type FiltroStock = 'todos' | 'sinprecio' | 'sinstock' | 'bajostock'

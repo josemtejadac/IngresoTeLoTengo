@@ -2135,6 +2135,181 @@ textarea {
 }
 .fila-editando { background: #f0fdf4; }
 
+/* ---------- Estadisticas ---------- */
+.estad-card {
+  background: linear-gradient(180deg, #fafbff 0%, #ffffff 120px);
+}
+
+.estad-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.estad-header h2 {
+  margin: 0;
+}
+
+.estad-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 14px 0 6px;
+}
+
+.estad-stat-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.estad-stat-verde {
+  background: linear-gradient(135deg, #dcfce7, #f0fdf4);
+  border: 1px solid #bbf7d0;
+}
+
+.estad-stat-azul {
+  background: linear-gradient(135deg, #dbeafe, #eff6ff);
+  border: 1px solid #bfdbfe;
+}
+
+.estad-stat-icono {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.estad-stat-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #475569;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.estad-stat-valor {
+  margin: 2px 0 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.estad-bloque {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #eef2f7;
+}
+
+.estad-bloque h3 {
+  margin-bottom: 4px;
+}
+
+.estad-consejos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.estad-consejo-item {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #d97706;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.estad-top-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.estad-top-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.estad-top-rank {
+  font-size: 1.15rem;
+  font-weight: 800;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+  color: #475569;
+}
+
+.estad-top-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.estad-top-nombre {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.estad-top-barra-fondo {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.estad-top-barra {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+  border-radius: 999px;
+}
+
+.estad-sinventa-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.estad-sinventa-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.88rem;
+}
+
+.estad-sinventa-nombre {
+  font-weight: 600;
+  color: #334155;
+}
+
+.estad-ia-bloque {
+  background: #f8fafc;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 4px;
+  border-top: 1px solid #eef2f7;
+}
+
 .filtro-descripcion {
   flex-basis: 100%;
   margin: 2px 0 0;

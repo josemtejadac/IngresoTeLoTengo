@@ -168,127 +168,143 @@ export function EstadisticasAdmin() {
     )
   }
 
+  const maxIngresos = Math.max(1, ...datos.top_productos.map((p) => p.ingresos))
+
   return (
-    <section className="card">
-      <h2>Estadísticas — última actualización automática</h2>
-      <p className="subtitle">
-        Basado en los pedidos de la tienda y manuales entregados en los últimos {datos.periodo_dias} días.
-      </p>
-      <p>
-        Ingresos del período: <strong>{formatCLP(datos.ingresos_periodo)}</strong> · Ventas totales acumuladas:{' '}
-        <strong>{datos.total_ventas}</strong>
-      </p>
-
-      <h3>🤖 Asistente de datos (IA)</h3>
-      <p className="subtitle">
-        Analiza estas mismas cifras y te puede responder preguntas sobre tu negocio, en lenguaje natural.
-      </p>
-      <button
-        type="button"
-        className="btn btn-secondary btn-small"
-        disabled={cargandoIA}
-        onClick={() => preguntarIA('')}
-      >
-        {cargandoIA ? 'Analizando...' : '🔍 Analizar todo de nuevo'}
-      </button>
-      <div className="estad-ia-chat">
-        {historialIA.map((h, i) => (
-          <p key={i} className={h.role === 'user' ? 'estad-ia-pregunta' : 'estad-ia-respuesta'}>
-            {h.role === 'user' ? h.text : h.text.split('\n').map((linea, j) => <span key={j}>{linea}<br /></span>)}
-          </p>
-        ))}
-        {cargandoIA && <p className="subtitle">Pensando...</p>}
+    <section className="card estad-card">
+      <div className="estad-header">
+        <h2>📊 Estadísticas</h2>
+        <span className="subtitle">Últimos {datos.periodo_dias} días · se actualiza sola</span>
       </div>
-      {errorIA && <p className="error-text">{errorIA}</p>}
-      <form
-        className="report-row"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (preguntaIA.trim() && !cargandoIA) preguntarIA(preguntaIA.trim())
-        }}
-      >
-        <input
-          value={preguntaIA}
-          onChange={(e) => setPreguntaIA(e.target.value)}
-          placeholder="Ej: ¿qué producto debería promocionar esta semana?"
-          disabled={cargandoIA}
-        />
-        <button type="submit" className="btn btn-primary btn-small" disabled={cargandoIA || !preguntaIA.trim()}>
-          Preguntar
-        </button>
-      </form>
 
-      <h3>Consejos rápidos</h3>
-      <ul className="estad-consejos">
-        {generarConsejos(datos).map((c, i) => (
-          <li key={i}>{c}</li>
-        ))}
-      </ul>
+      <div className="estad-stats-grid">
+        <div className="estad-stat-tile estad-stat-verde">
+          <span className="estad-stat-icono">💰</span>
+          <div>
+            <p className="estad-stat-label">Ingresos del período</p>
+            <p className="estad-stat-valor">{formatCLP(datos.ingresos_periodo)}</p>
+          </div>
+        </div>
+        <div className="estad-stat-tile estad-stat-azul">
+          <span className="estad-stat-icono">🧾</span>
+          <div>
+            <p className="estad-stat-label">Ventas totales acumuladas</p>
+            <p className="estad-stat-valor">{datos.total_ventas}</p>
+          </div>
+        </div>
+      </div>
 
-      <h3>Lo que más se vende</h3>
-      <p className="subtitle">
-        Fija los que quieras que aparezcan siempre primero en la tienda (antes que el resto, salvo que se agoten).
-      </p>
-      {datos.top_productos.length === 0 ? (
-        <p className="subtitle">Sin ventas en este período.</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Vendido</th>
-              <th>Ingresos</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {datos.top_productos.map((p) => {
+      <div className="estad-bloque">
+        <h3>💡 Consejos rápidos</h3>
+        <div className="estad-consejos">
+          {generarConsejos(datos).map((c, i) => (
+            <div key={i} className="estad-consejo-item">
+              {c}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="estad-bloque">
+        <h3>🏆 Lo que más se vende</h3>
+        <p className="subtitle">
+          Fija los que quieras que aparezcan siempre primero en la tienda (antes que el resto, salvo que se agoten).
+        </p>
+        {datos.top_productos.length === 0 ? (
+          <p className="subtitle">Sin ventas en este período.</p>
+        ) : (
+          <div className="estad-top-lista">
+            {datos.top_productos.map((p, i) => {
               const fijado = destacados[p.producto_id] ?? false
+              const medalla = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
               return (
-                <tr key={p.producto_id}>
-                  <td className="col-nombre">{p.nombre}</td>
-                  <td>{textoUnidades(p)}</td>
-                  <td>{formatCLP(p.ingresos)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className={fijado ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-                      disabled={fijandoId === p.producto_id}
-                      onClick={() => alternarFijado(p.producto_id, fijado)}
-                    >
-                      {fijandoId === p.producto_id ? '...' : fijado ? '📌 Fijado' : '📌 Fijar'}
-                    </button>
-                  </td>
-                </tr>
+                <div key={p.producto_id} className="estad-top-item">
+                  <span className="estad-top-rank">{medalla}</span>
+                  <div className="estad-top-info">
+                    <p className="estad-top-nombre">{p.nombre}</p>
+                    <p className="subtitle">
+                      {textoUnidades(p)} vendidas · {formatCLP(p.ingresos)}
+                    </p>
+                    <div className="estad-top-barra-fondo">
+                      <div
+                        className="estad-top-barra"
+                        style={{ width: `${Math.max(4, Math.round((p.ingresos / maxIngresos) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={fijado ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                    disabled={fijandoId === p.producto_id}
+                    onClick={() => alternarFijado(p.producto_id, fijado)}
+                  >
+                    {fijandoId === p.producto_id ? '...' : fijado ? '📌 Fijado' : '📌 Fijar'}
+                  </button>
+                </div>
               )
             })}
-          </tbody>
-        </table>
-      )}
+          </div>
+        )}
+      </div>
 
-      <h3>Lo que casi no se vende</h3>
-      {datos.sin_venta.length === 0 ? (
-        <p className="subtitle">Todos los productos activos con precio se han vendido en este período.</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Precio</th>
-              <th>Stock</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="estad-bloque">
+        <h3>🐢 Lo que casi no se vende</h3>
+        {datos.sin_venta.length === 0 ? (
+          <p className="subtitle">Todos los productos activos con precio se han vendido en este período.</p>
+        ) : (
+          <div className="estad-sinventa-lista">
             {datos.sin_venta.map((p) => (
-              <tr key={p.producto_id}>
-                <td className="col-nombre">{p.nombre}</td>
-                <td>{formatCLP(p.precio)}</td>
-                <td>{p.stock}</td>
-              </tr>
+              <div key={p.producto_id} className="estad-sinventa-item">
+                <span className="estad-sinventa-nombre">{p.nombre}</span>
+                <span className="subtitle">
+                  {formatCLP(p.precio)} · stock {p.stock}
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+          </div>
+        )}
+      </div>
+
+      <div className="estad-bloque estad-ia-bloque">
+        <h3>🤖 Asistente de datos (IA)</h3>
+        <p className="subtitle">
+          Analiza estas mismas cifras y te puede responder preguntas sobre tu negocio, en lenguaje natural.
+        </p>
+        <button
+          type="button"
+          className="btn btn-secondary btn-small"
+          disabled={cargandoIA}
+          onClick={() => preguntarIA('')}
+        >
+          {cargandoIA ? 'Analizando...' : '🔍 Analizar todo de nuevo'}
+        </button>
+        <div className="estad-ia-chat">
+          {historialIA.map((h, i) => (
+            <p key={i} className={h.role === 'user' ? 'estad-ia-pregunta' : 'estad-ia-respuesta'}>
+              {h.role === 'user' ? h.text : h.text.split('\n').map((linea, j) => <span key={j}>{linea}<br /></span>)}
+            </p>
+          ))}
+          {cargandoIA && <p className="subtitle">Pensando...</p>}
+        </div>
+        {errorIA && <p className="error-text">{errorIA}</p>}
+        <form
+          className="report-row"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (preguntaIA.trim() && !cargandoIA) preguntarIA(preguntaIA.trim())
+          }}
+        >
+          <input
+            value={preguntaIA}
+            onChange={(e) => setPreguntaIA(e.target.value)}
+            placeholder="Ej: ¿qué producto debería promocionar esta semana?"
+            disabled={cargandoIA}
+          />
+          <button type="submit" className="btn btn-primary btn-small" disabled={cargandoIA || !preguntaIA.trim()}>
+            Preguntar
+          </button>
+        </form>
+      </div>
     </section>
   )
 }

@@ -2404,6 +2404,15 @@ textarea {
   align-items: flex-end;
 }
 
+.notif-push-bloque {
+  align-items: stretch;
+  width: 100%;
+}
+
+.notif-push-bloque .btn {
+  width: 100%;
+}
+
 .notif-bloqueadas {
   font-size: 0.78rem;
 }

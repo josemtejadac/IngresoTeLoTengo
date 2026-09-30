@@ -6,7 +6,7 @@ import {
 } from '../lib/pushNotificacionesCliente'
 
 /** Para que el cliente decida si quiere que le avisen (con la app cerrada) cuando cambie el estado de este pedido. */
-export function NotificacionesPedidoCliente({ pedidoId }: { pedidoId: string }) {
+export function NotificacionesPedidoCliente({ pedidoId, bloque }: { pedidoId: string; bloque?: boolean }) {
   const [estado, setEstado] = useState<'cargando' | 'activadas' | 'desactivadas' | 'bloqueadas' | 'no_soportado'>(
     'cargando',
   )
@@ -47,15 +47,16 @@ export function NotificacionesPedidoCliente({ pedidoId }: { pedidoId: string }) 
     )
   }
 
+  const tamano = bloque ? '' : ' btn-small'
   return (
-    <div className="notif-push">
+    <div className={bloque ? 'notif-push notif-push-bloque' : 'notif-push'}>
       <button
         type="button"
-        className={estado === 'activadas' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+        className={(estado === 'activadas' ? 'btn btn-primary' : 'btn btn-secondary') + tamano}
         disabled={busy}
         onClick={alternar}
       >
-        {busy ? '...' : estado === 'activadas' ? '🔔 Avisándote de este pedido' : '🔕 Avisarme de este pedido'}
+        {busy ? '...' : estado === 'activadas' ? '🔔 Te avisaremos de este pedido' : '🔔 Avisarme de este pedido'}
       </button>
       {error && <p className="error-text">{error}</p>}
     </div>

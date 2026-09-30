@@ -580,23 +580,20 @@ export function Tienda() {
             Total: <strong>{formatCLP(confirmacion.total)}</strong> · Pago:{' '}
             {METODO_PAGO_LABEL[confirmacion.metodo]} al recibir
           </p>
-          <p>Te avisaremos cuando estemos en camino.</p>
-          <NotificacionesPedidoCliente pedidoId={confirmacion.pedidoId} />
-          <div className="report-row">
-            <button className="btn btn-primary" onClick={() => setConfirmacion(null)}>
-              Hacer otro pedido
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                setConfirmacion(null)
-                abrirHistorial()
-              }}
-            >
-              Ver estado de mi pedido
-            </button>
-          </div>
+          <NotificacionesPedidoCliente pedidoId={confirmacion.pedidoId} bloque />
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setConfirmacion(null)
+              abrirHistorial()
+            }}
+          >
+            Ver estado de mi pedido
+          </button>
+          <button className="btn btn-secondary" onClick={() => setConfirmacion(null)}>
+            Hacer otro pedido
+          </button>
         </div>
       </div>
     )

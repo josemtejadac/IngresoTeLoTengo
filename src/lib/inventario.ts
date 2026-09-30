@@ -128,9 +128,13 @@ export async function activarProductoPorBarra(
   return { tipo: yaActivo ? 'ya_activo' : 'activado', producto: updated as Producto }
 }
 
-/** Producto que no existia en el catalogo maestro (ya activo desde el inicio). */
+/**
+ * Producto que no existia en el catalogo maestro (ya activo desde el inicio). El codigo de barras es
+ * opcional: se puede crear un producto a mano sin escanear nada (ej. algo que no trae codigo o que
+ * todavia no se tiene a la vista para escanear).
+ */
 export async function crearProductoNuevo(params: {
-  codigo_barras: string
+  codigo_barras?: string | null
   nombre: string
   categoria?: string
   stock?: number
@@ -138,7 +142,7 @@ export async function crearProductoNuevo(params: {
   const { data, error } = await supabase
     .from('ingreso_productos')
     .insert({
-      codigo_barras: params.codigo_barras.trim(),
+      codigo_barras: params.codigo_barras?.trim() || null,
       nombre: params.nombre.trim(),
       categoria: params.categoria?.trim() || null,
       stock: params.stock ?? 0,

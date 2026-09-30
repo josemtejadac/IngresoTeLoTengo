@@ -29,8 +29,10 @@ export function InventarioAdmin() {
   const [scanMessage, setScanMessage] = useState<string | null>(null)
   const [scanError, setScanError] = useState<string | null>(null)
   const [nuevoBarra, setNuevoBarra] = useState<string | null>(null)
+  const [nuevoManual, setNuevoManual] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevaCategoria, setNuevaCategoria] = useState('')
+  const [nuevoStock, setNuevoStock] = useState('0')
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -124,19 +126,30 @@ export function InventarioAdmin() {
     }
   }
 
+  function abrirCrearManual() {
+    setNuevoBarra(null)
+    setNuevoManual(true)
+    setNuevoNombre('')
+    setNuevaCategoria('')
+    setNuevoStock('0')
+    setScanMessage(null)
+    setScanError(null)
+  }
+
   async function handleCrearNuevo(e: React.FormEvent) {
     e.preventDefault()
-    if (!nuevoBarra || !nuevoNombre.trim()) return
+    if (!nuevoNombre.trim()) return
     setScanError(null)
     try {
       const p = await crearProductoNuevo({
         codigo_barras: nuevoBarra,
         nombre: nuevoNombre,
         categoria: nuevaCategoria,
-        stock: sumarStock ? 1 : 0,
+        stock: nuevoManual ? Number(nuevoStock) || 0 : sumarStock ? 1 : 0,
       })
       setScanMessage(`Producto nuevo creado: ${p.nombre}`)
       setNuevoBarra(null)
+      setNuevoManual(false)
       await runSearch()
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Error creando el producto')
@@ -385,25 +398,51 @@ export function InventarioAdmin() {
       {scanMessage && <p className="info-text">{scanMessage}</p>}
       {scanError && <p className="error-text">{scanError}</p>}
 
-      {nuevoBarra && (
+      {!nuevoBarra && !nuevoManual && (
+        <button type="button" className="btn-detalle" onClick={abrirCrearManual}>
+          + Crear producto nuevo (sin código de barras)
+        </button>
+      )}
+
+      {(nuevoBarra || nuevoManual) && (
         <form onSubmit={handleCrearNuevo} className="worker-form">
           <p>
-            El código <strong>{nuevoBarra}</strong> no está en el catálogo. Créalo como producto
-            nuevo:
+            {nuevoBarra
+              ? <>El código <strong>{nuevoBarra}</strong> no está en el catálogo. Créalo como producto nuevo:</>
+              : 'Datos del producto nuevo (podrás ponerle precio y foto después, en Editar):'}
           </p>
           <label>
             Nombre
-            <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required />
+            <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required autoFocus />
           </label>
           <label>
             Categoría (opcional)
             <input value={nuevaCategoria} onChange={(e) => setNuevaCategoria(e.target.value)} />
           </label>
+          {nuevoManual && (
+            <label>
+              Stock inicial
+              <input
+                type="number"
+                min={0}
+                value={nuevoStock}
+                onChange={(e) => setNuevoStock(e.target.value)}
+                className="qty-input"
+              />
+            </label>
+          )}
           <div className="report-row">
             <button type="submit" className="btn btn-primary">
               Crear producto
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => setNuevoBarra(null)}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setNuevoBarra(null)
+                setNuevoManual(false)
+              }}
+            >
               Cancelar
             </button>
           </div>

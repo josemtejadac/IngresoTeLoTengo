@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
-import { PagoMixto } from './PagoMixto'
 import { downloadProductosVendidosPdf } from '../lib/productosVendidosReport'
 import {
   coincideFiltroPago,
@@ -161,7 +160,6 @@ export function HistorialPedidosTienda() {
               )}
             </p>
           )}
-          {p.estado === 'entregado' && <PagoMixto pedido={p} onFijado={load} />}
         </div>
       ))}
     </section>

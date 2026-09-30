@@ -955,14 +955,16 @@ export function Tienda() {
                 }
                 onChange={(v) => setPesoSel({ ...pesoSel, valor: String(v) })}
               />
-              <input
-                type="number"
-                min={pesoSel.modo === 'gramos' ? 50 : 1}
-                value={pesoSel.valor}
-                onChange={(e) => setPesoSel({ ...pesoSel, valor: e.target.value })}
-                aria-label="Cantidad exacta"
-                className="peso-input"
-              />
+              {pesoSel.modo === 'gramos' && (
+                <input
+                  type="number"
+                  min={50}
+                  value={pesoSel.valor}
+                  onChange={(e) => setPesoSel({ ...pesoSel, valor: e.target.value })}
+                  aria-label="Cantidad exacta"
+                  className="peso-input"
+                />
+              )}
             </div>
             {(() => {
               const n = Math.round(Number(pesoSel.valor)) || 0

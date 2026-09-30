@@ -108,6 +108,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [arqueoBusy, setArqueoBusy] = useState(false)
   const [arqueoManualHabilitado, setArqueoManualHabilitado] = useState(false)
   const [corrigiendoArqueo, setCorrigiendoArqueo] = useState(false)
+  const [verArqueoFecha, setVerArqueoFecha] = useState(currentDateValue())
   const [editArqueoValores, setEditArqueoValores] = useState({
     efectivo: '',
     debito: '',
@@ -218,9 +219,9 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   }, [loadBonusRows])
 
   const loadTodayArqueo = useCallback(async () => {
-    const rows = await loadArqueoForWorkerDay(profile.id, currentDateValue())
+    const rows = await loadArqueoForWorkerDay(profile.id, verArqueoFecha)
     setTodayArqueo(rows)
-  }, [profile.id])
+  }, [profile.id, verArqueoFecha])
 
   const loadWeeklySales = useCallback(async () => {
     const total = await loadWeeklySalesTotal(getCurrentWeek())
@@ -453,7 +454,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     setEditArqueoBusy(true)
     setEditArqueoError(null)
     try {
-      await corregirArqueoDia(profile.id, currentDateValue(), valores)
+      await corregirArqueoDia(profile.id, verArqueoFecha, valores)
       setCorrigiendoArqueo(false)
       await loadTodayArqueo()
       await loadWeeklySales()
@@ -827,9 +828,13 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               </p>
             )}
 
+        <div className="section-header">
+          <h2>{verArqueoFecha === currentDateValue() ? 'Arqueos de hoy' : `Arqueos del ${verArqueoFecha}`}</h2>
+          <input type="date" value={verArqueoFecha} onChange={(e) => setVerArqueoFecha(e.target.value)} />
+        </div>
+        {todayArqueo.length === 0 && <p className="subtitle">No hay arqueo registrado ese día.</p>}
         {todayArqueo.length > 0 && (
           <>
-            <h2>Arqueos de hoy</h2>
             <table className="table">
               <thead>
                 <tr>
@@ -858,9 +863,11 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                 ))}
               </tbody>
             </table>
-            <button type="button" className="btn btn-secondary btn-small" onClick={abrirCorregirArqueo}>
-              Corregir totales del día
-            </button>
+            {verArqueoFecha === currentDateValue() && (
+              <button type="button" className="btn btn-secondary btn-small" onClick={abrirCorregirArqueo}>
+                Corregir totales del día
+              </button>
+            )}
           </>
         )}
         <p className="subtitle">
@@ -891,8 +898,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               <h2>Corregir totales del día</h2>
             </div>
             <p className="subtitle">
-              Pon el total real de hoy en cada método; la diferencia con lo que ya hay se guarda como una fila
-              nueva, sin borrar la de la app.
+              Pon el total real de hoy en cada método; se guarda como una fila nueva debajo, sin borrar la que
+              dejó la app, para poder comparar.
             </p>
             {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
               <label key={campo}>

@@ -216,25 +216,17 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   }
 
   function abrirCorregirArqueo(workerId: string) {
-    const filas = arqueoRows.filter((a) => a.worker_id === workerId)
-    const suma = filas.reduce(
-      (acc, a) => ({
-        efectivo: acc.efectivo + Number(a.efectivo),
-        debito: acc.debito + Number(a.debito),
-        credito: acc.credito + Number(a.credito),
-        transferencia: acc.transferencia + Number(a.transferencia),
-        qr: acc.qr + Number(a.qr),
-      }),
-      { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 },
-    )
+    // Se parte desde la fila mas reciente de ese trabajador (la que vale para el total), no de la suma de todas.
+    const [vigente] = filasVigentesPorTrabajador(arqueoRows.filter((a) => a.worker_id === workerId))
+    const base = vigente ?? { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
     setCorrigiendoWorkerId(workerId)
     setCorrigiendoError(null)
     setCorrigiendoValores({
-      efectivo: String(suma.efectivo),
-      debito: String(suma.debito),
-      credito: String(suma.credito),
-      transferencia: String(suma.transferencia),
-      qr: String(suma.qr),
+      efectivo: String(base.efectivo),
+      debito: String(base.debito),
+      credito: String(base.credito),
+      transferencia: String(base.transferencia),
+      qr: String(base.qr),
     })
   }
 
@@ -1526,7 +1518,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             <p className="subtitle">
               Pon el total real de {arqueoDate} para{' '}
               {arqueoRows.find((a) => a.worker_id === corrigiendoWorkerId)?.ingreso_profiles?.full_name ?? 'este trabajador'}
-              ; la diferencia con lo que ya hay se guarda como una fila nueva, sin borrar la de la app.
+              ; se guarda como una fila nueva debajo, sin borrar la que dejó la app, para poder comparar.
             </p>
             {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
               <label key={campo}>

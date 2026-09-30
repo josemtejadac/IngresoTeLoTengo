@@ -183,6 +183,14 @@ export function EstadisticasAdmin() {
       <p className="subtitle">
         Analiza estas mismas cifras y te puede responder preguntas sobre tu negocio, en lenguaje natural.
       </p>
+      <button
+        type="button"
+        className="btn btn-secondary btn-small"
+        disabled={cargandoIA}
+        onClick={() => preguntarIA('')}
+      >
+        {cargandoIA ? 'Analizando...' : '🔍 Analizar todo de nuevo'}
+      </button>
       <div className="estad-ia-chat">
         {historialIA.map((h, i) => (
           <p key={i} className={h.role === 'user' ? 'estad-ia-pregunta' : 'estad-ia-respuesta'}>

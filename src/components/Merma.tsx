@@ -58,6 +58,30 @@ interface ItemCarrito {
   nota: string
 }
 
+const HOY_TEXTO = 'Hoy'
+const AYER_TEXTO = 'Ayer'
+
+/** Agrupa el historial por dia (mas reciente primero), con un titulo legible para cada grupo. */
+function gruposHistorialPorFecha(historial: MermaHistorial[]): { fecha: string; fechaTexto: string; filas: MermaHistorial[] }[] {
+  const hoy = new Date().toDateString()
+  const ayer = new Date(Date.now() - 86400000).toDateString()
+  const mapa = new Map<string, MermaHistorial[]>()
+  for (const m of historial) {
+    const fecha = new Date(m.created_at).toDateString()
+    mapa.set(fecha, [...(mapa.get(fecha) ?? []), m])
+  }
+  return [...mapa.entries()].map(([fecha, filas]) => ({
+    fecha,
+    fechaTexto:
+      fecha === hoy
+        ? HOY_TEXTO
+        : fecha === ayer
+          ? AYER_TEXTO
+          : new Date(filas[0].created_at).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' }),
+    filas,
+  }))
+}
+
 /** El personal registra una o varias salidas de stock que no son venta: merma o gasto operativo. */
 export function Merma({ tipo }: Props) {
   const c = COPY[tipo]
@@ -296,16 +320,26 @@ export function Merma({ tipo }: Props) {
           {verHistorial ? 'Ocultar historial ▴' : 'Ver historial (30 días) ▾'}
         </button>
         {verHistorial && (
-          <div className="agregar-item-lista">
+          <div className="merma-historial">
             {historial.length === 0 && <p className="subtitle">{c.vacioTexto}</p>}
-            {historial.map((m) => (
-              <div key={m.id} className="merma-historial-fila">
-                <span className="merma-historial-fecha">{new Date(m.created_at).toLocaleDateString('es-CL')}</span>
-                <span className="merma-historial-detalle">
-                  <strong>{m.nombre_producto}</strong> · {m.es_peso ? formatGramos(m.cantidad) : `${m.cantidad} un.`} ·{' '}
-                  {m.worker_name}
-                  {m.nota ? ` · ${m.nota}` : ''}
-                </span>
+            {gruposHistorialPorFecha(historial).map((grupo) => (
+              <div key={grupo.fecha} className="merma-historial-grupo">
+                <p className="merma-historial-fecha-grupo">{grupo.fechaTexto}</p>
+                {grupo.filas.map((m) => (
+                  <div key={m.id} className="merma-historial-card">
+                    <span className="merma-historial-icono">{tipo === 'merma' ? '🗑️' : '📦'}</span>
+                    <div className="merma-historial-info">
+                      <p className="merma-historial-nombre">{m.nombre_producto}</p>
+                      <p className="subtitle">
+                        {m.worker_name}
+                        {m.nota ? ` · ${m.nota}` : ''}
+                      </p>
+                    </div>
+                    <span className="merma-historial-cantidad">
+                      {m.es_peso ? formatGramos(m.cantidad) : `${m.cantidad} un.`}
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

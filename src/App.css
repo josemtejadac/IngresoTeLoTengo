@@ -1814,33 +1814,63 @@ textarea {
   white-space: nowrap;
 }
 
-.merma-historial-fila {
+.merma-historial {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  border-bottom: 1px solid #f1f5f9;
-  padding: 9px 2px;
+  gap: 14px;
+  margin-top: 8px;
 }
 
-.merma-historial-fecha {
-  display: inline-block;
-  align-self: flex-start;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 0.72rem;
-  font-weight: 600;
-  border-radius: 6px;
-  padding: 1px 7px;
-  font-variant-numeric: tabular-nums;
+.merma-historial-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.merma-historial-detalle {
-  font-size: 0.88rem;
-  line-height: 1.4;
+.merma-historial-fecha-grupo {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
 }
 
-.merma-historial-detalle strong {
-  color: #1e293b;
+.merma-historial-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.merma-historial-icono {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.merma-historial-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.merma-historial-nombre {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.merma-historial-cantidad {
+  flex-shrink: 0;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 0.82rem;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
 }
 
 /* ---------- Pedido manual ---------- */

@@ -5,6 +5,7 @@ import { FotoImg } from '../components/FotoImg'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { useAtrasCierra } from '../lib/atras'
+import { tiendaAbierta, TIENDA_ABRE_TEXTO, TIENDA_CIERRA_TEXTO } from '../lib/horarioTienda'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
@@ -82,6 +83,13 @@ export function Tienda() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sinConexion, setSinConexion] = useState(false)
+  const [abierta, setAbierta] = useState(() => tiendaAbierta())
+
+  // Revisa el horario cada 30s, para que la tienda se abra/cierre sola sin recargar la pagina.
+  useEffect(() => {
+    const t = setInterval(() => setAbierta(tiendaAbierta()), 30000)
+    return () => clearInterval(t)
+  }, [])
   const [confirmacion, setConfirmacion] = useState<{
     total: number
     pedidoId: string
@@ -315,6 +323,10 @@ export function Tienda() {
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
     if (cart.length === 0) return
+    if (!tiendaAbierta()) {
+      setError(`La tienda está cerrada. Recibimos pedidos de ${TIENDA_ABRE_TEXTO} a ${TIENDA_CIERRA_TEXTO}.`)
+      return
+    }
     if (metodo === 'online' && total < 350) {
       setError('El pago online requiere un mínimo de $350.')
       return
@@ -611,9 +623,15 @@ export function Tienda() {
         </div>
       </div>
 
+      {!abierta && (
+        <div className="tienda-cerrada-aviso">
+          🔒 Tienda cerrada. Recibimos pedidos de {TIENDA_ABRE_TEXTO} a {TIENDA_CIERRA_TEXTO}. ¡Vuelve pronto!
+        </div>
+      )}
+
       {productos.length === 0 && !sinConexion && <p className="subtitle">No encontramos productos con esa búsqueda.</p>}
 
-      <div className="tienda-grid">
+      <div className={abierta ? 'tienda-grid' : 'tienda-grid tienda-grid-cerrada'}>
         {productos.map((p) => (
           <div key={p.id} className={p.disponible ? 'tienda-card' : 'tienda-card sin-stock'}>
             <button type="button" className="tienda-abrir" onClick={() => abrirDetalle(p)}>
@@ -638,22 +656,24 @@ export function Tienda() {
             {p.nota && <p className="tienda-nota-chica">📌 {p.nota}</p>}
             <button
               className="btn btn-primary btn-small"
-              disabled={!p.disponible}
+              disabled={!p.disponible || !abierta}
               onClick={() => addToCart(p)}
             >
-              {p.disponible ? '+ Agregar' : 'Sin stock'}
+              {!abierta ? 'Tienda cerrada' : p.disponible ? '+ Agregar' : 'Sin stock'}
             </button>
           </div>
         ))}
       </div>
 
-      <BotsitoCliente
-        hayCarrito={cart.length > 0}
-        onAgregar={agregarDesdeBot}
-        onVerCarrito={() => setShowCheckout(true)}
-      />
+      {abierta && (
+        <BotsitoCliente
+          hayCarrito={cart.length > 0}
+          onAgregar={agregarDesdeBot}
+          onVerCarrito={() => setShowCheckout(true)}
+        />
+      )}
 
-      {cart.length > 0 && (
+      {abierta && cart.length > 0 && (
         <div className="tienda-cart-bar">
           <span>
             {cart.length} producto(s) · {hayAprox ? '≈ ' : ''}

@@ -1484,54 +1484,39 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           Cada fila queda para poder comparar (ej. la de la app vs. la corregida); el total del día solo cuenta la
           más reciente de cada trabajador.
         </p>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Trabajador</th>
-              <th>Efectivo</th>
-              <th>Débito</th>
-              <th>Crédito</th>
-              <th>Transferencia</th>
-              <th>QR</th>
-              <th>Venta total</th>
-              <th>Origen</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {arqueoRows.map((a) => (
-              <tr key={a.id}>
-                <td>{a.ingreso_profiles?.full_name ?? '—'}</td>
-                <td>{formatCLP(a.efectivo)}</td>
-                <td>{formatCLP(a.debito)}</td>
-                <td>{formatCLP(a.credito)}</td>
-                <td>{formatCLP(a.transferencia)}</td>
-                <td>{formatCLP(a.qr)}</td>
-                <td>{formatCLP(ventaTotal(a))}</td>
-                <td className="subtitle">{textoOrigenArqueo(a)}</td>
-                <td>
-                  {arqueoDate === currentDateValue() && (
-                    <button className="btn btn-secondary btn-small" onClick={() => abrirCorregirArqueo(a.worker_id)}>
-                      Corregir
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={6}>
-                <strong>Venta bruta del día</strong>
-              </td>
-              <td>
-                <strong>{formatCLP(filasVigentesPorTrabajador(arqueoRows).reduce((sum, a) => sum + ventaTotal(a), 0))}</strong>
-              </td>
-              <td></td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
+        <div className="arqueo-lista">
+          {arqueoRows.map((a) => (
+            <div key={a.id} className="arqueo-card">
+              <div className="arqueo-card-head">
+                <strong>{a.ingreso_profiles?.full_name ?? '—'}</strong>
+                <span className="subtitle">{textoOrigenArqueo(a)}</span>
+              </div>
+              <div className="arqueo-card-montos">
+                <span className="arqueo-chip">Efectivo {formatCLP(a.efectivo)}</span>
+                <span className="arqueo-chip">Débito {formatCLP(a.debito)}</span>
+                <span className="arqueo-chip">Crédito {formatCLP(a.credito)}</span>
+                {a.transferencia > 0 && <span className="arqueo-chip">Transferencia {formatCLP(a.transferencia)}</span>}
+                {a.qr > 0 && <span className="arqueo-chip">QR {formatCLP(a.qr)}</span>}
+              </div>
+              <div className="arqueo-card-foot">
+                <span>
+                  Total: <strong>{formatCLP(ventaTotal(a))}</strong>
+                </span>
+                {arqueoDate === currentDateValue() && (
+                  <button className="btn btn-secondary btn-small" onClick={() => abrirCorregirArqueo(a.worker_id)}>
+                    Corregir
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          <div className="arqueo-card arqueo-card-total">
+            <strong>Venta bruta del día</strong>
+            <strong>
+              {formatCLP(filasVigentesPorTrabajador(arqueoRows).reduce((sum, a) => sum + ventaTotal(a), 0))}
+            </strong>
+          </div>
+        </div>
         <VentasOnlineDia
           fecha={arqueoDate}
           arqueoTotal={filasVigentesPorTrabajador(arqueoRows).reduce((sum, a) => sum + ventaTotal(a), 0)}

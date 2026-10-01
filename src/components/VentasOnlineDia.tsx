@@ -124,50 +124,46 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
       <h3>Pedidos de la tienda del día — automático</h3>
 
       {esAdmin && filasPorTrabajador.length > 0 && (
-        <div className="ventas-resumen-tabla-wrap">
-          <table className="table ventas-resumen-tabla">
-            <thead>
-              <tr>
-                <th>Trabajador</th>
-                <th>Contra entrega</th>
-                <th>Online (Flow)</th>
-                <th>Abonos cobrados</th>
-                <th>Entra a su caja</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filasPorTrabajador.map((f) => (
-                <tr key={f.id}>
-                  <td className="col-nombre">{f.nombre}</td>
-                  <td>
-                    {formatCLP(f.contraEntrega)}
-                    {f.contraEntregaPorMetodo.length > 0 && (
-                      <>
-                        <br />
-                        <span className="subtitle">{textoPorMetodo(f.contraEntregaPorMetodo)}</span>
-                      </>
-                    )}
-                  </td>
-                  <td>{f.online > 0 ? formatCLP(f.online) : '—'}</td>
-                  <td>
-                    {f.abono > 0 ? formatCLP(f.abono) : '—'}
+        <div className="ventas-trabajador-lista">
+          {filasPorTrabajador.map((f) => (
+            <div key={f.id} className="ventas-trabajador-card">
+              <div className="ventas-trabajador-head">
+                <strong>{f.nombre}</strong>
+                <span className="ventas-trabajador-caja">
+                  Entra a su caja: <strong>{formatCLP(f.totalCaja)}</strong>
+                </span>
+              </div>
+              <div className="ventas-trabajador-filas">
+                <div className="ventas-trabajador-fila">
+                  <span>Contra entrega</span>
+                  <span className="ventas-trabajador-monto">{formatCLP(f.contraEntrega)}</span>
+                </div>
+                {f.contraEntregaPorMetodo.length > 0 && (
+                  <p className="subtitle ventas-trabajador-detalle">{textoPorMetodo(f.contraEntregaPorMetodo)}</p>
+                )}
+                {f.online > 0 && (
+                  <div className="ventas-trabajador-fila">
+                    <span>Online (Flow, no pasa por su caja)</span>
+                    <span className="ventas-trabajador-monto">{formatCLP(f.online)}</span>
+                  </div>
+                )}
+                {f.abono > 0 && (
+                  <>
+                    <div className="ventas-trabajador-fila">
+                      <span>Abonos de deudas cobrados</span>
+                      <span className="ventas-trabajador-monto">{formatCLP(f.abono)}</span>
+                    </div>
                     {f.abonoPorMetodo.length > 0 && (
-                      <>
-                        <br />
-                        <span className="subtitle">{textoPorMetodo(f.abonoPorMetodo)}</span>
-                      </>
+                      <p className="subtitle ventas-trabajador-detalle">{textoPorMetodo(f.abonoPorMetodo)}</p>
                     )}
-                  </td>
-                  <td>
-                    <strong>{formatCLP(f.totalCaja)}</strong>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
           <p className="subtitle">
             "Entra a su caja" = contra entrega + abonos cobrados (lo que debe coincidir con su arqueo). El pago
-            online (Flow) nunca pasa por su caja, por eso no se suma en esa columna.
+            online (Flow) nunca pasa por su caja, por eso no se suma ahí.
           </p>
         </div>
       )}

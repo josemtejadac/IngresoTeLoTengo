@@ -819,34 +819,27 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         {todayArqueo.length === 0 && <p className="subtitle">No hay arqueo registrado ese día.</p>}
         {todayArqueo.length > 0 && (
           <>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Efectivo</th>
-                  <th>Débito</th>
-                  <th>Crédito</th>
-                  <th>Transferencia</th>
-                  <th>QR</th>
-                  <th>Venta total</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {todayArqueo.map((a) => (
-                  <tr key={a.id}>
-                    <td>{formatCLP(a.efectivo)}</td>
-                    <td>{formatCLP(a.debito)}</td>
-                    <td>{formatCLP(a.credito)}</td>
-                    <td>{formatCLP(a.transferencia)}</td>
-                    <td>{formatCLP(a.qr)}</td>
-                    <td>{formatCLP(ventaTotal(a))}</td>
-                    <td>
-                      <span className="subtitle">{textoOrigenArqueo(a)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="arqueo-lista">
+              {todayArqueo.map((a) => (
+                <div key={a.id} className="arqueo-card">
+                  <div className="arqueo-card-head">
+                    <span className="subtitle">{textoOrigenArqueo(a)}</span>
+                  </div>
+                  <div className="arqueo-card-montos">
+                    <span className="arqueo-chip">Efectivo {formatCLP(a.efectivo)}</span>
+                    <span className="arqueo-chip">Débito {formatCLP(a.debito)}</span>
+                    <span className="arqueo-chip">Crédito {formatCLP(a.credito)}</span>
+                    {a.transferencia > 0 && <span className="arqueo-chip">Transferencia {formatCLP(a.transferencia)}</span>}
+                    {a.qr > 0 && <span className="arqueo-chip">QR {formatCLP(a.qr)}</span>}
+                  </div>
+                  <div className="arqueo-card-foot">
+                    <span>
+                      Total: <strong>{formatCLP(ventaTotal(a))}</strong>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
             {verArqueoFecha === currentDateValue() && (
               <button type="button" className="btn btn-secondary btn-small" onClick={abrirCorregirArqueo}>
                 Corregir totales del día

@@ -2756,14 +2756,117 @@ textarea {
   margin: 2px 0;
 }
 
+/* ---------- Arqueo diario (admin) ---------- */
+.arqueo-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.arqueo-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.arqueo-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-bottom: 8px;
+}
+
+.arqueo-card-montos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.arqueo-chip {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.arqueo-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+}
+
+.arqueo-card.arqueo-card-total {
+  flex-direction: row;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
 /* ---------- Resumen de pedidos/abonos del dia (VentasOnlineDia) ---------- */
-.ventas-resumen-tabla-wrap {
+.ventas-trabajador-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 10px 0 14px;
 }
 
-.ventas-resumen-tabla td,
-.ventas-resumen-tabla th {
-  white-space: normal;
+.ventas-trabajador-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.ventas-trabajador-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.ventas-trabajador-caja {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.ventas-trabajador-filas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ventas-trabajador-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.92rem;
+}
+
+.ventas-trabajador-monto {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ventas-trabajador-detalle {
+  margin: 0 0 4px !important;
+  padding-left: 4px;
 }
 
 .ventas-resumen-bloque {

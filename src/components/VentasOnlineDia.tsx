@@ -106,10 +106,12 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
                 const propiasOnline = propias.filter((v) => v.metodo === 'online')
                 const totalPropio = propias.reduce((sum, v) => sum + v.monto, 0)
                 const totalPropioOnline = propiasOnline.reduce((sum, v) => sum + v.monto, 0)
+                const abonosPropio = abonos.find((a) => a.worker_id === id)?.monto ?? 0
                 return (
                   <p key={id}>
-                    {propias[0].nombre ?? '—'}: {formatCLP(totalPropio)}
+                    {propias[0].nombre ?? '—'}: {formatCLP(totalPropio)} en pedidos
                     {totalPropioOnline > 0 && ` (incluye ${formatCLP(totalPropioOnline)} de Flow, no pasa por su caja)`}
+                    {abonosPropio > 0 && ` · no incluye los ${formatCLP(abonosPropio)} que cobró en abonos de deudas (ver abajo)`}
                   </p>
                 )
               })}
@@ -149,11 +151,23 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
       )}
       {esAdmin && abonos.length > 0 && (
         <div className="subtitle">
-          {abonos.map((a) => (
-            <p key={a.worker_id}>
-              {a.nombre ?? '—'} cobró {formatCLP(a.monto)} en abonos
-            </p>
-          ))}
+          {abonos.map((a) => {
+            const propiosDetalle = detalleAbonos.filter((d) => d.worker_id === a.worker_id)
+            const porMetodo = propiosDetalle.reduce<{ m: string; monto: number }[]>((acc, d) => {
+              const m = d.metodo ?? 'sin método'
+              const existente = acc.find((x) => x.m === m)
+              if (existente) existente.monto += d.monto
+              else acc.push({ m, monto: d.monto })
+              return acc
+            }, [])
+            return (
+              <p key={a.worker_id}>
+                {a.nombre ?? '—'} cobró {formatCLP(a.monto)} en abonos
+                {porMetodo.length > 0 &&
+                  ` (${porMetodo.map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`).join(' · ')})`}
+              </p>
+            )
+          })}
         </div>
       )}
       <p>

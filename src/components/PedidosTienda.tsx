@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
+import { useAuth } from '../lib/useAuth'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
 import { loadNameDirectory } from '../lib/directory'
@@ -28,7 +29,21 @@ import {
   type PedidoTiendaItem,
 } from '../lib/tienda'
 
+// Para evitar que se mezcle a quien cobra un pedido entre turnos (ya paso que un pedido de Ricardo quedo
+// atribuido a Darlin y viceversa): de lunes a viernes antes de las 17:30, Ricardo solo puede marcar
+// "Ya lo entregue" (entrega fisica); solo Darlin confirma el pago con "Entregado" en ese horario.
+const RICARDO_ID = '798c0601-f744-48b5-b6b4-762669ae6073'
+
+function entregadoBloqueadoPorHorario(): boolean {
+  const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santiago' }))
+  const dia = ahora.getDay()
+  const minutos = ahora.getHours() * 60 + ahora.getMinutes()
+  return dia >= 1 && dia <= 5 && minutos < 17 * 60 + 30
+}
+
 export function PedidosTienda() {
+  const { session } = useAuth()
+  const bloquearEntregado = session?.user.id === RICARDO_ID && entregadoBloqueadoPorHorario()
   const [pedidos, setPedidos] = useState<PedidoTienda[]>([])
   const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -238,6 +253,12 @@ export function PedidosTienda() {
           <PedidoManual onCreado={load} />
         </div>
       </div>
+      {bloquearEntregado && (
+        <p className="subtitle">
+          ⏰ Antes de las 17:30 (lunes a viernes) solo puedes marcar "Ya lo entregué": Darlin confirma el pago con
+          "Entregado" para que no se mezcle quién cobró cada pedido.
+        </p>
+      )}
       <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
       {error && <p className="error-text">{error}</p>}
       {visibles.length === 0 && <p className="subtitle">No hay pedidos con este filtro.</p>}
@@ -379,9 +400,13 @@ export function PedidosTienda() {
                   </button>
                   <button
                     className="btn btn-secondary btn-small"
-                    disabled={busyId === p.id}
+                    disabled={busyId === p.id || bloquearEntregado}
                     onClick={() => handleEntregado(p)}
-                    title="Confirma el pedido y suma la venta a tu arqueo"
+                    title={
+                      bloquearEntregado
+                        ? 'Antes de las 17:30 solo puedes marcar "Ya lo entregué": Darlin confirma el pago'
+                        : 'Confirma el pedido y suma la venta a tu arqueo'
+                    }
                   >
                     {busyId === p.id ? '...' : 'Entregado'}
                   </button>
@@ -422,7 +447,7 @@ export function PedidosTienda() {
                       </button>
                     )
                   })}
-                  <EntregarMixto pedido={p} onEntregado={load} />
+                  {!bloquearEntregado && <EntregarMixto pedido={p} onEntregado={load} />}
                 </div>
               )}
             </div>

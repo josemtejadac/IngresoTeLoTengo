@@ -9,10 +9,12 @@ interface Props {
 const OPCIONES: { valor: FiltroPago; texto: string }[] = [
   { valor: 'todos', texto: 'Todos' },
   { valor: 'online', texto: 'Pago online' },
-  { valor: 'contraentrega', texto: 'Contra entrega (efectivo / débito / crédito)' },
+  { valor: 'efectivo', texto: 'Efectivo' },
+  { valor: 'tarjeta', texto: 'Tarjeta' },
+  { valor: 'transferenciaqr', texto: 'Transferencia/QR' },
 ]
 
-/** Filtro de pedidos segun como pagaron: online (Flow) o contra entrega. */
+/** Filtro de pedidos segun como pagaron. */
 export function FiltroPagoBotones({ value, onChange, cuentas }: Props) {
   return (
     <div className="filtro-pago">

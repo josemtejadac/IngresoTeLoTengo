@@ -238,7 +238,9 @@ export function PedidosTienda() {
   const cuentas: Record<FiltroPago, number> = {
     todos: pedidos.length,
     online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
-    contraentrega: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'contraentrega')).length,
+    efectivo: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'efectivo')).length,
+    tarjeta: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'tarjeta')).length,
+    transferenciaqr: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'transferenciaqr')).length,
   }
   const visibles = pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
 

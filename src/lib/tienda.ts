@@ -49,13 +49,12 @@ export async function loadCategoriasTienda(): Promise<string[]> {
 
 export type PagoEstado = 'pendiente' | 'comprobante_subido' | 'pagado' | 'esperando_pago'
 
-export type FiltroPago = 'todos' | 'online' | 'contraentrega'
+export type FiltroPago = 'todos' | 'online' | 'efectivo' | 'tarjeta' | 'transferenciaqr'
 
-/** Pago online = Flow; contra entrega = efectivo, débito, crédito o transferencia al recibir. */
 export function coincideFiltroPago(metodo: MetodoPago | null, filtro: FiltroPago): boolean {
   if (filtro === 'todos') return true
-  if (filtro === 'online') return metodo === 'online'
-  return metodo !== 'online'
+  if (filtro === 'transferenciaqr') return metodo === 'transferencia' || metodo === 'qr'
+  return metodo === filtro
 }
 
 // 'tarjeta' = debito o credito (se unificaron, ya que ambos son pago con tarjeta al recibir).

@@ -161,3 +161,22 @@ export const METODO_ABONO_LABEL: Record<MetodoAbono, string> = {
   transferencia: 'Transferencia',
   qr: 'QR',
 }
+
+/** Con que metodo(s) se cobro/abono cada deuda (una deuda puede tener mas de uno si se pago en partes). */
+export async function loadMetodosDePendientes(ids: string[]): Promise<Record<string, string>> {
+  if (ids.length === 0) return {}
+  const { data, error } = await supabase.from('ingreso_abonos').select('pendiente_id, metodo').in('pendiente_id', ids)
+  if (error) throw error
+  const metodosPorId = new Map<string, Set<string>>()
+  for (const r of (data as { pendiente_id: string; metodo: string | null }[]) ?? []) {
+    if (!r.metodo) continue
+    const set = metodosPorId.get(r.pendiente_id) ?? new Set<string>()
+    set.add(r.metodo)
+    metodosPorId.set(r.pendiente_id, set)
+  }
+  const resultado: Record<string, string> = {}
+  for (const [id, set] of metodosPorId) {
+    resultado[id] = [...set].map((m) => METODO_ABONO_LABEL[m as MetodoAbono] ?? m).join(' + ')
+  }
+  return resultado
+}

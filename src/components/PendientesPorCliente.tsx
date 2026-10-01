@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
 import {
   agruparPorCliente,
   clienteNombre,
+  loadMetodosDePendientes,
   METODO_ABONO_LABEL,
   saldo,
   type MetodoAbono,
@@ -36,6 +37,16 @@ export function PendientesPorCliente({
   const [abonoDeudaMonto, setAbonoDeudaMonto] = useState('')
   const grupos = agruparPorCliente(pendientes)
   const cobrados = pendientes.filter((p) => p.pagado).slice(0, 15)
+  const [metodosCobrados, setMetodosCobrados] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const ids = cobrados.map((p) => p.id)
+    if (ids.length === 0) return
+    loadMetodosDePendientes(ids)
+      .then(setMetodosCobrados)
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cobrados.map((p) => p.id).join(',')])
 
   return (
     <>
@@ -236,14 +247,24 @@ export function PendientesPorCliente({
         <>
           <h3>Últimos cobrados</h3>
           <table className="table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Cliente</th>
+                <th>Monto</th>
+                <th>Método</th>
+                <th>Cobrado por</th>
+              </tr>
+            </thead>
             <tbody>
               {cobrados.map((p) => (
                 <tr key={p.id} className="pendiente-paid">
                   <td>{new Date(p.created_at).toLocaleDateString('es-CL')}</td>
                   <td>{clienteNombre(p)}</td>
                   <td>{formatCLP(p.monto)}</td>
+                  <td>{metodosCobrados[p.id] ?? '—'}</td>
                   <td>
-                    Cobrado por {p.paid_by ? (nameDirectory[p.paid_by] ?? '—') : '—'}
+                    {p.paid_by ? (nameDirectory[p.paid_by] ?? '—') : '—'}
                     {p.paid_at ? ` (${new Date(p.paid_at).toLocaleDateString('es-CL')})` : ''}
                   </td>
                 </tr>

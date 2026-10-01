@@ -93,20 +93,21 @@ export function HistorialPedidosTienda() {
 
   const montoBuscado = buscarMonto.replace(/\D/g, '')
 
-  const filtrados = pedidos
-    .filter((p) => !filtroWorker || p.entregado_por === filtroWorker)
+  const pedidosDelWorker = pedidos.filter((p) => !filtroWorker || p.entregado_por === filtroWorker)
+
+  const filtrados = pedidosDelWorker
     .filter((p) => filtroMetodo === 'todos' || p.metodo_pago === filtroMetodo)
     .filter((p) => !montoBuscado || String(p.total).includes(montoBuscado))
   const cuentasMetodo: Record<FiltroMetodo, number> = {
-    todos: pedidos.length,
-    efectivo: pedidos.filter((p) => p.metodo_pago === 'efectivo').length,
-    debito: pedidos.filter((p) => p.metodo_pago === 'debito').length,
-    credito: pedidos.filter((p) => p.metodo_pago === 'credito').length,
-    transferencia: pedidos.filter((p) => p.metodo_pago === 'transferencia').length,
-    qr: pedidos.filter((p) => p.metodo_pago === 'qr').length,
-    tarjeta: pedidos.filter((p) => p.metodo_pago === 'tarjeta').length,
-    online: pedidos.filter((p) => p.metodo_pago === 'online').length,
-    mixto: pedidos.filter((p) => p.metodo_pago === 'mixto').length,
+    todos: pedidosDelWorker.length,
+    efectivo: pedidosDelWorker.filter((p) => p.metodo_pago === 'efectivo').length,
+    debito: pedidosDelWorker.filter((p) => p.metodo_pago === 'debito').length,
+    credito: pedidosDelWorker.filter((p) => p.metodo_pago === 'credito').length,
+    transferencia: pedidosDelWorker.filter((p) => p.metodo_pago === 'transferencia').length,
+    qr: pedidosDelWorker.filter((p) => p.metodo_pago === 'qr').length,
+    tarjeta: pedidosDelWorker.filter((p) => p.metodo_pago === 'tarjeta').length,
+    online: pedidosDelWorker.filter((p) => p.metodo_pago === 'online').length,
+    mixto: pedidosDelWorker.filter((p) => p.metodo_pago === 'mixto').length,
   }
   const total = filtrados.filter((p) => p.estado !== 'cancelado').reduce((sum, p) => sum + p.total, 0)
 

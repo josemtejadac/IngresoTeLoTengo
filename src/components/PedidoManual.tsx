@@ -39,7 +39,7 @@ export function PedidoManual({ onCreado }: Props) {
   const [telefono, setTelefono] = useState('')
   const [torre, setTorre] = useState('')
   const [depto, setDepto] = useState('')
-  const [metodo, setMetodo] = useState<'efectivo' | 'debito' | 'credito' | 'transferencia' | 'qr'>('efectivo')
+  const [metodo, setMetodo] = useState<'efectivo' | 'tarjeta' | 'transferencia' | 'qr'>('efectivo')
   const [busqueda, setBusqueda] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -149,9 +149,9 @@ export function PedidoManual({ onCreado }: Props) {
 
   const total = lineas.reduce((sum, l) => sum + totalLinea(l), 0)
 
-  // Si el total baja de $1.000 mientras se edita el pedido, no se puede dejar seleccionado debito/credito.
+  // Si el total baja de $1.000 mientras se edita el pedido, no se puede dejar seleccionado tarjeta.
   useEffect(() => {
-    if ((metodo === 'debito' || metodo === 'credito') && total < 1000) setMetodo('efectivo')
+    if (metodo === 'tarjeta' && total < 1000) setMetodo('efectivo')
   }, [total, metodo])
   const enLinea = (id: string) => lineas.find((l) => l.producto.id === id)?.cantidad ?? 0
 
@@ -241,8 +241,8 @@ export function PedidoManual({ onCreado }: Props) {
 
         <fieldset className="pago-metodos">
           <legend>Paga en la entrega con</legend>
-          {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((m) => {
-            const bloqueado = (m === 'debito' || m === 'credito') && total < 1000
+          {(['efectivo', 'tarjeta', 'transferencia', 'qr'] as const).map((m) => {
+            const bloqueado = m === 'tarjeta' && total < 1000
             return (
               <label key={m} className={bloqueado ? 'checkbox-label pago-disabled' : 'checkbox-label'}>
                 <input

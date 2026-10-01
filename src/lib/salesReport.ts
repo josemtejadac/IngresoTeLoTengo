@@ -10,8 +10,7 @@ interface ArqueoRowRaw {
   arqueo_date: string
   created_at: string
   efectivo: number
-  debito: number
-  credito: number
+  tarjeta: number
   transferencia: number
   qr: number
 }
@@ -37,7 +36,7 @@ export async function downloadSalesPdf({
 }: DownloadSalesPdfParams) {
   const { data, error } = await supabase
     .from('ingreso_arqueo')
-    .select('worker_id, arqueo_date, created_at, efectivo, debito, credito, transferencia, qr')
+    .select('worker_id, arqueo_date, created_at, efectivo, tarjeta, transferencia, qr')
     .gte('arqueo_date', toISODate(start))
     .lte('arqueo_date', toISODate(end))
     .order('arqueo_date', { ascending: true })
@@ -60,7 +59,7 @@ export async function downloadSalesPdf({
   }
 
   // Pedidos de la tienda pagados online (Flow): nunca pasan por caja, se suman aparte del arqueo.
-  // Los pagados contra entrega (efectivo/debito/credito) ya quedan dentro de las columnas del arqueo
+  // Los pagados contra entrega (efectivo/tarjeta) ya quedan dentro de las columnas del arqueo
   // (la app los suma sola al marcarlos entregados), asi que aqui solo se muestran de forma informativa,
   // sin sumarlos de nuevo al total, para no duplicarlos.
   const onlinePorFecha = new Map<string, number>()
@@ -74,18 +73,17 @@ export async function downloadSalesPdf({
   // reciente: se agrupa por dia+trabajador antes de sumar, para no duplicar plata.
   const byDate = new Map<
     string,
-    { efectivo: number; debito: number; credito: number; transferencia: number; qr: number }
+    { efectivo: number; tarjeta: number; transferencia: number; qr: number }
   >()
   const porDia = new Map<string, ArqueoRowRaw[]>()
   for (const r of rows) {
     porDia.set(r.arqueo_date, [...(porDia.get(r.arqueo_date) ?? []), r])
   }
   for (const [fecha, filasDelDia] of porDia) {
-    const entry = byDate.get(fecha) ?? { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
+    const entry = byDate.get(fecha) ?? { efectivo: 0, tarjeta: 0, transferencia: 0, qr: 0 }
     for (const r of filasVigentesPorTrabajador(filasDelDia)) {
       entry.efectivo += Number(r.efectivo)
-      entry.debito += Number(r.debito)
-      entry.credito += Number(r.credito)
+      entry.tarjeta += Number(r.tarjeta)
       entry.transferencia += Number(r.transferencia)
       entry.qr += Number(r.qr)
     }
@@ -95,10 +93,10 @@ export async function downloadSalesPdf({
   const dates = [
     ...new Set([...byDate.keys(), ...cobrosPorFecha.keys(), ...onlinePorFecha.keys(), ...tiendaContraEntregaPorFecha.keys()]),
   ].sort()
-  const emptyDay = { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
+  const emptyDay = { efectivo: 0, tarjeta: 0, transferencia: 0, qr: 0 }
   const grandTotal = dates.reduce((sum, d) => {
     const e = byDate.get(d) ?? emptyDay
-    return sum + e.efectivo + e.debito + e.credito + e.transferencia + e.qr + (cobrosPorFecha.get(d) ?? 0) + (onlinePorFecha.get(d) ?? 0)
+    return sum + e.efectivo + e.tarjeta + e.transferencia + e.qr + (cobrosPorFecha.get(d) ?? 0) + (onlinePorFecha.get(d) ?? 0)
   }, 0)
 
   const doc = new jsPDF()
@@ -113,8 +111,7 @@ export async function downloadSalesPdf({
       [
         'Fecha',
         'Efectivo',
-        'Débito',
-        'Crédito',
+        'Tarjeta',
         'Transferencia',
         'QR',
         'Deudas cobradas',
@@ -127,12 +124,11 @@ export async function downloadSalesPdf({
       const e = byDate.get(d) ?? emptyDay
       const cobros = cobrosPorFecha.get(d) ?? 0
       const online = onlinePorFecha.get(d) ?? 0
-      const total = e.efectivo + e.debito + e.credito + e.transferencia + e.qr + cobros + online
+      const total = e.efectivo + e.tarjeta + e.transferencia + e.qr + cobros + online
       return [
         d,
         formatCLP(e.efectivo),
-        formatCLP(e.debito),
-        formatCLP(e.credito),
+        formatCLP(e.tarjeta),
         formatCLP(e.transferencia),
         formatCLP(e.qr),
         formatCLP(cobros),
@@ -141,7 +137,7 @@ export async function downloadSalesPdf({
         formatCLP(total),
       ]
     }),
-    foot: [['', '', '', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
+    foot: [['', '', '', '', '', '', '', 'Total', formatCLP(grandTotal)]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },

@@ -17,8 +17,7 @@ export function downloadArqueoPdf(rows: ArqueoRowWithWorker[], date: string, wor
     .map((r) => ({
       nombre: r.ingreso_profiles?.full_name ?? 'Desconocido',
       efectivo: Number(r.efectivo),
-      debito: Number(r.debito),
-      credito: Number(r.credito),
+      tarjeta: Number(r.tarjeta),
       transferencia: Number(r.transferencia),
       qr: Number(r.qr),
     }))
@@ -35,17 +34,16 @@ export function downloadArqueoPdf(rows: ArqueoRowWithWorker[], date: string, wor
 
   autoTable(doc, {
     startY: 40,
-    head: [['Trabajador', 'Efectivo', 'Débito', 'Crédito', 'Transferencia', 'QR', 'Venta total']],
+    head: [['Trabajador', 'Efectivo', 'Tarjeta', 'Transferencia', 'QR', 'Venta total']],
     body: filasOrdenadas.map((f) => [
       f.nombre,
       formatCLP(f.efectivo),
-      formatCLP(f.debito),
-      formatCLP(f.credito),
+      formatCLP(f.tarjeta),
       formatCLP(f.transferencia),
       formatCLP(f.qr),
       formatCLP(ventaTotal(f)),
     ]),
-    foot: [['', '', '', '', '', 'Total', formatCLP(grandTotal)]],
+    foot: [['', '', '', '', 'Total', formatCLP(grandTotal)]],
     headStyles: { fillColor: [20, 83, 45] },
     footStyles: { fillColor: [230, 240, 230], textColor: [20, 83, 45], fontStyle: 'bold' },
   })

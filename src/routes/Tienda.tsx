@@ -346,9 +346,9 @@ export function Tienda() {
   // El peso real se sabe recien al pesar: con pago online no se puede cobrar ni devolver la diferencia.
   const hayPorPeso = cart.some((l) => l.producto.por_peso)
 
-  // Si el total baja de $1.000 mientras se edita el carrito, no se puede dejar elegido debito/credito.
+  // Si el total baja de $1.000 mientras se edita el carrito, no se puede dejar elegido tarjeta.
   useEffect(() => {
-    if ((metodo === 'debito' || metodo === 'credito') && total < 1000) setMetodo('efectivo')
+    if (metodo === 'tarjeta' && total < 1000) setMetodo('efectivo')
   }, [total, metodo])
 
   // Si se agrega un producto por peso mientras "online" estaba elegido, se cambia solo a efectivo.
@@ -873,8 +873,8 @@ export function Tienda() {
               )}
               <fieldset className="pago-metodos">
                 <legend>¿Cómo pagas?</legend>
-                {(['efectivo', 'debito', 'credito'] as MetodoPago[]).map((m) => {
-                  const bloqueado = (m === 'debito' || m === 'credito') && total < 1000
+                {(['efectivo', 'tarjeta'] as MetodoPago[]).map((m) => {
+                  const bloqueado = m === 'tarjeta' && total < 1000
                   return (
                     <label key={m} className={bloqueado ? 'checkbox-label pago-disabled' : 'checkbox-label'}>
                       <input

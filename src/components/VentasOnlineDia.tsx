@@ -21,11 +21,9 @@ interface Props {
 
 const ETIQUETA: Record<string, string> = {
   efectivo: 'Efectivo',
-  debito: 'Débito',
-  credito: 'Crédito',
+  tarjeta: 'Tarjeta',
   transferencia: 'Transferencia',
   qr: 'QR',
-  tarjeta: 'Tarjeta',
   mixto: 'Pago mixto',
 }
 
@@ -44,7 +42,7 @@ function textoPorMetodo(filas: { m: string; monto: number }[]) {
 }
 
 /**
- * Pedidos de la tienda del dia. Los pagados contra entrega (efectivo/debito/credito) ya estan sumados
+ * Pedidos de la tienda del dia. Los pagados contra entrega (efectivo/tarjeta) ya estan sumados
  * dentro del arqueo (la app los agrega sola al marcarlos entregados); aca solo se muestran para que se
  * entienda de donde salen. El pago online (Flow) nunca pasa por el arqueo, asi que se suma aparte.
  */
@@ -225,7 +223,7 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
       </div>
 
       <p className="subtitle">
-        Un pedido contra entrega (efectivo, débito o crédito) se suma solo al arqueo del trabajador que lo marca
+        Un pedido contra entrega (efectivo o tarjeta) se suma solo al arqueo del trabajador que lo marca
         como entregado, en la columna que corresponde. No lo anotes también a mano. El pago online (Flow) nunca pasa
         por caja, así que se muestra y se suma aparte.
       </p>

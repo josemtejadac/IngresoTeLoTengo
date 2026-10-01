@@ -15,7 +15,7 @@ import {
 
 type FiltroMetodo = 'todos' | MetodoPago
 
-const METODOS_FILTRO: MetodoPago[] = ['efectivo', 'debito', 'credito', 'transferencia', 'qr', 'online', 'mixto']
+const METODOS_FILTRO: MetodoPago[] = ['efectivo', 'tarjeta', 'transferencia', 'qr', 'online', 'mixto']
 
 function hoyISO(): string {
   const d = new Date()
@@ -101,8 +101,6 @@ export function HistorialPedidosTienda() {
   const cuentasMetodo: Record<FiltroMetodo, number> = {
     todos: pedidosDelWorker.length,
     efectivo: pedidosDelWorker.filter((p) => p.metodo_pago === 'efectivo').length,
-    debito: pedidosDelWorker.filter((p) => p.metodo_pago === 'debito').length,
-    credito: pedidosDelWorker.filter((p) => p.metodo_pago === 'credito').length,
     transferencia: pedidosDelWorker.filter((p) => p.metodo_pago === 'transferencia').length,
     qr: pedidosDelWorker.filter((p) => p.metodo_pago === 'qr').length,
     tarjeta: pedidosDelWorker.filter((p) => p.metodo_pago === 'tarjeta').length,

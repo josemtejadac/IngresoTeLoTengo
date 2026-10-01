@@ -10,8 +10,7 @@ export interface ArqueoEntry {
   arqueo_date: string
   created_at: string
   efectivo: number
-  debito: number
-  credito: number
+  tarjeta: number
   transferencia: number
   qr: number
   /** Fecha de la ultima correccion (null si nunca se edito). */
@@ -29,14 +28,13 @@ export interface ArqueoRowWithWorker extends ArqueoEntry {
 
 export interface ArqueoInput {
   efectivo: number
-  debito: number
-  credito: number
+  tarjeta: number
   transferencia: number
   qr: number
 }
 
 export function ventaTotal(a: ArqueoInput): number {
-  return a.efectivo + a.debito + a.credito + a.transferencia + a.qr
+  return a.efectivo + a.tarjeta + a.transferencia + a.qr
 }
 
 /**
@@ -69,8 +67,7 @@ export async function submitArqueo(workerId: string, _date: string, values: Arqu
   const { error } = await supabase.rpc('ingreso_submit_arqueo_manual', {
     p_worker: workerId,
     p_efectivo: values.efectivo,
-    p_debito: values.debito,
-    p_credito: values.credito,
+    p_tarjeta: values.tarjeta,
     p_transferencia: values.transferencia,
     p_qr: values.qr,
   })
@@ -87,8 +84,7 @@ export async function corregirArqueoDia(workerId: string, date: string, valores:
     p_worker: workerId,
     p_date: date,
     p_efectivo: valores.efectivo,
-    p_debito: valores.debito,
-    p_credito: valores.credito,
+    p_tarjeta: valores.tarjeta,
     p_transferencia: valores.transferencia,
     p_qr: valores.qr,
   })

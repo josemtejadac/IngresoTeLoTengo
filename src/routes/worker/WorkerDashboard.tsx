@@ -100,8 +100,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [todayArqueo, setTodayArqueo] = useState<ArqueoEntry[]>([])
   const [weeklySales, setWeeklySales] = useState<number>(0)
   const [efectivo, setEfectivo] = useState('')
-  const [debito, setDebito] = useState('')
-  const [credito, setCredito] = useState('')
+  const [tarjeta, setTarjeta] = useState('')
   const [transferencia, setTransferencia] = useState('')
   const [qr, setQr] = useState('')
   const [arqueoBusy, setArqueoBusy] = useState(false)
@@ -110,8 +109,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [verArqueoFecha, setVerArqueoFecha] = useState(currentDateValue())
   const [editArqueoValores, setEditArqueoValores] = useState({
     efectivo: '',
-    debito: '',
-    credito: '',
+    tarjeta: '',
     transferencia: '',
     qr: '',
   })
@@ -426,8 +424,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
   const arqueoValues = {
     efectivo: Number(efectivo) || 0,
-    debito: Number(debito) || 0,
-    credito: Number(credito) || 0,
+    tarjeta: Number(tarjeta) || 0,
     transferencia: Number(transferencia) || 0,
     qr: Number(qr) || 0,
   }
@@ -436,13 +433,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   function abrirCorregirArqueo() {
     // Se parte desde la fila mas reciente (la que vale para el total hoy), no de la suma de todas.
     const [vigente] = filasVigentesPorTrabajador(todayArqueo)
-    const sumaActual = vigente ?? { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
+    const sumaActual = vigente ?? { efectivo: 0, tarjeta: 0, transferencia: 0, qr: 0 }
     setCorrigiendoArqueo(true)
     setEditArqueoError(null)
     setEditArqueoValores({
       efectivo: String(sumaActual.efectivo),
-      debito: String(sumaActual.debito),
-      credito: String(sumaActual.credito),
+      tarjeta: String(sumaActual.tarjeta),
       transferencia: String(sumaActual.transferencia),
       qr: String(sumaActual.qr),
     })
@@ -452,8 +448,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     if (editArqueoBusy) return
     const valores = {
       efectivo: Number(editArqueoValores.efectivo) || 0,
-      debito: Number(editArqueoValores.debito) || 0,
-      credito: Number(editArqueoValores.credito) || 0,
+      tarjeta: Number(editArqueoValores.tarjeta) || 0,
       transferencia: Number(editArqueoValores.transferencia) || 0,
       qr: Number(editArqueoValores.qr) || 0,
     }
@@ -483,8 +478,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     try {
       await submitArqueo(profile.id, currentDateValue(), arqueoValues)
       setEfectivo('')
-      setDebito('')
-      setCredito('')
+      setTarjeta('')
       setTransferencia('')
       setQr('')
       setArqueoMessage('Arqueo guardado correctamente.')
@@ -765,21 +759,12 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                     />
                   </label>
                   <label>
-                    Débito
+                    Tarjeta
                     <input
                       type="number"
                       min={0}
-                      value={debito}
-                      onChange={(e) => setDebito(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Crédito
-                    <input
-                      type="number"
-                      min={0}
-                      value={credito}
-                      onChange={(e) => setCredito(e.target.value)}
+                      value={tarjeta}
+                      onChange={(e) => setTarjeta(e.target.value)}
                     />
                   </label>
                   <label>
@@ -827,8 +812,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                   </div>
                   <div className="arqueo-card-montos">
                     <span className="arqueo-chip">Efectivo {formatCLP(a.efectivo)}</span>
-                    <span className="arqueo-chip">Débito {formatCLP(a.debito)}</span>
-                    <span className="arqueo-chip">Crédito {formatCLP(a.credito)}</span>
+                    <span className="arqueo-chip">Tarjeta {formatCLP(a.tarjeta)}</span>
                     {a.transferencia > 0 && <span className="arqueo-chip">Transferencia {formatCLP(a.transferencia)}</span>}
                     {a.qr > 0 && <span className="arqueo-chip">QR {formatCLP(a.qr)}</span>}
                   </div>
@@ -878,17 +862,15 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               Pon el total real de hoy en cada método; se guarda como una fila nueva debajo, sin borrar la que
               dejó la app, para poder comparar.
             </p>
-            {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
+            {(['efectivo', 'tarjeta', 'transferencia', 'qr'] as const).map((campo) => (
               <label key={campo}>
                 {campo === 'efectivo'
                   ? 'Efectivo'
-                  : campo === 'debito'
-                    ? 'Débito'
-                    : campo === 'credito'
-                      ? 'Crédito'
-                      : campo === 'transferencia'
-                        ? 'Transferencia'
-                        : 'QR'}
+                  : campo === 'tarjeta'
+                    ? 'Tarjeta'
+                    : campo === 'transferencia'
+                      ? 'Transferencia'
+                      : 'QR'}
                 <input
                   type="number"
                   min={0}
@@ -905,8 +887,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
                 {formatCLP(
                   ventaTotal({
                     efectivo: Number(editArqueoValores.efectivo) || 0,
-                    debito: Number(editArqueoValores.debito) || 0,
-                    credito: Number(editArqueoValores.credito) || 0,
+                    tarjeta: Number(editArqueoValores.tarjeta) || 0,
                     transferencia: Number(editArqueoValores.transferencia) || 0,
                     qr: Number(editArqueoValores.qr) || 0,
                   }),

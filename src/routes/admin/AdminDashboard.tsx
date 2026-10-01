@@ -196,7 +196,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [arqueoManualBusy, setArqueoManualBusy] = useState(false)
   const [corrigiendoWorkerId, setCorrigiendoWorkerId] = useState<string | null>(null)
   const [corrigiendoValores, setCorrigiendoValores] = useState({
-    efectivo: '', debito: '', credito: '', transferencia: '', qr: '',
+    efectivo: '', tarjeta: '', transferencia: '', qr: '',
   })
   const [corrigiendoBusy, setCorrigiendoBusy] = useState(false)
   const [corrigiendoError, setCorrigiendoError] = useState<string | null>(null)
@@ -221,13 +221,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   function abrirCorregirArqueo(workerId: string) {
     // Se parte desde la fila mas reciente de ese trabajador (la que vale para el total), no de la suma de todas.
     const [vigente] = filasVigentesPorTrabajador(arqueoRows.filter((a) => a.worker_id === workerId))
-    const base = vigente ?? { efectivo: 0, debito: 0, credito: 0, transferencia: 0, qr: 0 }
+    const base = vigente ?? { efectivo: 0, tarjeta: 0, transferencia: 0, qr: 0 }
     setCorrigiendoWorkerId(workerId)
     setCorrigiendoError(null)
     setCorrigiendoValores({
       efectivo: String(base.efectivo),
-      debito: String(base.debito),
-      credito: String(base.credito),
+      tarjeta: String(base.tarjeta),
       transferencia: String(base.transferencia),
       qr: String(base.qr),
     })
@@ -237,8 +236,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     if (!corrigiendoWorkerId || corrigiendoBusy) return
     const valores = {
       efectivo: Number(corrigiendoValores.efectivo) || 0,
-      debito: Number(corrigiendoValores.debito) || 0,
-      credito: Number(corrigiendoValores.credito) || 0,
+      tarjeta: Number(corrigiendoValores.tarjeta) || 0,
       transferencia: Number(corrigiendoValores.transferencia) || 0,
       qr: Number(corrigiendoValores.qr) || 0,
     }
@@ -1493,8 +1491,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               </div>
               <div className="arqueo-card-montos">
                 <span className="arqueo-chip">Efectivo {formatCLP(a.efectivo)}</span>
-                <span className="arqueo-chip">Débito {formatCLP(a.debito)}</span>
-                <span className="arqueo-chip">Crédito {formatCLP(a.credito)}</span>
+                <span className="arqueo-chip">Tarjeta {formatCLP(a.tarjeta)}</span>
                 {a.transferencia > 0 && <span className="arqueo-chip">Transferencia {formatCLP(a.transferencia)}</span>}
                 {a.qr > 0 && <span className="arqueo-chip">QR {formatCLP(a.qr)}</span>}
               </div>
@@ -1543,17 +1540,15 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
               {arqueoRows.find((a) => a.worker_id === corrigiendoWorkerId)?.ingreso_profiles?.full_name ?? 'este trabajador'}
               ; se guarda como una fila nueva debajo, sin borrar la que dejó la app, para poder comparar.
             </p>
-            {(['efectivo', 'debito', 'credito', 'transferencia', 'qr'] as const).map((campo) => (
+            {(['efectivo', 'tarjeta', 'transferencia', 'qr'] as const).map((campo) => (
               <label key={campo}>
                 {campo === 'efectivo'
                   ? 'Efectivo'
-                  : campo === 'debito'
-                    ? 'Débito'
-                    : campo === 'credito'
-                      ? 'Crédito'
-                      : campo === 'transferencia'
-                        ? 'Transferencia'
-                        : 'QR'}
+                  : campo === 'tarjeta'
+                    ? 'Tarjeta'
+                    : campo === 'transferencia'
+                      ? 'Transferencia'
+                      : 'QR'}
                 <input
                   type="number"
                   min={0}

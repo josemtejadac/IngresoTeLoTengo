@@ -14,8 +14,7 @@ interface Props {
 export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
   const [abierto, setAbierto] = useState(false)
   const [efectivo, setEfectivo] = useState('')
-  const [debito, setDebito] = useState('')
-  const [credito, setCredito] = useState('')
+  const [tarjeta, setTarjeta] = useState('')
   const [transferencia, setTransferencia] = useState('')
   const [qr, setQr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -24,8 +23,7 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
 
   const valores = {
     efectivo: Number(efectivo) || 0,
-    debito: Number(debito) || 0,
-    credito: Number(credito) || 0,
+    tarjeta: Number(tarjeta) || 0,
     transferencia: Number(transferencia) || 0,
     qr: Number(qr) || 0,
   }
@@ -42,8 +40,7 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
     try {
       await submitArqueo(workerId, fecha, valores)
       setEfectivo('')
-      setDebito('')
-      setCredito('')
+      setTarjeta('')
       setTransferencia('')
       setQr('')
       setMensaje('Arqueo guardado correctamente.')
@@ -72,12 +69,8 @@ export function RegistrarArqueo({ workerId, fecha, onGuardado }: Props) {
           <input type="number" min={0} value={efectivo} onChange={(e) => setEfectivo(e.target.value)} />
         </label>
         <label>
-          Débito
-          <input type="number" min={0} value={debito} onChange={(e) => setDebito(e.target.value)} />
-        </label>
-        <label>
-          Crédito
-          <input type="number" min={0} value={credito} onChange={(e) => setCredito(e.target.value)} />
+          Tarjeta
+          <input type="number" min={0} value={tarjeta} onChange={(e) => setTarjeta(e.target.value)} />
         </label>
         <label>
           Transferencia

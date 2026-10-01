@@ -7,11 +7,11 @@ interface Props {
   onEntregado: () => void
 }
 
-/** Para cuando el cliente paga con mas de un metodo al recibir (ej. parte debito, parte efectivo). */
+/** Para cuando el cliente paga con mas de un metodo al recibir (ej. parte tarjeta, parte efectivo). */
 export function EntregarMixto({ pedido, onEntregado }: Props) {
   const [abierto, setAbierto] = useState(false)
   const [montos, setMontos] = useState<Record<MetodoArqueo, string>>({
-    efectivo: '', debito: '', credito: '', transferencia: '', qr: '',
+    efectivo: '', tarjeta: '', transferencia: '', qr: '',
   })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -10,10 +10,15 @@ import {
   type FiltroPago,
   loadPedidosTiendaDelDia,
   loadPedidoTiendaItems,
+  type MetodoPago,
   METODO_PAGO_LABEL,
   type PedidoTienda,
   type PedidoTiendaItem,
 } from '../lib/tienda'
+
+type FiltroMetodo = 'todos' | MetodoPago
+
+const METODOS_FILTRO: MetodoPago[] = ['efectivo', 'debito', 'credito', 'transferencia', 'qr', 'online', 'mixto']
 
 function hoyISO(): string {
   const d = new Date()
@@ -49,6 +54,8 @@ export function HistorialPedidosTienda() {
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [nombres, setNombres] = useState<Record<string, string>>({})
   const [filtroWorker, setFiltroWorker] = useState('')
+  const [filtroMetodo, setFiltroMetodo] = useState<FiltroMetodo>('todos')
+  const [buscarMonto, setBuscarMonto] = useState('')
 
   useEffect(() => {
     loadNameDirectory().then(setNombres).catch(() => {})
@@ -88,13 +95,28 @@ export function HistorialPedidosTienda() {
     ...new Set(pedidos.map((p) => p.entregado_por).filter((id): id is string => !!id)),
   ]
 
+  const montoBuscado = buscarMonto.replace(/\D/g, '')
+
   const filtrados = pedidos
     .filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
     .filter((p) => !filtroWorker || p.entregado_por === filtroWorker)
+    .filter((p) => filtroMetodo === 'todos' || p.metodo_pago === filtroMetodo)
+    .filter((p) => !montoBuscado || String(p.total).includes(montoBuscado))
   const cuentas: Record<FiltroPago, number> = {
     todos: pedidos.length,
     online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
     contraentrega: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'contraentrega')).length,
+  }
+  const cuentasMetodo: Record<FiltroMetodo, number> = {
+    todos: pedidos.length,
+    efectivo: pedidos.filter((p) => p.metodo_pago === 'efectivo').length,
+    debito: pedidos.filter((p) => p.metodo_pago === 'debito').length,
+    credito: pedidos.filter((p) => p.metodo_pago === 'credito').length,
+    transferencia: pedidos.filter((p) => p.metodo_pago === 'transferencia').length,
+    qr: pedidos.filter((p) => p.metodo_pago === 'qr').length,
+    tarjeta: pedidos.filter((p) => p.metodo_pago === 'tarjeta').length,
+    online: pedidos.filter((p) => p.metodo_pago === 'online').length,
+    mixto: pedidos.filter((p) => p.metodo_pago === 'mixto').length,
   }
   const total = filtrados.filter((p) => p.estado !== 'cancelado').reduce((sum, p) => sum + p.total, 0)
 
@@ -133,6 +155,39 @@ export function HistorialPedidosTienda() {
         </div>
       </div>
       <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
+      <div className="filtro-pago">
+        <button
+          type="button"
+          className={filtroMetodo === 'todos' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+          onClick={() => setFiltroMetodo('todos')}
+        >
+          Todos los métodos ({cuentasMetodo.todos})
+        </button>
+        {METODOS_FILTRO.filter((m) => cuentasMetodo[m] > 0).map((m) => (
+          <button
+            key={m}
+            type="button"
+            className={filtroMetodo === m ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+            onClick={() => setFiltroMetodo(m)}
+          >
+            {METODO_PAGO_LABEL[m]} ({cuentasMetodo[m]})
+          </button>
+        ))}
+      </div>
+      <div className="table-controls">
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="Buscar por monto (ej. 4950)"
+          value={buscarMonto}
+          onChange={(e) => setBuscarMonto(e.target.value)}
+        />
+        {buscarMonto && (
+          <button type="button" className="btn btn-secondary btn-small" onClick={() => setBuscarMonto('')}>
+            Limpiar
+          </button>
+        )}
+      </div>
       {pdfError && <p className="error-text">{pdfError}</p>}
       {error && <p className="error-text">{error}</p>}
       <p className="subtitle">

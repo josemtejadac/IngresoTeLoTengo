@@ -88,7 +88,9 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const idsTrabajadores = [...new Set([...ventas.map((v) => v.worker_id), ...abonos.map((a) => a.worker_id)])]
   const filasPorTrabajador = idsTrabajadores.map((id) => {
     const propiasVentas = ventas.filter((v) => v.worker_id === id)
-    const propioContraEntrega = propiasVentas.filter((v) => v.metodo !== 'online').reduce((s, v) => s + v.monto, 0)
+    const propiasContraEntrega = propiasVentas.filter((v) => v.metodo !== 'online')
+    const propioContraEntrega = propiasContraEntrega.reduce((s, v) => s + v.monto, 0)
+    const propioContraEntregaPorMetodo = sumarPorMetodo(propiasContraEntrega, (v) => v.metodo, (v) => v.monto)
     const propioOnline = propiasVentas.filter((v) => v.metodo === 'online').reduce((s, v) => s + v.monto, 0)
     const propioAbono = abonos.find((a) => a.worker_id === id)
     const propioAbonoMonto = propioAbono?.monto ?? 0
@@ -99,6 +101,7 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
       id,
       nombre,
       contraEntrega: propioContraEntrega,
+      contraEntregaPorMetodo: propioContraEntregaPorMetodo,
       online: propioOnline,
       abono: propioAbonoMonto,
       abonoPorMetodo: propioAbonoPorMetodo,
@@ -136,7 +139,15 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
               {filasPorTrabajador.map((f) => (
                 <tr key={f.id}>
                   <td className="col-nombre">{f.nombre}</td>
-                  <td>{formatCLP(f.contraEntrega)}</td>
+                  <td>
+                    {formatCLP(f.contraEntrega)}
+                    {f.contraEntregaPorMetodo.length > 0 && (
+                      <>
+                        <br />
+                        <span className="subtitle">{textoPorMetodo(f.contraEntregaPorMetodo)}</span>
+                      </>
+                    )}
+                  </td>
                   <td>{f.online > 0 ? formatCLP(f.online) : '—'}</td>
                   <td>
                     {f.abono > 0 ? formatCLP(f.abono) : '—'}

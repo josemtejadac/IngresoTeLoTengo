@@ -240,7 +240,6 @@ export function PedidosTienda() {
     online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
     efectivo: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'efectivo')).length,
     tarjeta: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'tarjeta')).length,
-    transferenciaqr: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'transferenciaqr')).length,
   }
   const visibles = pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
 

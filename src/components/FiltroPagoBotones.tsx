@@ -11,7 +11,6 @@ const OPCIONES: { valor: FiltroPago; texto: string }[] = [
   { valor: 'online', texto: 'Pago online' },
   { valor: 'efectivo', texto: 'Efectivo' },
   { valor: 'tarjeta', texto: 'Tarjeta' },
-  { valor: 'transferenciaqr', texto: 'Transferencia/QR' },
 ]
 
 /** Filtro de pedidos segun como pagaron. */

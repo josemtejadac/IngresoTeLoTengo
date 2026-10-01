@@ -49,11 +49,10 @@ export async function loadCategoriasTienda(): Promise<string[]> {
 
 export type PagoEstado = 'pendiente' | 'comprobante_subido' | 'pagado' | 'esperando_pago'
 
-export type FiltroPago = 'todos' | 'online' | 'efectivo' | 'tarjeta' | 'transferenciaqr'
+export type FiltroPago = 'todos' | 'online' | 'efectivo' | 'tarjeta'
 
 export function coincideFiltroPago(metodo: MetodoPago | null, filtro: FiltroPago): boolean {
   if (filtro === 'todos') return true
-  if (filtro === 'transferenciaqr') return metodo === 'transferencia' || metodo === 'qr'
   return metodo === filtro
 }
 

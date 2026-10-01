@@ -1175,16 +1175,20 @@ export function Tienda() {
               <p className="subtitle">Ya tienes {enCarrito(detalle.id)} en tu pedido.</p>
             )}
             {detalle.por_peso ? (
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  const p = detalle
-                  setDetalle(null)
-                  abrirPeso(p)
-                }}
-              >
-                Elegir cantidad
-              </button>
+              <>
+                {!detalle.disponible && <p className="error-text">Este producto está sin stock por ahora.</p>}
+                <button
+                  className="btn btn-primary"
+                  disabled={!detalle.disponible}
+                  onClick={() => {
+                    const p = detalle
+                    setDetalle(null)
+                    abrirPeso(p)
+                  }}
+                >
+                  Elegir cantidad
+                </button>
+              </>
             ) : (
               <>
                 {!detalle.disponible && <p className="error-text">Este producto está sin stock por ahora.</p>}

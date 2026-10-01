@@ -39,8 +39,8 @@ export function PendientesPorCliente({
 
   return (
     <>
-      <fieldset className="pago-metodos">
-        <legend>Al cobrar o abonar, el cliente paga con</legend>
+      <fieldset className="pago-metodos pago-metodos-sticky">
+        <legend>👉 Antes de cobrar o abonar, elige con qué paga el cliente</legend>
         <div className="metodo-cambiar">
           {(Object.keys(METODO_ABONO_LABEL) as MetodoAbono[]).map((m) => (
             <button
@@ -53,7 +53,10 @@ export function PendientesPorCliente({
             </button>
           ))}
         </div>
-        <p className="subtitle">El dinero se suma solo al arqueo de hoy, en la columna de {METODO_ABONO_LABEL[metodo]}.</p>
+        <p className="subtitle">
+          Seleccionado: <strong>{METODO_ABONO_LABEL[metodo]}</strong> — el dinero se suma solo al arqueo de hoy, en
+          esa columna.
+        </p>
       </fieldset>
       {grupos.length === 0 && <p className="subtitle">No hay deudas por cobrar.</p>}
       {grupos.map((g) => (
@@ -99,7 +102,9 @@ export function PendientesPorCliente({
                   }
                 }}
               >
-                {busyKey === `all-${g.key}` ? 'Guardando...' : `Cobrar todo (${formatCLP(g.total)})`}
+                {busyKey === `all-${g.key}`
+                  ? 'Guardando...'
+                  : `Cobrar todo (${formatCLP(g.total)} en ${METODO_ABONO_LABEL[metodo]})`}
               </button>
             </div>
           </div>
@@ -129,7 +134,7 @@ export function PendientesPorCliente({
                   if (ok) setAbonando(null)
                 }}
               >
-                {busyKey === `abono-${g.key}` ? 'Guardando...' : 'Registrar abono'}
+                {busyKey === `abono-${g.key}` ? 'Guardando...' : `Registrar abono en ${METODO_ABONO_LABEL[metodo]}`}
               </button>
             </div>
           )}
@@ -180,7 +185,7 @@ export function PendientesPorCliente({
                               if (ok) setAbonandoDeuda(null)
                             }}
                           >
-                            {busyKey === `abono-${d.id}` ? 'Guardando...' : 'Guardar'}
+                            {busyKey === `abono-${d.id}` ? 'Guardando...' : `Guardar en ${METODO_ABONO_LABEL[metodo]}`}
                           </button>
                           <button className="btn-link" onClick={() => setAbonandoDeuda(null)}>
                             Cancelar

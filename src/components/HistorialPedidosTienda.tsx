@@ -2,12 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
-import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { downloadProductosVendidosPdf } from '../lib/productosVendidosReport'
 import { loadNameDirectory } from '../lib/directory'
 import {
-  coincideFiltroPago,
-  type FiltroPago,
   loadPedidosTiendaDelDia,
   loadPedidoTiendaItems,
   type MetodoPago,
@@ -49,7 +46,6 @@ export function HistorialPedidosTienda() {
   const [pedidos, setPedidos] = useState<PedidoTienda[]>([])
   const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
   const [error, setError] = useState<string | null>(null)
-  const [filtro, setFiltro] = useState<FiltroPago>('todos')
   const [pdfBusy, setPdfBusy] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
   const [nombres, setNombres] = useState<Record<string, string>>({})
@@ -98,15 +94,9 @@ export function HistorialPedidosTienda() {
   const montoBuscado = buscarMonto.replace(/\D/g, '')
 
   const filtrados = pedidos
-    .filter((p) => coincideFiltroPago(p.metodo_pago, filtro))
     .filter((p) => !filtroWorker || p.entregado_por === filtroWorker)
     .filter((p) => filtroMetodo === 'todos' || p.metodo_pago === filtroMetodo)
     .filter((p) => !montoBuscado || String(p.total).includes(montoBuscado))
-  const cuentas: Record<FiltroPago, number> = {
-    todos: pedidos.length,
-    online: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'online')).length,
-    contraentrega: pedidos.filter((p) => coincideFiltroPago(p.metodo_pago, 'contraentrega')).length,
-  }
   const cuentasMetodo: Record<FiltroMetodo, number> = {
     todos: pedidos.length,
     efectivo: pedidos.filter((p) => p.metodo_pago === 'efectivo').length,
@@ -154,14 +144,13 @@ export function HistorialPedidosTienda() {
           </button>
         </div>
       </div>
-      <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
       <div className="filtro-pago">
         <button
           type="button"
           className={filtroMetodo === 'todos' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
           onClick={() => setFiltroMetodo('todos')}
         >
-          Todos los métodos ({cuentasMetodo.todos})
+          Todos ({cuentasMetodo.todos})
         </button>
         {METODOS_FILTRO.filter((m) => cuentasMetodo[m] > 0).map((m) => (
           <button

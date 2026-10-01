@@ -2756,6 +2756,49 @@ textarea {
   margin: 2px 0;
 }
 
+/* ---------- Resumen de pedidos/abonos del dia (VentasOnlineDia) ---------- */
+.ventas-resumen-tabla-wrap {
+  margin: 10px 0 14px;
+}
+
+.ventas-resumen-tabla td,
+.ventas-resumen-tabla th {
+  white-space: normal;
+}
+
+.ventas-resumen-bloque {
+  margin: 12px 0;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-left: 3px solid #94a3b8;
+  border-radius: 6px;
+}
+
+.ventas-resumen-bloque p {
+  margin: 3px 0;
+}
+
+.ventas-resumen-titulo {
+  font-weight: 700;
+  margin-bottom: 6px !important;
+}
+
+.ventas-resumen-final {
+  border-left-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.ventas-resumen-total {
+  font-size: 1.05rem;
+  border-top: 1px solid #bbf7d0;
+  padding-top: 6px;
+  margin-top: 6px !important;
+}
+
+.ventas-abono-detalle {
+  padding-left: 8px;
+}
+
 /* ---------- Historial de pagos (trabajador) ---------- */
 .pago-mes {
   border: 1px solid #e2e8f0;

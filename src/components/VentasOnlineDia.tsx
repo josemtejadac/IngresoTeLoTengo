@@ -29,6 +29,20 @@ const ETIQUETA: Record<string, string> = {
   mixto: 'Pago mixto',
 }
 
+function sumarPorMetodo<T>(filas: T[], metodo: (f: T) => string, monto: (f: T) => number) {
+  return filas.reduce<{ m: string; monto: number }[]>((acc, f) => {
+    const m = metodo(f)
+    const existente = acc.find((x) => x.m === m)
+    if (existente) existente.monto += monto(f)
+    else acc.push({ m, monto: monto(f) })
+    return acc
+  }, [])
+}
+
+function textoPorMetodo(filas: { m: string; monto: number }[]) {
+  return filas.map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`).join(' · ')
+}
+
 /**
  * Pedidos de la tienda del dia. Los pagados contra entrega (efectivo/debito/credito) ya estan sumados
  * dentro del arqueo (la app los agrega sola al marcarlos entregados); aca solo se muestran para que se
@@ -65,114 +79,144 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const totalAbonos = abonos.reduce((sum, a) => sum + a.monto, 0)
   // Los abonos con metodo ya estan dentro de las columnas del arqueo; solo los antiguos (sin metodo) se suman aparte.
   const abonosAparte = abonos.reduce((sum, a) => sum + a.monto_aparte, 0)
-  const abonosPorMetodo = detalleAbonos.reduce<{ m: string; monto: number }[]>((acc, a) => {
-    const m = a.metodo ?? 'sin método'
-    const existente = acc.find((x) => x.m === m)
-    if (existente) existente.monto += a.monto
-    else acc.push({ m, monto: a.monto })
-    return acc
-  }, [])
+  const contraEntregaPorMetodo = sumarPorMetodo(contraEntrega, (v) => v.metodo, (v) => v.monto)
+  const abonosPorMetodo = sumarPorMetodo(detalleAbonos, (a) => a.metodo ?? 'sin método', (a) => a.monto)
+  const ventaTotalDia = arqueoTotal + totalOnline + abonosAparte
+
+  // Un trabajador por fila, combinando sus pedidos y sus abonos en una sola tarjeta (antes estaban en
+  // dos bloques de texto separados, lo que confundia). Si no es admin, solo existe una fila: la propia.
+  const idsTrabajadores = [...new Set([...ventas.map((v) => v.worker_id), ...abonos.map((a) => a.worker_id)])]
+  const filasPorTrabajador = idsTrabajadores.map((id) => {
+    const propiasVentas = ventas.filter((v) => v.worker_id === id)
+    const propioContraEntrega = propiasVentas.filter((v) => v.metodo !== 'online').reduce((s, v) => s + v.monto, 0)
+    const propioOnline = propiasVentas.filter((v) => v.metodo === 'online').reduce((s, v) => s + v.monto, 0)
+    const propioAbono = abonos.find((a) => a.worker_id === id)
+    const propioAbonoMonto = propioAbono?.monto ?? 0
+    const propioAbonoDetalle = detalleAbonos.filter((d) => d.worker_id === id)
+    const propioAbonoPorMetodo = sumarPorMetodo(propioAbonoDetalle, (d) => d.metodo ?? 'sin método', (d) => d.monto)
+    const nombre = propiasVentas[0]?.nombre ?? propioAbono?.nombre ?? '—'
+    return {
+      id,
+      nombre,
+      contraEntrega: propioContraEntrega,
+      online: propioOnline,
+      abono: propioAbonoMonto,
+      abonoPorMetodo: propioAbonoPorMetodo,
+      // Lo que de verdad entra a su caja hoy (pedidos contra entrega + abonos cobrados).
+      totalCaja: propioContraEntrega + propioAbonoMonto,
+    }
+  })
+
+  if (ventas.length === 0 && detalleAbonos.length === 0) {
+    return (
+      <div className="ventas-online">
+        <h3>Pedidos de la tienda del día — automático</h3>
+        <p className="subtitle">Sin pedidos ni cobros de deudas este día.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="ventas-online">
       <h3>Pedidos de la tienda del día — automático</h3>
-      {ventas.length === 0 ? (
-        <p className="subtitle">Sin pedidos de la tienda entregados este día.</p>
-      ) : (
-        <>
-          {totalOnline > 0 && (
-            <p>
-              Pago online (Flow, se suma aparte del arqueo): <strong>{formatCLP(totalOnline)}</strong>
-            </p>
-          )}
-          {totalContraEntrega > 0 && (
-            <p className="subtitle">
-              Contra entrega (ya incluido en el arqueo de abajo):{' '}
-              {contraEntrega
-                .reduce<{ m: string; monto: number }[]>((acc, v) => {
-                  const existente = acc.find((x) => x.m === v.metodo)
-                  if (existente) existente.monto += v.monto
-                  else acc.push({ m: v.metodo, monto: v.monto })
-                  return acc
-                }, [])
-                .map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`)
-                .join(' · ')}
-            </p>
-          )}
-          {esAdmin && (
-            <div className="subtitle">
-              {[...new Set(ventas.map((v) => v.worker_id))].map((id) => {
-                const propias = ventas.filter((v) => v.worker_id === id)
-                const propiasOnline = propias.filter((v) => v.metodo === 'online')
-                const totalPropio = propias.reduce((sum, v) => sum + v.monto, 0)
-                const totalPropioOnline = propiasOnline.reduce((sum, v) => sum + v.monto, 0)
-                const abonosPropio = abonos.find((a) => a.worker_id === id)?.monto ?? 0
-                return (
-                  <p key={id}>
-                    {propias[0].nombre ?? '—'}: {formatCLP(totalPropio)} en pedidos
-                    {totalPropioOnline > 0 && ` (incluye ${formatCLP(totalPropioOnline)} de Flow, no pasa por su caja)`}
-                    {abonosPropio > 0 && ` · no incluye los ${formatCLP(abonosPropio)} que cobró en abonos de deudas (ver abajo)`}
-                  </p>
-                )
-              })}
-            </div>
-          )}
-        </>
-      )}
-      {detalleAbonos.length > 0 && (
-        <div className="abonos-detalle">
-          <p>
-            <strong>Abonos de deudas cobrados hoy</strong> (de dónde salieron):
+
+      {esAdmin && filasPorTrabajador.length > 0 && (
+        <div className="ventas-resumen-tabla-wrap">
+          <table className="table ventas-resumen-tabla">
+            <thead>
+              <tr>
+                <th>Trabajador</th>
+                <th>Contra entrega</th>
+                <th>Online (Flow)</th>
+                <th>Abonos cobrados</th>
+                <th>Entra a su caja</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filasPorTrabajador.map((f) => (
+                <tr key={f.id}>
+                  <td className="col-nombre">{f.nombre}</td>
+                  <td>{formatCLP(f.contraEntrega)}</td>
+                  <td>{f.online > 0 ? formatCLP(f.online) : '—'}</td>
+                  <td>
+                    {f.abono > 0 ? formatCLP(f.abono) : '—'}
+                    {f.abonoPorMetodo.length > 0 && (
+                      <>
+                        <br />
+                        <span className="subtitle">{textoPorMetodo(f.abonoPorMetodo)}</span>
+                      </>
+                    )}
+                  </td>
+                  <td>
+                    <strong>{formatCLP(f.totalCaja)}</strong>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="subtitle">
+            "Entra a su caja" = contra entrega + abonos cobrados (lo que debe coincidir con su arqueo). El pago
+            online (Flow) nunca pasa por su caja, por eso no se suma en esa columna.
           </p>
-          {detalleAbonos.map((a) => (
-            <p key={a.id} className="subtitle">
-              🕒 {new Date(a.hora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })} ·{' '}
-              <strong>{formatCLP(a.monto)}</strong> · {a.metodo ? (ETIQUETA[a.metodo] ?? a.metodo) : 'sin método'} · deuda de{' '}
-              {a.cliente ?? a.detalle ?? 'cliente sin nombre'}
-              {esAdmin && a.nombre ? ` · cobró ${a.nombre}` : ''}
-            </p>
-          ))}
         </div>
       )}
-      <p>
-        Arqueo del día (manual + pedidos contra entrega): <strong>{formatCLP(arqueoTotal)}</strong>
-      </p>
-      <p>
-        Cobrado en abonos de deudas hoy: <strong>{formatCLP(totalAbonos)}</strong>
-        {totalAbonos - abonosAparte > 0 && (
-          <span className="subtitle"> (ya sumado en su columna del arqueo)</span>
+
+      <div className="ventas-resumen-bloque">
+        <p className="ventas-resumen-titulo">📦 Pedidos de la tienda</p>
+        {totalContraEntrega > 0 && (
+          <p>
+            Contra entrega (ya está en el arqueo de abajo): <strong>{formatCLP(totalContraEntrega)}</strong>
+            {contraEntregaPorMetodo.length > 0 && (
+              <>
+                <br />
+                <span className="subtitle">{textoPorMetodo(contraEntregaPorMetodo)}</span>
+              </>
+            )}
+          </p>
         )}
-      </p>
-      {abonosPorMetodo.length > 0 && (
-        <p className="subtitle">
-          Por método:{' '}
-          {abonosPorMetodo.map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`).join(' · ')}
-        </p>
-      )}
-      {esAdmin && abonos.length > 0 && (
-        <div className="subtitle">
-          {abonos.map((a) => {
-            const propiosDetalle = detalleAbonos.filter((d) => d.worker_id === a.worker_id)
-            const porMetodo = propiosDetalle.reduce<{ m: string; monto: number }[]>((acc, d) => {
-              const m = d.metodo ?? 'sin método'
-              const existente = acc.find((x) => x.m === m)
-              if (existente) existente.monto += d.monto
-              else acc.push({ m, monto: d.monto })
-              return acc
-            }, [])
-            return (
-              <p key={a.worker_id}>
-                {a.nombre ?? '—'} cobró {formatCLP(a.monto)} en abonos
-                {porMetodo.length > 0 &&
-                  ` (${porMetodo.map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`).join(' · ')})`}
-              </p>
-            )
-          })}
+        {totalOnline > 0 && (
+          <p>
+            Pago online, Flow (no pasa por caja, se suma aparte): <strong>{formatCLP(totalOnline)}</strong>
+          </p>
+        )}
+      </div>
+
+      {totalAbonos > 0 && (
+        <div className="ventas-resumen-bloque">
+          <p className="ventas-resumen-titulo">💳 Cobros de deudas (abonos)</p>
+          <p>
+            Cobrado hoy (ya está en el arqueo de abajo): <strong>{formatCLP(totalAbonos)}</strong>
+          </p>
+          {abonosPorMetodo.length > 0 && <p className="subtitle">{textoPorMetodo(abonosPorMetodo)}</p>}
+          {detalleAbonos.length > 0 && (
+            <>
+              <p className="subtitle">Detalle (de dónde salió cada cobro):</p>
+              {detalleAbonos.map((a) => (
+                <p key={a.id} className="subtitle ventas-abono-detalle">
+                  🕒 {new Date(a.hora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })} ·{' '}
+                  <strong>{formatCLP(a.monto)}</strong> · {a.metodo ? (ETIQUETA[a.metodo] ?? a.metodo) : 'sin método'}{' '}
+                  · deuda de {a.cliente ?? a.detalle ?? 'cliente sin nombre'}
+                  {esAdmin && a.nombre ? ` · cobró ${a.nombre}` : ''}
+                </p>
+              ))}
+            </>
+          )}
         </div>
       )}
-      <p>
-        Venta total del día: <strong>{formatCLP(arqueoTotal + totalOnline + abonosAparte)}</strong>
-      </p>
+
+      <div className="ventas-resumen-bloque ventas-resumen-final">
+        <p className="ventas-resumen-titulo">🧮 Resumen del día</p>
+        <p>
+          Arqueo (pedidos contra entrega + abonos cobrados): <strong>{formatCLP(arqueoTotal)}</strong>
+        </p>
+        <p>
+          + Pago online, Flow: <strong>{formatCLP(totalOnline)}</strong>
+        </p>
+        <p className="ventas-resumen-total">
+          = Venta total del día: <strong>{formatCLP(ventaTotalDia)}</strong>
+        </p>
+      </div>
+
       <p className="subtitle">
         Un pedido contra entrega (efectivo, débito o crédito) se suma solo al arqueo del trabajador que lo marca
         como entregado, en la columna que corresponde. No lo anotes también a mano. El pago online (Flow) nunca pasa
@@ -180,8 +224,8 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
       </p>
       <p className="subtitle">
         <strong>Ventas por fuera de la app</strong> (sin pedido en la tienda ni pedido manual) sí se anotan en tu
-        arqueo a mano, como siempre. Los <strong>abonos de deudas</strong> (fiado) que cobras se suman solos al total del
-        día: no los anotes en el arqueo.
+        arqueo a mano, como siempre. Los <strong>abonos de deudas</strong> (fiado) que cobras se suman solos a tu
+        arqueo: no los anotes ahí de nuevo.
       </p>
     </div>
   )

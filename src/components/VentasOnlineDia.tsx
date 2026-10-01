@@ -65,6 +65,13 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
   const totalAbonos = abonos.reduce((sum, a) => sum + a.monto, 0)
   // Los abonos con metodo ya estan dentro de las columnas del arqueo; solo los antiguos (sin metodo) se suman aparte.
   const abonosAparte = abonos.reduce((sum, a) => sum + a.monto_aparte, 0)
+  const abonosPorMetodo = detalleAbonos.reduce<{ m: string; monto: number }[]>((acc, a) => {
+    const m = a.metodo ?? 'sin método'
+    const existente = acc.find((x) => x.m === m)
+    if (existente) existente.monto += a.monto
+    else acc.push({ m, monto: a.monto })
+    return acc
+  }, [])
 
   return (
     <div className="ventas-online">
@@ -134,6 +141,12 @@ export function VentasOnlineDia({ fecha, arqueoTotal, esAdmin }: Props) {
           <span className="subtitle"> (ya sumado en su columna del arqueo)</span>
         )}
       </p>
+      {abonosPorMetodo.length > 0 && (
+        <p className="subtitle">
+          Por método:{' '}
+          {abonosPorMetodo.map((x) => `${ETIQUETA[x.m] ?? x.m} ${formatCLP(x.monto)}`).join(' · ')}
+        </p>
+      )}
       {esAdmin && abonos.length > 0 && (
         <div className="subtitle">
           {abonos.map((a) => (

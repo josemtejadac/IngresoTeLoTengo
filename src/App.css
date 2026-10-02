@@ -218,22 +218,97 @@ select {
 }
 
 .cupon-form {
+  background: #faf5ff;
+  border: 1px dashed #ddd6fe;
+  border-radius: 14px;
+  padding: 14px;
   margin: 4px 0 16px;
 }
 
+.cupon-etiqueta {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: #6d28d9;
+}
+
 .cupon-form .action-row {
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .cupon-input {
   flex: 1;
   min-width: 140px;
   padding: 10px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #ddd6fe;
   border-radius: 10px;
   font-size: 0.95rem;
-  text-transform: uppercase;
   letter-spacing: 0.02em;
+  background: #fff;
+}
+
+.cupon-input:focus {
+  outline: none;
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.25);
+}
+
+.btn-cupon {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+}
+
+.btn-cupon:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.btn-cupon:disabled {
+  opacity: 0.5;
+}
+
+.btn-link-sutil {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 0 8px;
+  text-align: left;
+}
+
+.btn-link-sutil:hover {
+  color: #64748b;
+  text-decoration: underline;
+}
+
+.cupon-recibido-banner {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.cupon-recibido-banner p {
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+.cupon-recibido-banner .btn-cupon {
+  background: #fff;
+  color: #6d28d9;
+}
+
+.cupon-recibido-banner .btn-cupon:hover:not(:disabled) {
+  background: #f5f3ff;
+}
+
+.cupon-recibido-banner .btn-link-sutil {
+  color: #e9d5ff;
+}
+
+.cupon-recibido-banner .btn-link-sutil:hover {
+  color: #fff;
 }
 
 .cupon-estado {
@@ -266,6 +341,11 @@ select {
   gap: 10px;
   margin: 0;
   font-weight: 600;
+}
+
+.cupon-form .info-text .btn-link {
+  color: #6d28d9;
+  font-weight: 700;
 }
 
 .table {

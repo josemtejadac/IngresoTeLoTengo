@@ -19,7 +19,9 @@ import {
   iniciarPagoFlow,
   loadMisPedidos,
   validarCupon,
+  loadCuponesRecibidos,
   METODO_PAGO_LABEL,
+  type CuponRecibido,
   type CuponValidado,
   type MetodoPago,
   type MiPedido,
@@ -94,6 +96,28 @@ function quedaPocoStock(p: ProductoTienda): boolean {
   return p.stock_max !== null && p.stock_max <= STOCK_BAJO_UNIDADES
 }
 
+// Cupones ya vistos (aplicados o cerrados) en este navegador, para no mostrar el mismo aviso de nuevo.
+const CUPONES_VISTOS_KEY = 'tlt_cupones_vistos'
+
+function cuponesVistosLocal(): string[] {
+  try {
+    const raw = localStorage.getItem(CUPONES_VISTOS_KEY)
+    const ids = raw ? (JSON.parse(raw) as unknown) : []
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function marcarCuponVistoLocal(id: string) {
+  try {
+    const vistos = cuponesVistosLocal()
+    localStorage.setItem(CUPONES_VISTOS_KEY, JSON.stringify([id, ...vistos.filter((x) => x !== id)].slice(0, 50)))
+  } catch {
+    // sin almacenamiento: en el peor caso vuelve a aparecer el aviso
+  }
+}
+
 export function Tienda() {
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -112,6 +136,7 @@ export function Tienda() {
   const [cuponAplicado, setCuponAplicado] = useState<CuponValidado | null>(null)
   const [cuponBusy, setCuponBusy] = useState(false)
   const [cuponError, setCuponError] = useState<string | null>(null)
+  const [cuponRecibido, setCuponRecibido] = useState<CuponRecibido | null>(null)
   const [guardado, setGuardado] = useState(loadClienteGuardado)
   const [nombre, setNombre] = useState(guardado?.nombre ?? '')
   const [telefono, setTelefono] = useState(guardado?.telefono ?? '')
@@ -233,6 +258,42 @@ export function Tienda() {
     loadMisPedidos().then(setMisPedidos).catch(() => {})
   }, [verHistorial])
   useRealtimeRefresh(['ingreso_pedidos_tienda'], recargarMisPedidos)
+
+  // Si guardo sus datos, revisa si le mandaron un cupon (y se entera al instante si se lo mandan mientras esta aqui).
+  const recargarCuponesRecibidos = useCallback(() => {
+    const tel = guardado?.telefono
+    if (!tel) return
+    loadCuponesRecibidos(tel)
+      .then((lista) => {
+        const vistos = cuponesVistosLocal()
+        const nuevo = lista.find((c) => c.vigente && !vistos.includes(c.id))
+        if (nuevo) setCuponRecibido(nuevo)
+      })
+      .catch(() => {})
+  }, [guardado?.telefono])
+  useEffect(() => {
+    recargarCuponesRecibidos()
+  }, [recargarCuponesRecibidos])
+  useRealtimeRefresh(['ingreso_cupones_enviados'], recargarCuponesRecibidos)
+
+  function cerrarCuponRecibido() {
+    if (cuponRecibido) marcarCuponVistoLocal(cuponRecibido.id)
+    setCuponRecibido(null)
+  }
+
+  function usarCuponRecibido() {
+    if (!cuponRecibido) return
+    const codigo = cuponRecibido.codigo
+    setCuponCodigo(codigo)
+    marcarCuponVistoLocal(cuponRecibido.id)
+    setCuponRecibido(null)
+    setShowCheckout(true)
+    if (cart.length > 0) {
+      validarCupon(codigo, total)
+        .then(setCuponAplicado)
+        .catch(() => {})
+    }
+  }
 
   // El detalle abierto de un producto tambien se actualiza en vivo (por si se agota mientras el cliente lo mira).
   useEffect(() => {
@@ -650,6 +711,22 @@ export function Tienda() {
 
   return (
     <div className="page">
+      {cuponRecibido && (
+        <div className="cupon-recibido-banner">
+          <p>
+            🎉 ¡Te llegó un cupón! <strong>{cuponRecibido.codigo}</strong> — {cuponRecibido.descuento_pct}% de
+            descuento
+          </p>
+          <div className="action-row">
+            <button type="button" className="btn btn-cupon btn-small" onClick={usarCuponRecibido}>
+              Usarlo ahora
+            </button>
+            <button type="button" className="btn-link-sutil" onClick={cerrarCuponRecibido}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
       <header className="tienda-hero">
         <div className="tienda-hero-top">
           <div className="brand-row">
@@ -856,23 +933,26 @@ export function Tienda() {
                   </button>
                 </p>
               ) : (
-                <div className="action-row">
-                  <input
-                    type="text"
-                    value={cuponCodigo}
-                    onChange={(e) => setCuponCodigo(e.target.value.toUpperCase())}
-                    placeholder="¿Tienes un cupón?"
-                    className="cupon-input"
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-small"
-                    disabled={cuponBusy || !cuponCodigo.trim()}
-                    onClick={handleAplicarCupon}
-                  >
-                    {cuponBusy ? 'Revisando...' : 'Aplicar'}
-                  </button>
-                </div>
+                <>
+                  <p className="cupon-etiqueta">🎟️ ¿Tienes un cupón?</p>
+                  <div className="action-row">
+                    <input
+                      type="text"
+                      value={cuponCodigo}
+                      onChange={(e) => setCuponCodigo(e.target.value.toUpperCase())}
+                      placeholder="Código de descuento"
+                      className="cupon-input"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-cupon btn-small"
+                      disabled={cuponBusy || !cuponCodigo.trim()}
+                      onClick={handleAplicarCupon}
+                    >
+                      {cuponBusy ? 'Revisando...' : 'Aplicar'}
+                    </button>
+                  </div>
+                </>
               )}
               {cuponError && <p className="error-text">{cuponError}</p>}
             </div>
@@ -952,8 +1032,8 @@ export function Tienda() {
                 Guardar mis datos para la próxima vez
               </label>
               {guardado && (
-                <button type="button" className="btn-link" onClick={handleOlvidar}>
-                  Borrar mis datos guardados
+                <button type="button" className="btn-link-sutil" onClick={handleOlvidar}>
+                  🗑️ Borrar mis datos guardados
                 </button>
               )}
               <fieldset className="pago-metodos">

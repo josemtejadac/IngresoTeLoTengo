@@ -161,6 +161,32 @@ export async function desactivarCupon(cuponId: string) {
   if (error) throw error
 }
 
+/** Solo admin: manda un cupon a un cliente puntual (por telefono), para que le llegue en tiempo real en la tienda. */
+export async function enviarCupon(cuponId: string, telefono: string, torre?: string | null, depto?: string | null) {
+  const { error } = await supabase.rpc('ingreso_enviar_cupon', {
+    p_cupon_id: cuponId,
+    p_telefono: telefono,
+    p_torre: torre || null,
+    p_depto: depto || null,
+  })
+  if (error) throw error
+}
+
+export interface CuponRecibido {
+  id: string
+  codigo: string
+  descuento_pct: number
+  vigente: boolean
+  created_at: string
+}
+
+/** Cupones que le han mandado a este telefono (publico: el cliente no tiene cuenta, el telefono es lo que lo identifica). */
+export async function loadCuponesRecibidos(telefono: string): Promise<CuponRecibido[]> {
+  const { data, error } = await supabase.rpc('ingreso_mis_cupones_recibidos', { p_telefono: telefono })
+  if (error) throw error
+  return ((data as CuponRecibido[]) ?? []).map((c) => ({ ...c, descuento_pct: Number(c.descuento_pct) }))
+}
+
 export { productoFotoUrl }
 
 export interface PedidoTiendaItem {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { loadClientesSeguimiento, type ClienteSeguimiento } from '../lib/tienda'
+import { enviarCupon, loadClientesSeguimiento, loadCupones, type ClienteSeguimiento, type Cupon } from '../lib/tienda'
 
 function mesActualISO(): string {
   const d = new Date()
@@ -15,12 +15,23 @@ function rangoDelMes(mes: string): { desde: string; hasta: string } {
   return { desde, hasta }
 }
 
+function cuponVigente(c: Cupon): boolean {
+  if (!c.activo) return false
+  if (c.vence_at && new Date(c.vence_at) < new Date()) return false
+  if (c.usos_maximos !== null && c.usos_actuales >= c.usos_maximos) return false
+  return true
+}
+
 /** Seguimiento de clientes por depto: cuantas veces compraron y cuanto, para detectar clientes frecuentes a quien mandarles cupones. */
 export function ClientesSeguimiento() {
   const [mes, setMes] = useState(mesActualISO)
   const [filas, setFilas] = useState<ClienteSeguimiento[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cupones, setCupones] = useState<Cupon[]>([])
+  const [cuponElegido, setCuponElegido] = useState<Record<string, string>>({})
+  const [enviando, setEnviando] = useState<string | null>(null)
+  const [enviados, setEnviados] = useState<Record<string, boolean>>({})
 
   const cargar = useCallback(async () => {
     setBusy(true)
@@ -39,6 +50,31 @@ export function ClientesSeguimiento() {
     cargar()
   }, [cargar])
 
+  useEffect(() => {
+    loadCupones()
+      .then(setCupones)
+      .catch(() => setCupones([]))
+  }, [])
+
+  const cuponesVigentes = cupones.filter(cuponVigente)
+
+  async function handleEnviar(f: ClienteSeguimiento) {
+    const clave = `${f.torre}-${f.depto}`
+    const cuponId = cuponElegido[clave]
+    if (!cuponId || !f.telefono) return
+    setEnviando(clave)
+    setError(null)
+    try {
+      await enviarCupon(cuponId, f.telefono, f.torre, f.depto)
+      setEnviados((prev) => ({ ...prev, [clave]: true }))
+      setTimeout(() => setEnviados((prev) => ({ ...prev, [clave]: false })), 4000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error mandando el cupón')
+    } finally {
+      setEnviando(null)
+    }
+  }
+
   const totalGastado = filas.reduce((sum, f) => sum + f.total, 0)
   const totalPedidos = filas.reduce((sum, f) => sum + f.pedidos, 0)
 
@@ -49,13 +85,16 @@ export function ClientesSeguimiento() {
         <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
       </div>
       <p className="subtitle">
-        Agrupado por torre/depto: cuántas veces compró y cuánto gastó en el mes. Útil para saber a quién
-        mandarle un cupón (solo cuenta pedidos ya entregados y pagados).
+        Agrupado por torre/depto: cuántas veces compró y cuánto gastó en el mes. Si le mandas un cupón, le aparece
+        en la tienda al instante (si tiene la página abierta) o apenas vuelva a entrar.
       </p>
       {error && <p className="error-text">{error}</p>}
       {busy && <p className="subtitle">Cargando...</p>}
       {!busy && filas.length === 0 && !error && (
         <p className="subtitle">No hay compras entregadas y pagadas ese mes.</p>
+      )}
+      {cuponesVigentes.length === 0 && filas.length > 0 && (
+        <p className="subtitle">No tienes ningún cupón vigente para mandar — crea uno arriba primero.</p>
       )}
       {filas.length > 0 && (
         <>
@@ -73,25 +112,59 @@ export function ClientesSeguimiento() {
                 <th>Total gastado</th>
                 <th>Promedio</th>
                 <th>Última compra</th>
+                <th>Mandar cupón</th>
               </tr>
             </thead>
             <tbody>
-              {filas.map((f) => (
-                <tr key={`${f.torre}-${f.depto}`}>
-                  <td>{f.torre}</td>
-                  <td>{f.depto}</td>
-                  <td>{f.nombre ?? '—'}</td>
-                  <td>{f.telefono ? <a href={`tel:${f.telefono}`}>{f.telefono}</a> : '—'}</td>
-                  <td>{f.pedidos}</td>
-                  <td>
-                    <strong>{formatCLP(f.total)}</strong>
-                  </td>
-                  <td>{formatCLP(Math.round(f.total / f.pedidos))}</td>
-                  <td>
-                    {new Date(f.ultima_compra).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}
-                  </td>
-                </tr>
-              ))}
+              {filas.map((f) => {
+                const clave = `${f.torre}-${f.depto}`
+                return (
+                  <tr key={clave}>
+                    <td>{f.torre}</td>
+                    <td>{f.depto}</td>
+                    <td>{f.nombre ?? '—'}</td>
+                    <td>{f.telefono ? <a href={`tel:${f.telefono}`}>{f.telefono}</a> : '—'}</td>
+                    <td>{f.pedidos}</td>
+                    <td>
+                      <strong>{formatCLP(f.total)}</strong>
+                    </td>
+                    <td>{formatCLP(Math.round(f.total / f.pedidos))}</td>
+                    <td>
+                      {new Date(f.ultima_compra).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}
+                    </td>
+                    <td>
+                      {enviados[clave] ? (
+                        <span className="cupon-estado cupon-estado-vigente">✓ Enviado</span>
+                      ) : (
+                        cuponesVigentes.length > 0 &&
+                        f.telefono && (
+                          <div className="action-row">
+                            <select
+                              value={cuponElegido[clave] ?? ''}
+                              onChange={(e) => setCuponElegido((prev) => ({ ...prev, [clave]: e.target.value }))}
+                            >
+                              <option value="">Elige un cupón...</option>
+                              {cuponesVigentes.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.codigo} (-{c.descuento_pct}%)
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-small"
+                              disabled={!cuponElegido[clave] || enviando === clave}
+                              onClick={() => handleEnviar(f)}
+                            >
+                              {enviando === clave ? 'Enviando...' : 'Enviar'}
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </>

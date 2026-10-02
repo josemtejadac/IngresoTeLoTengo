@@ -50,13 +50,14 @@ export async function preguntarEstadisticasIA(
   return String(body.answer ?? '')
 }
 
-export async function loadEstadisticasAdmin(dias = 90): Promise<EstadisticasAdmin> {
-  const { data, error } = await supabase.rpc('ingreso_estadisticas_admin', { p_dias: dias })
+/** Sin `dias`, trae estadisticas desde el primer pedido entregado y pagado que haya (sin tope de 90 dias). */
+export async function loadEstadisticasAdmin(dias?: number): Promise<EstadisticasAdmin> {
+  const { data, error } = await supabase.rpc('ingreso_estadisticas_admin', { p_dias: dias ?? null })
   if (error) throw error
   const d = data as EstadisticasAdmin
   return {
     total_ventas: Number(d.total_ventas) || 0,
-    periodo_dias: dias,
+    periodo_dias: Number(d.periodo_dias) || 0,
     ingresos_periodo: Number(d.ingresos_periodo) || 0,
     top_productos: (d.top_productos ?? []).map((p) => ({
       ...p,

@@ -57,7 +57,7 @@ export function EstadisticasAdmin() {
 
   const load = useCallback(async () => {
     try {
-      setDatos(await loadEstadisticasAdmin(90))
+      setDatos(await loadEstadisticasAdmin())
       setError(null)
     } catch {
       setError('Reconectando... esto se actualiza solo en unos segundos.')

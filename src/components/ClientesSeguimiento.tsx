@@ -1,6 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { enviarCupon, loadClientesSeguimiento, loadCupones, type ClienteSeguimiento, type Cupon } from '../lib/tienda'
+import {
+  enviarCupon,
+  loadClientesSeguimiento,
+  loadCupones,
+  telefonoParaWhatsapp,
+  type ClienteSeguimiento,
+  type Cupon,
+} from '../lib/tienda'
+
+function linkWhatsappCupon(telefono: string, cupon: Cupon): string {
+  const numero = telefonoParaWhatsapp(telefono)
+  const mensaje = encodeURIComponent(
+    `¡Hola! Te llegó un cupón de Te Lo Tengo Market 🎉\nCódigo: ${cupon.codigo}\nDescuento: ${cupon.descuento_pct}% en toda la tienda\nEscríbelo en el checkout de telotengomarket.cl para usarlo.`,
+  )
+  return `https://wa.me/${numero}?text=${mensaje}`
+}
 
 function mesActualISO(): string {
   const d = new Date()
@@ -146,9 +161,24 @@ export function ClientesSeguimiento() {
                           className="btn btn-cupon btn-small"
                           disabled={!cuponElegido[clave] || enviando === clave}
                           onClick={() => handleEnviar(f)}
+                          title="Se lo manda dentro de la app, le aparece solo en la tienda"
                         >
-                          {enviando === clave ? 'Enviando...' : '🎟️ Mandar cupón'}
+                          {enviando === clave ? 'Enviando...' : '🎟️ Mandar en la app'}
                         </button>
+                        {cuponElegido[clave] && (
+                          <a
+                            className="btn btn-secondary btn-small"
+                            href={linkWhatsappCupon(
+                              f.telefono,
+                              cuponesVigentes.find((c) => c.id === cuponElegido[clave])!,
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Le manda el código por WhatsApp (por si no tiene la tienda abierta)"
+                          >
+                            📲 WhatsApp
+                          </a>
+                        )}
                       </div>
                     )}
                   </div>

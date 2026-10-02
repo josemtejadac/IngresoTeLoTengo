@@ -101,72 +101,61 @@ export function ClientesSeguimiento() {
           <p className="subtitle">
             {filas.length} depto(s) · {totalPedidos} pedido(s) · Total: <strong>{formatCLP(totalGastado)}</strong>
           </p>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Torre</th>
-                <th>Depto</th>
-                <th>Cliente</th>
-                <th>Teléfono</th>
-                <th>Pedidos</th>
-                <th>Total gastado</th>
-                <th>Promedio</th>
-                <th>Última compra</th>
-                <th>Mandar cupón</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((f) => {
-                const clave = `${f.torre}-${f.depto}`
-                return (
-                  <tr key={clave}>
-                    <td>{f.torre}</td>
-                    <td>{f.depto}</td>
-                    <td>{f.nombre ?? '—'}</td>
-                    <td>{f.telefono ? <a href={`tel:${f.telefono}`}>{f.telefono}</a> : '—'}</td>
-                    <td>{f.pedidos}</td>
-                    <td>
-                      <strong>{formatCLP(f.total)}</strong>
-                    </td>
-                    <td>{formatCLP(Math.round(f.total / f.pedidos))}</td>
-                    <td>
+          <div className="cliente-lista">
+            {filas.map((f) => {
+              const clave = `${f.torre}-${f.depto}`
+              return (
+                <div key={clave} className="cliente-card">
+                  <div className="cliente-card-head">
+                    <strong>
+                      Torre {f.torre}, depto {f.depto}
+                    </strong>
+                    <span className="cliente-card-total">{formatCLP(f.total)}</span>
+                  </div>
+                  <p className="subtitle cliente-card-sub">
+                    {f.nombre ?? 'Sin nombre'} · {f.telefono ? <a href={`tel:${f.telefono}`}>{f.telefono}</a> : 'sin teléfono'}
+                  </p>
+                  <div className="cliente-card-montos">
+                    <span className="arqueo-chip">{f.pedidos} pedido(s)</span>
+                    <span className="arqueo-chip">Promedio {formatCLP(Math.round(f.total / f.pedidos))}</span>
+                    <span className="arqueo-chip">
+                      Última compra{' '}
                       {new Date(f.ultima_compra).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}
-                    </td>
-                    <td>
-                      {enviados[clave] ? (
-                        <span className="cupon-estado cupon-estado-vigente">✓ Enviado</span>
-                      ) : (
-                        cuponesVigentes.length > 0 &&
-                        f.telefono && (
-                          <div className="action-row">
-                            <select
-                              value={cuponElegido[clave] ?? ''}
-                              onChange={(e) => setCuponElegido((prev) => ({ ...prev, [clave]: e.target.value }))}
-                            >
-                              <option value="">Elige un cupón...</option>
-                              {cuponesVigentes.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.codigo} (-{c.descuento_pct}%)
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-small"
-                              disabled={!cuponElegido[clave] || enviando === clave}
-                              onClick={() => handleEnviar(f)}
-                            >
-                              {enviando === clave ? 'Enviando...' : 'Enviar'}
-                            </button>
-                          </div>
-                        )
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    </span>
+                  </div>
+                  <div className="cliente-card-foot">
+                    {enviados[clave] ? (
+                      <span className="cupon-estado cupon-estado-vigente">✓ Cupón enviado</span>
+                    ) : !f.telefono ? (
+                      <span className="subtitle">Sin teléfono: no se le puede mandar cupón.</span>
+                    ) : cuponesVigentes.length === 0 ? null : (
+                      <div className="action-row">
+                        <select
+                          value={cuponElegido[clave] ?? ''}
+                          onChange={(e) => setCuponElegido((prev) => ({ ...prev, [clave]: e.target.value }))}
+                        >
+                          <option value="">Elige un cupón...</option>
+                          {cuponesVigentes.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.codigo} (-{c.descuento_pct}%)
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="btn btn-cupon btn-small"
+                          disabled={!cuponElegido[clave] || enviando === clave}
+                          onClick={() => handleEnviar(f)}
+                        >
+                          {enviando === clave ? 'Enviando...' : '🎟️ Mandar cupón'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </>
       )}
     </section>

@@ -311,6 +311,83 @@ select {
   color: #fff;
 }
 
+.cliente-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.cliente-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.cliente-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.cliente-card-total {
+  font-weight: 700;
+  color: #14532d;
+}
+
+.cliente-card-sub {
+  margin: 2px 0 8px;
+}
+
+.cliente-card-montos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cliente-card-foot {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+}
+
+.cliente-card-foot .action-row {
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.tienda-checkout-form {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.tienda-checkout-form input[type='text'],
+.tienda-checkout-form input[type='email'],
+.tienda-checkout-form input[type='number'],
+.tienda-checkout-form select {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+.tienda-checkout-form input:focus,
+.tienda-checkout-form select:focus {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.tienda-checkout-form .pago-metodos {
+  background: #fff;
+  border-radius: 12px;
+}
+
 .cupon-estado {
   display: inline-block;
   font-size: 0.75rem;

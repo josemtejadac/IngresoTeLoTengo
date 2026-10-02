@@ -972,7 +972,7 @@ export function Tienda() {
               </p>
             )}
 
-            <form onSubmit={handleCheckout} className="worker-form">
+            <form onSubmit={handleCheckout} className="worker-form tienda-checkout-form">
               <label>
                 Nombre
                 <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />

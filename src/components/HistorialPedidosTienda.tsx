@@ -223,6 +223,14 @@ export function HistorialPedidosTienda() {
               ) : (
                 ' · Pago pendiente'
               )}
+              {!!p.descuento_cupon && (
+                <>
+                  {' · '}
+                  <span className="pedido-cupon-aviso">
+                    🎟️ -{formatCLP(p.descuento_cupon)} de cupón (subtotal {formatCLP(p.total + p.descuento_cupon)})
+                  </span>
+                </>
+              )}
             </p>
           )}
         </div>

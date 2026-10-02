@@ -1938,6 +1938,11 @@ textarea {
   color: #b45309;
 }
 
+.pedido-cupon-aviso {
+  color: #6d28d9;
+  font-weight: 600;
+}
+
 .pedido-detalle-acciones {
   display: flex;
   gap: 10px;

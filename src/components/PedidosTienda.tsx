@@ -273,6 +273,11 @@ export function PedidosTienda() {
               <strong className="pedido-cliente">{p.nombre_cliente}</strong>
               <strong className="pedido-total">{formatCLP(p.total)}</strong>
             </div>
+            {!!p.descuento_cupon && (
+              <p className="pedido-cupon-aviso">
+                🎟️ Cupón aplicado: -{formatCLP(p.descuento_cupon)} (subtotal {formatCLP(p.total + p.descuento_cupon)})
+              </p>
+            )}
             <p className="pedido-direccion">
               🏢 Torre <strong>{p.torre}</strong> · Depto <strong>{p.depto}</strong>
             </p>

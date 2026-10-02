@@ -228,6 +228,8 @@ export interface PedidoTienda {
   pago_mixto?: Partial<Record<MetodoArqueo, number>> | null
   /** Quien lo marco como entregado (para poder filtrar el historial por trabajador). */
   entregado_por?: string | null
+  /** Cuanto se desconto por cupon (0 si no tenia). El total ya viene con el descuento aplicado. */
+  descuento_cupon?: number
 }
 
 export async function loadPedidosTiendaPendientes(): Promise<PedidoTienda[]> {

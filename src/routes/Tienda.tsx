@@ -416,6 +416,7 @@ export function Tienda() {
   }
 
   function handleOlvidar() {
+    if (!window.confirm('¿Borrar tus datos guardados (nombre, teléfono, dirección)? Tendrás que escribirlos de nuevo la próxima vez.')) return
     olvidarCliente()
     setGuardado(null)
     setDirSel('nueva')

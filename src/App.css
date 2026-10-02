@@ -411,6 +411,63 @@ select {
   border-radius: 12px;
 }
 
+.tienda-checkout-form > label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  gap: 6px;
+}
+
+.tienda-checkout-form .checkbox-label {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.tienda-checkout-form .pago-metodos legend {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.85rem;
+}
+
+.tienda-checkout-form .pago-metodos .checkbox-label {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.tienda-checkout-form .pago-metodos .checkbox-label:has(input:checked) {
+  border-color: #16a34a;
+  background: #f0fdf4;
+}
+
+.tienda-checkout-form .pago-metodos .checkbox-label.pago-disabled {
+  opacity: 0.5;
+}
+
+.tienda-checkout-form .report-row {
+  margin-top: 4px;
+}
+
+.tienda-checkout-form .report-row .btn-secondary {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.tienda-checkout-form .report-row .btn-primary {
+  flex: 1;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 12px 20px;
+}
+
 .cupon-estado {
   display: inline-block;
   font-size: 0.75rem;

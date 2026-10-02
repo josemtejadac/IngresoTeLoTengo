@@ -1010,6 +1010,36 @@ select {
   min-width: 0;
 }
 
+.chat-mic-btn {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-mic-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.chat-form-grabando {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-grabando-aviso {
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
 .deuda-cliente {
   border: 1px solid #e2e8f0;
   border-radius: 10px;

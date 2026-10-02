@@ -49,6 +49,10 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
   const hoy = new Date()
   const tareaHoy = tareaDelDia(hoy)
   const { nombre: mesPlantilla, tareas: tareasDelMes } = plantillaDelMes(hoy)
+  const miNombre = names[workerId]
+  // Solo a quien le toca (o el admin) puede marcarla como hecha; el resto solo puede verla.
+  const puedeHacerTareaHoy =
+    !!tareaHoy && (isAdmin || (!!miNombre && miNombre.trim().toLowerCase() === tareaHoy.trabajador.trim().toLowerCase()))
 
   const load = useCallback(async () => {
     try {
@@ -171,7 +175,7 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
   }
 
   function empezarTareaDelDia() {
-    if (!tareaHoy) return
+    if (!tareaHoy || !puedeHacerTareaHoy) return
     setTareaActiva(null)
     setTipo('limpieza')
     setNota(`${tareaHoy.tarea} (${tareaHoy.trabajador})`)
@@ -210,11 +214,17 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
             <div className="deuda-cliente-head">
               <div>
                 <strong>📅 Hoy toca: {tareaHoy.tarea}</strong>
-                <p className="subtitle">Asignado a {tareaHoy.trabajador} — pero cualquiera puede subirlo si hace falta.</p>
+                <p className="subtitle">Asignado a {tareaHoy.trabajador}.</p>
               </div>
-              <button type="button" className="btn btn-primary btn-small" onClick={empezarTareaDelDia}>
-                La hago yo
-              </button>
+              {puedeHacerTareaHoy ? (
+                <button type="button" className="btn btn-primary btn-small" onClick={empezarTareaDelDia}>
+                  La hago yo
+                </button>
+              ) : (
+                <span className="subtitle" title={`Esta tarea le toca a ${tareaHoy.trabajador}`}>
+                  Le toca a {tareaHoy.trabajador}
+                </span>
+              )}
             </div>
           </div>
         ) : (

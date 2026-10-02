@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { loadNameDirectory } from '../lib/directory'
 import { CameraCapture } from './CameraCapture'
+import { plantillaDelMes, tareaDelDia } from '../lib/planificadorLimpieza'
 import {
   crearReporteLimpieza,
   crearTareaLimpieza,
@@ -41,8 +42,13 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
   const [tareaActiva, setTareaActiva] = useState<TareaLimpieza | null>(null)
   const [nuevaTarea, setNuevaTarea] = useState('')
   const [verFoto, setVerFoto] = useState<{ nombre: string; urls: string[]; indice: number } | null>(null)
+  const [verCalendario, setVerCalendario] = useState(false)
   const busyRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const hoy = new Date()
+  const tareaHoy = tareaDelDia(hoy)
+  const { nombre: mesPlantilla, tareas: tareasDelMes } = plantillaDelMes(hoy)
 
   const load = useCallback(async () => {
     try {
@@ -164,6 +170,14 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
     setError(null)
   }
 
+  function empezarTareaDelDia() {
+    if (!tareaHoy) return
+    setTareaActiva(null)
+    setTipo('limpieza')
+    setNota(`${tareaHoy.tarea} (${tareaHoy.trabajador})`)
+    setError(null)
+  }
+
   const pendientes = tareas.filter((t) => !t.completada_at)
   const hechas = tareas.filter((t) => t.completada_at).slice(0, 5)
 
@@ -189,6 +203,38 @@ export function ReporteLimpieza({ workerId, isAdmin = false }: Props) {
         Registra una limpieza (con foto) o deja una observación (solo nota, sin foto obligatoria). Los reportes se
         borran solos a los 60 días. Lo ven todos los trabajadores y el administrador.
       </p>
+
+      <div className="limpieza-bloque limpieza-planificador">
+        {tareaHoy ? (
+          <div className="deuda-cliente">
+            <div className="deuda-cliente-head">
+              <div>
+                <strong>📅 Hoy toca: {tareaHoy.tarea}</strong>
+                <p className="subtitle">Asignado a {tareaHoy.trabajador} — pero cualquiera puede subirlo si hace falta.</p>
+              </div>
+              <button type="button" className="btn btn-primary btn-small" onClick={empezarTareaDelDia}>
+                La hago yo
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="subtitle">📅 Hoy no hay nada agendado en el calendario de limpieza.</p>
+        )}
+        <button type="button" className="btn-link-sutil" onClick={() => setVerCalendario((v) => !v)}>
+          {verCalendario ? '▲ Ocultar calendario del mes' : `▾ Ver calendario completo (plantilla de ${mesPlantilla})`}
+        </button>
+        {verCalendario && (
+          <div className="limpieza-calendario">
+            {tareasDelMes.map((t) => (
+              <div key={t.dia} className="limpieza-calendario-fila">
+                <span className="limpieza-calendario-dia">Día {t.dia}</span>
+                <span>{t.tarea}</span>
+                <span className="subtitle">{t.trabajador}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {isAdmin && (
         <form onSubmit={handleCrearTarea} className="report-row limpieza-form-tarea">

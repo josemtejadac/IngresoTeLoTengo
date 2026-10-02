@@ -505,3 +505,20 @@ export async function loadVentasPedidos(desde: string, hasta: string): Promise<V
   if (error) throw error
   return ((data as VentaPedidos[]) ?? []).map((v) => ({ ...v, monto: Number(v.monto) }))
 }
+
+export interface ClienteSeguimiento {
+  torre: string
+  depto: string
+  nombre: string | null
+  telefono: string | null
+  pedidos: number
+  total: number
+  ultima_compra: string
+}
+
+/** Seguimiento de clientes por torre/depto (cuantas veces compraron y cuanto, en un rango de fechas). Solo admin. */
+export async function loadClientesSeguimiento(desde: string, hasta: string): Promise<ClienteSeguimiento[]> {
+  const { data, error } = await supabase.rpc('ingreso_clientes_seguimiento', { p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return ((data as ClienteSeguimiento[]) ?? []).map((c) => ({ ...c, pedidos: Number(c.pedidos), total: Number(c.total) }))
+}

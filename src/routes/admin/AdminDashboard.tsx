@@ -12,6 +12,7 @@ import { PendientesPorCliente } from '../../components/PendientesPorCliente'
 import { AgregarPendientes } from '../../components/AgregarPendientes'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
+import { ClientesSeguimiento } from '../../components/ClientesSeguimiento'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { RegistrarArqueo } from '../../components/RegistrarArqueo'
@@ -292,6 +293,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
     | 'limpieza'
     | 'registros'
     | 'estadisticas'
+    | 'cupones'
   >('trabajadores')
 
   const loadLastStatuses = useCallback(async () => {
@@ -1013,6 +1015,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           onClick={() => setActiveTab('estadisticas')}
         >
           Estadísticas
+        </button>
+        <button
+          className={activeTab === 'cupones' ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => setActiveTab('cupones')}
+        >
+          Cupones
         </button>
       </nav>
 
@@ -1860,6 +1868,8 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       )}
 
       {activeTab === 'estadisticas' && <EstadisticasAdmin />}
+
+      {activeTab === 'cupones' && <ClientesSeguimiento />}
       <AlertaPedidosNuevos onVerPedidos={() => setActiveTab('pedidos')} onCantidad={setPedidosPendientes} />
       <AsistenteTienda />
     </div>

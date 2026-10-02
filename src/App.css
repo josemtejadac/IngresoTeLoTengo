@@ -19,10 +19,18 @@ html {
 }
 
 .marca-agua {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  margin: 0;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: #6b7280;
-  padding: 16px 12px 24px;
+  padding: 4px 12px;
+  background: rgba(248, 239, 228, 0.9);
+  backdrop-filter: blur(2px);
 }
 
 .marca-agua-nombre {

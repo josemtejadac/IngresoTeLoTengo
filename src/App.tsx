@@ -6,6 +6,7 @@ import { Login } from './routes/Login'
 import { Tienda } from './routes/Tienda'
 import { AdminDashboard } from './routes/admin/AdminDashboard'
 import { WorkerDashboard } from './routes/worker/WorkerDashboard'
+import { MarcaAgua } from './components/MarcaAgua'
 import './App.css'
 
 function App() {
@@ -14,48 +15,57 @@ function App() {
 
   const { session, profile, loading } = useAuth()
 
-  if (supabaseConfigError) {
-    return (
-      <div className="page-center">
-        <p className="error-text">{supabaseConfigError}</p>
-      </div>
-    )
-  }
+  const contenido = (() => {
+    if (supabaseConfigError) {
+      return (
+        <div className="page-center">
+          <p className="error-text">{supabaseConfigError}</p>
+        </div>
+      )
+    }
 
-  // La tienda es publica: no requiere iniciar sesion.
-  if (isTienda) {
-    return <Tienda />
-  }
+    // La tienda es publica: no requiere iniciar sesion.
+    if (isTienda) {
+      return <Tienda />
+    }
 
-  if (loading) {
-    return (
-      <div className="page-center">
-        <p>Cargando...</p>
-      </div>
-    )
-  }
+    if (loading) {
+      return (
+        <div className="page-center">
+          <p>Cargando...</p>
+        </div>
+      )
+    }
 
-  if (!session) {
-    return showLogin ? (
-      <Login onBack={() => setShowLogin(false)} />
-    ) : (
-      <Home onIngreso={() => setShowLogin(true)} />
-    )
-  }
+    if (!session) {
+      return showLogin ? (
+        <Login onBack={() => setShowLogin(false)} />
+      ) : (
+        <Home onIngreso={() => setShowLogin(true)} />
+      )
+    }
 
-  if (!profile) {
-    return (
-      <div className="page-center">
-        <p>Tu cuenta no tiene un perfil asignado. Contacta al administrador.</p>
-      </div>
-    )
-  }
+    if (!profile) {
+      return (
+        <div className="page-center">
+          <p>Tu cuenta no tiene un perfil asignado. Contacta al administrador.</p>
+        </div>
+      )
+    }
 
-  if (profile.role === 'admin') {
-    return <AdminDashboard profile={profile} />
-  }
+    if (profile.role === 'admin') {
+      return <AdminDashboard profile={profile} />
+    }
 
-  return <WorkerDashboard profile={profile} />
+    return <WorkerDashboard profile={profile} />
+  })()
+
+  return (
+    <>
+      {contenido}
+      <MarcaAgua />
+    </>
+  )
 }
 
 export default App

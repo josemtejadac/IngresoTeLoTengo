@@ -18,6 +18,18 @@ html {
   padding: 16px;
 }
 
+.marca-agua {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6b7280;
+  padding: 16px 12px 24px;
+}
+
+.marca-agua-nombre {
+  color: #7c3aed;
+  font-weight: 700;
+}
+
 .page {
   max-width: 960px;
   margin: 0 auto;

@@ -604,3 +604,28 @@ export async function loadClientesSeguimiento(desde: string, hasta: string): Pro
   if (error) throw error
   return ((data as ClienteSeguimiento[]) ?? []).map((c) => ({ ...c, pedidos: Number(c.pedidos), total: Number(c.total) }))
 }
+
+export interface PedidoCliente {
+  id: string
+  nombre_cliente: string
+  metodo_pago: string
+  total: number
+  entregado_at: string
+}
+
+/** Detalle de los pedidos de un depto puntual en un rango de fechas. Solo admin. */
+export async function loadPedidosCliente(
+  torre: string,
+  depto: string,
+  desde: string,
+  hasta: string,
+): Promise<PedidoCliente[]> {
+  const { data, error } = await supabase.rpc('ingreso_pedidos_cliente', {
+    p_torre: torre,
+    p_depto: depto,
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (error) throw error
+  return ((data as PedidoCliente[]) ?? []).map((p) => ({ ...p, total: Number(p.total) }))
+}

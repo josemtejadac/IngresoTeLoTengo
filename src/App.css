@@ -359,6 +359,29 @@ select {
   align-items: center;
 }
 
+.cliente-chip-telefono {
+  background: #dcfce7;
+  color: #15803d;
+  text-decoration: none;
+}
+
+.cliente-detalle {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cliente-detalle-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
 .tienda-checkout-form {
   background: #f8fafc;
   border: 1px solid #e2e8f0;

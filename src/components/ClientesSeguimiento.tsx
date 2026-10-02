@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
+import { useRealtimeRefresh } from '../lib/realtime'
 import {
   enviarCupon,
   loadClientesSeguimiento,
   loadCupones,
+  loadPedidosCliente,
   telefonoParaWhatsapp,
+  METODO_PAGO_LABEL,
   type ClienteSeguimiento,
   type Cupon,
+  type MetodoPago,
+  type PedidoCliente,
 } from '../lib/tienda'
 
 function linkWhatsappCupon(telefono: string, cupon: Cupon): string {
@@ -47,6 +52,9 @@ export function ClientesSeguimiento() {
   const [cuponElegido, setCuponElegido] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState<string | null>(null)
   const [enviados, setEnviados] = useState<Record<string, boolean>>({})
+  const [detalleAbierto, setDetalleAbierto] = useState<string | null>(null)
+  const [detallePedidos, setDetallePedidos] = useState<Record<string, PedidoCliente[]>>({})
+  const [detalleBusy, setDetalleBusy] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
     setBusy(true)
@@ -65,11 +73,16 @@ export function ClientesSeguimiento() {
     cargar()
   }, [cargar])
 
-  useEffect(() => {
+  const recargarCupones = useCallback(() => {
     loadCupones()
       .then(setCupones)
-      .catch(() => setCupones([]))
+      .catch(() => {})
   }, [])
+  useEffect(() => {
+    recargarCupones()
+  }, [recargarCupones])
+  // Si se crea/desactiva un cupon en el formulario de arriba mientras esta pantalla esta abierta, se entera solo.
+  useRealtimeRefresh(['ingreso_cupones'], recargarCupones)
 
   const cuponesVigentes = cupones.filter(cuponVigente)
 
@@ -90,6 +103,26 @@ export function ClientesSeguimiento() {
     }
   }
 
+  async function handleVerDetalle(f: ClienteSeguimiento) {
+    const clave = `${f.torre}-${f.depto}`
+    if (detalleAbierto === clave) {
+      setDetalleAbierto(null)
+      return
+    }
+    setDetalleAbierto(clave)
+    if (detallePedidos[clave]) return
+    setDetalleBusy(clave)
+    try {
+      const { desde, hasta } = rangoDelMes(mes)
+      const pedidos = await loadPedidosCliente(f.torre, f.depto, desde, hasta)
+      setDetallePedidos((prev) => ({ ...prev, [clave]: pedidos }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error cargando el detalle')
+    } finally {
+      setDetalleBusy(null)
+    }
+  }
+
   const totalGastado = filas.reduce((sum, f) => sum + f.total, 0)
   const totalPedidos = filas.reduce((sum, f) => sum + f.pedidos, 0)
 
@@ -100,8 +133,8 @@ export function ClientesSeguimiento() {
         <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} />
       </div>
       <p className="subtitle">
-        Agrupado por torre/depto: cuántas veces compró y cuánto gastó en el mes. Si le mandas un cupón, le aparece
-        en la tienda al instante (si tiene la página abierta) o apenas vuelva a entrar.
+        Agrupado por torre/depto, ordenado de mayor a menor gasto. Si le mandas un cupón, le aparece en la tienda al
+        instante (si tiene la página abierta) o apenas vuelva a entrar.
       </p>
       {error && <p className="error-text">{error}</p>}
       {busy && <p className="subtitle">Cargando...</p>}
@@ -119,6 +152,7 @@ export function ClientesSeguimiento() {
           <div className="cliente-lista">
             {filas.map((f) => {
               const clave = `${f.torre}-${f.depto}`
+              const abierto = detalleAbierto === clave
               return (
                 <div key={clave} className="cliente-card">
                   <div className="cliente-card-head">
@@ -127,9 +161,7 @@ export function ClientesSeguimiento() {
                     </strong>
                     <span className="cliente-card-total">{formatCLP(f.total)}</span>
                   </div>
-                  <p className="subtitle cliente-card-sub">
-                    {f.nombre ?? 'Sin nombre'} · {f.telefono ? <a href={`tel:${f.telefono}`}>{f.telefono}</a> : 'sin teléfono'}
-                  </p>
+                  <p className="subtitle cliente-card-sub">{f.nombre ?? 'Sin nombre'}</p>
                   <div className="cliente-card-montos">
                     <span className="arqueo-chip">{f.pedidos} pedido(s)</span>
                     <span className="arqueo-chip">Promedio {formatCLP(Math.round(f.total / f.pedidos))}</span>
@@ -137,7 +169,34 @@ export function ClientesSeguimiento() {
                       Última compra{' '}
                       {new Date(f.ultima_compra).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}
                     </span>
+                    {f.telefono ? (
+                      <a className="arqueo-chip cliente-chip-telefono" href={`tel:${f.telefono}`}>
+                        📞 {f.telefono}
+                      </a>
+                    ) : (
+                      <span className="arqueo-chip">Sin teléfono</span>
+                    )}
                   </div>
+                  <button type="button" className="btn-link-sutil" onClick={() => handleVerDetalle(f)}>
+                    {abierto ? '▲ Ocultar detalle' : '▾ Ver detalle de sus pedidos'}
+                  </button>
+                  {abierto && (
+                    <div className="cliente-detalle">
+                      {detalleBusy === clave && <p className="subtitle">Cargando...</p>}
+                      {detalleBusy !== clave && (detallePedidos[clave]?.length ?? 0) === 0 && (
+                        <p className="subtitle">Sin pedidos en este rango.</p>
+                      )}
+                      {detallePedidos[clave]?.map((p) => (
+                        <div key={p.id} className="cliente-detalle-fila">
+                          <span>
+                            {new Date(p.entregado_at).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit' })}{' '}
+                            · {METODO_PAGO_LABEL[p.metodo_pago as MetodoPago] ?? p.metodo_pago}
+                          </span>
+                          <strong>{formatCLP(p.total)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="cliente-card-foot">
                     {enviados[clave] ? (
                       <span className="cupon-estado cupon-estado-vigente">✓ Cupón enviado</span>

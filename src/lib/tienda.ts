@@ -22,6 +22,8 @@ export interface ProductoTienda {
   gramos_unidad: number | null
   /** Unidades disponibles (null en productos por peso). */
   stock_max: number | null
+  /** Gramos disponibles (null en productos que no son por peso). */
+  stock_gramos: number | null
   /** Precio por pack (ej. 3 x $1000): null si el producto no se vende en pack. */
   combo_cantidad: number | null
   combo_precio: number | null

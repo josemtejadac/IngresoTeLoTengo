@@ -1550,6 +1550,22 @@ textarea {
   border-radius: 999px;
 }
 
+.tienda-poco-stock {
+  align-self: center;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.tienda-aviso-poco {
+  color: #b45309;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 /* ---------- Pedidos de la tienda (personal): lista compacta ---------- */
 .pedidos-grid {
   display: grid;

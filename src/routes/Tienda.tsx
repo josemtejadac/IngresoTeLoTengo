@@ -83,6 +83,15 @@ function mensajeError(err: unknown, porDefecto: string): string {
 
 const GRAMOS_RAPIDOS = [100, 250, 500, 1000]
 
+const STOCK_BAJO_UNIDADES = 5
+const STOCK_BAJO_GRAMOS = 500
+
+function quedaPocoStock(p: ProductoTienda): boolean {
+  if (!p.disponible) return false
+  if (p.por_peso) return p.stock_gramos !== null && p.stock_gramos < STOCK_BAJO_GRAMOS
+  return p.stock_max !== null && p.stock_max <= STOCK_BAJO_UNIDADES
+}
+
 export function Tienda() {
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -228,11 +237,15 @@ export function Tienda() {
 
   function abrirPeso(producto: ProductoTienda) {
     const existente = cart.find((l) => l.producto.id === producto.id)
-    const modo = existente?.modo ?? (producto.gramos_unidad ? 'unidades' : 'gramos')
+    const maxGramos = producto.stock_gramos ?? 20000
+    // Si no alcanza para 1 unidad completa, se pasa a modo gramos para que igual pueda pedir lo que queda.
+    const cabeUnaUnidad = !!producto.gramos_unidad && maxGramos >= producto.gramos_unidad
+    const modo = existente?.modo ?? (cabeUnaUnidad ? 'unidades' : 'gramos')
+    const valorDefault = modo === 'unidades' ? '1' : String(Math.min(250, maxGramos))
     setPesoSel({
       producto,
       modo,
-      valor: existente ? String(existente.cantidad) : modo === 'unidades' ? '1' : '250',
+      valor: existente ? String(existente.cantidad) : valorDefault,
     })
   }
 
@@ -240,7 +253,12 @@ export function Tienda() {
     if (!pesoSel) return
     const n = Math.round(Number(pesoSel.valor))
     const minimo = pesoSel.modo === 'gramos' ? 50 : 1
-    if (!n || n < minimo) return
+    const maxGramos = pesoSel.producto.stock_gramos ?? 20000
+    const maxValor =
+      pesoSel.modo === 'unidades'
+        ? Math.floor(maxGramos / (pesoSel.producto.gramos_unidad || 1))
+        : maxGramos
+    if (!n || n < minimo || n > maxValor) return
     setCart((prev) => [
       ...prev.filter((l) => l.producto.id !== pesoSel.producto.id),
       { producto: pesoSel.producto, cantidad: n, modo: pesoSel.modo },
@@ -688,6 +706,7 @@ export function Tienda() {
                 <div className="tienda-foto tienda-foto-placeholder">🛒</div>
               )}
               {!p.disponible && <span className="tienda-agotado">Sin stock</span>}
+              {quedaPocoStock(p) && <span className="tienda-poco-stock">¡Quedan pocas!</span>}
               {p.descuento_pct && <span className="tienda-descuento-badge">-{p.descuento_pct}%</span>}
               <p className="tienda-nombre">{p.nombre}</p>
             </button>
@@ -956,65 +975,75 @@ export function Tienda() {
               <h2>{pesoSel.producto.nombre}</h2>
             </div>
             <p className="subtitle">{formatCLP(pesoSel.producto.precio)} el kilo</p>
-            {pesoSel.modo === 'gramos' && (
-              <div className="action-row">
-                {GRAMOS_RAPIDOS.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    className="btn btn-secondary btn-small"
-                    onClick={() => setPesoSel({ ...pesoSel, valor: String(g) })}
-                  >
-                    {formatGramos(g)}
-                  </button>
-                ))}
-              </div>
-            )}
-            <p className="campo-etiqueta">
-              {pesoSel.modo === 'unidades' ? 'Cantidad de unidades' : 'Gramos (mínimo 50)'}
-            </p>
-            <div className="peso-controles">
-              <Stepper
-                value={Math.round(Number(pesoSel.valor)) || 0}
-                min={pesoSel.modo === 'gramos' ? 50 : 1}
-                step={pesoSel.modo === 'gramos' ? 50 : 1}
-                label={
-                  pesoSel.modo === 'gramos'
-                    ? formatGramos(Math.round(Number(pesoSel.valor)) || 0)
-                    : undefined
-                }
-                onChange={(v) => setPesoSel({ ...pesoSel, valor: String(v) })}
-              />
-              {pesoSel.modo === 'gramos' && (
-                <input
-                  type="number"
-                  min={50}
-                  value={pesoSel.valor}
-                  onChange={(e) => setPesoSel({ ...pesoSel, valor: e.target.value })}
-                  aria-label="Cantidad exacta"
-                  className="peso-input"
-                />
-              )}
-            </div>
             {(() => {
+              const maxGramos = pesoSel.producto.stock_gramos ?? 20000
+              const maxUnidades = Math.floor(maxGramos / (pesoSel.producto.gramos_unidad || 1))
+              const maxValor = pesoSel.modo === 'unidades' ? maxUnidades : maxGramos
               const n = Math.round(Number(pesoSel.valor)) || 0
+              const excedeStock = n > maxValor
               const g = pesoSel.modo === 'unidades' ? n * (pesoSel.producto.gramos_unidad ?? 0) : n
               return (
-                <p>
-                  {pesoSel.modo === 'unidades' && <>≈ {formatGramos(g)} · </>}
-                  {pesoSel.modo === 'unidades' ? 'Aprox: ' : 'Monto: '}
-                  <strong>{formatCLP(montoPorPeso(pesoSel.producto.precio, g))}</strong>
-                </p>
+                <>
+                  <p className="subtitle">Quedan {formatGramos(maxGramos)} disponibles.</p>
+                  {pesoSel.modo === 'gramos' && (
+                    <div className="action-row">
+                      {GRAMOS_RAPIDOS.filter((g2) => g2 <= maxGramos).map((g2) => (
+                        <button
+                          key={g2}
+                          type="button"
+                          className="btn btn-secondary btn-small"
+                          onClick={() => setPesoSel({ ...pesoSel, valor: String(g2) })}
+                        >
+                          {formatGramos(g2)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="campo-etiqueta">
+                    {pesoSel.modo === 'unidades' ? 'Cantidad de unidades' : 'Gramos (mínimo 50)'}
+                  </p>
+                  <div className="peso-controles">
+                    <Stepper
+                      value={n}
+                      min={pesoSel.modo === 'gramos' ? 50 : 1}
+                      max={maxValor}
+                      step={pesoSel.modo === 'gramos' ? 50 : 1}
+                      label={pesoSel.modo === 'gramos' ? formatGramos(n) : undefined}
+                      onChange={(v) => setPesoSel({ ...pesoSel, valor: String(v) })}
+                    />
+                    {pesoSel.modo === 'gramos' && (
+                      <input
+                        type="number"
+                        min={50}
+                        max={maxGramos}
+                        value={pesoSel.valor}
+                        onChange={(e) => setPesoSel({ ...pesoSel, valor: e.target.value })}
+                        aria-label="Cantidad exacta"
+                        className="peso-input"
+                      />
+                    )}
+                  </div>
+                  {excedeStock && (
+                    <p className="error-text">
+                      Solo quedan {formatGramos(maxGramos)}: baja la cantidad para seguir.
+                    </p>
+                  )}
+                  <p>
+                    {pesoSel.modo === 'unidades' && <>≈ {formatGramos(g)} · </>}
+                    {pesoSel.modo === 'unidades' ? 'Aprox: ' : 'Monto: '}
+                    <strong>{formatCLP(montoPorPeso(pesoSel.producto.precio, g))}</strong>
+                  </p>
+                  {pesoSel.modo === 'unidades' && (
+                    <p className="subtitle">El peso real se mide al armar el pedido; el valor final se ajusta.</p>
+                  )}
+                  <div className="camera-actions">
+                    <button type="submit" className="btn btn-primary" disabled={!n || n < (pesoSel.modo === 'gramos' ? 50 : 1) || excedeStock}>
+                      Agregar al pedido
+                    </button>
+                  </div>
+                </>
               )
             })()}
-            {pesoSel.modo === 'unidades' && (
-              <p className="subtitle">El peso real se mide al armar el pedido; el valor final se ajusta.</p>
-            )}
-            <div className="camera-actions">
-              <button type="submit" className="btn btn-primary">
-                Agregar al pedido
-              </button>
-            </div>
           </form>
         </div>
       )}
@@ -1192,6 +1221,9 @@ export function Tienda() {
             ) : (
               <>
                 {!detalle.disponible && <p className="error-text">Este producto está sin stock por ahora.</p>}
+                {quedaPocoStock(detalle) && (
+                  <p className="tienda-aviso-poco">¡Quedan solo {detalle.stock_max} unidades!</p>
+                )}
                 <div className="detalle-cantidad">
                   <Stepper
                     value={detalleCant}

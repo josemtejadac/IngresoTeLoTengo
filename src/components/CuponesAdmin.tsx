@@ -74,8 +74,9 @@ export function CuponesAdmin() {
     <section className="card">
       <h2>Cupones de descuento</h2>
       <p className="subtitle">
-        Crea un código y mándaselo a los clientes (ej. por WhatsApp). Lo escriben en el checkout de la tienda y el
-        descuento se aplica solo sobre el total del pedido.
+        1️⃣ Crea el código aquí abajo. 2️⃣ Baja a "Seguimiento de clientes" y elige a quién mandárselo: puedes
+        mandarlo dentro de la app (le aparece solo en la tienda) o por WhatsApp. El cliente lo escribe en el
+        checkout y el descuento se aplica solo sobre el total del pedido.
       </p>
       <form onSubmit={handleCrear} className="worker-form">
         <label>

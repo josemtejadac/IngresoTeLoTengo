@@ -18,7 +18,9 @@ import {
   reactivarPedidoOnline,
   iniciarPagoFlow,
   loadMisPedidos,
+  validarCupon,
   METODO_PAGO_LABEL,
+  type CuponValidado,
   type MetodoPago,
   type MiPedido,
   loadCatalogoTienda,
@@ -106,6 +108,10 @@ export function Tienda() {
     modo: 'unidades' | 'gramos'
     valor: string
   } | null>(null)
+  const [cuponCodigo, setCuponCodigo] = useState('')
+  const [cuponAplicado, setCuponAplicado] = useState<CuponValidado | null>(null)
+  const [cuponBusy, setCuponBusy] = useState(false)
+  const [cuponError, setCuponError] = useState<string | null>(null)
   const [guardado, setGuardado] = useState(loadClienteGuardado)
   const [nombre, setNombre] = useState(guardado?.nombre ?? '')
   const [telefono, setTelefono] = useState(guardado?.telefono ?? '')
@@ -360,7 +366,30 @@ export function Tienda() {
   }
 
   const total = cart.reduce((sum, l) => sum + totalLinea(l), 0)
+  const montoDescuento = cuponAplicado ? Math.round((total * cuponAplicado.descuento_pct) / 100) : 0
+  const totalConDescuento = Math.max(0, total - montoDescuento)
   const hayAprox = cart.some((l) => l.producto.por_peso && l.modo === 'unidades')
+
+  async function handleAplicarCupon() {
+    if (!cuponCodigo.trim()) return
+    setCuponBusy(true)
+    setCuponError(null)
+    try {
+      const res = await validarCupon(cuponCodigo, total)
+      setCuponAplicado(res)
+    } catch (err) {
+      setCuponAplicado(null)
+      setCuponError(err instanceof Error ? err.message : 'No se pudo aplicar el cupón')
+    } finally {
+      setCuponBusy(false)
+    }
+  }
+
+  function quitarCupon() {
+    setCuponAplicado(null)
+    setCuponCodigo('')
+    setCuponError(null)
+  }
   // El peso real se sabe recien al pesar: con pago online no se puede cobrar ni devolver la diferencia.
   const hayPorPeso = cart.some((l) => l.producto.por_peso)
 
@@ -381,7 +410,7 @@ export function Tienda() {
       setError(`La tienda está cerrada. Recibimos pedidos de ${horarioHoyTexto()}.`)
       return
     }
-    if (metodo === 'online' && total < 350) {
+    if (metodo === 'online' && totalConDescuento < 350) {
       setError('El pago online requiere un mínimo de $350.')
       return
     }
@@ -395,6 +424,7 @@ export function Tienda() {
         depto,
         metodo,
         pagoCon: metodo === 'efectivo' && pagoCon.trim() ? Number(pagoCon) : undefined,
+        cupon: cuponAplicado ? cuponCodigo : undefined,
         items: cart.map((l) => {
           if (l.producto.por_peso) {
             return l.modo === 'unidades'
@@ -420,6 +450,7 @@ export function Tienda() {
       setCart([])
       setShowCheckout(false)
       setPagoCon('')
+      quitarCupon()
       if (!guardarDatos) {
         setNombre('')
         setTelefono('')
@@ -816,8 +847,43 @@ export function Tienda() {
               ))}
               {cart.length === 0 && <p className="subtitle">Tu carrito está vacío.</p>}
             </div>
+            <div className="cupon-form">
+              {cuponAplicado ? (
+                <p className="info-text">
+                  🎟️ Cupón aplicado: -{cuponAplicado.descuento_pct}% ({formatCLP(montoDescuento)}){' '}
+                  <button type="button" className="btn-link" onClick={quitarCupon}>
+                    Quitar
+                  </button>
+                </p>
+              ) : (
+                <div className="action-row">
+                  <input
+                    type="text"
+                    value={cuponCodigo}
+                    onChange={(e) => setCuponCodigo(e.target.value.toUpperCase())}
+                    placeholder="¿Tienes un cupón?"
+                    className="cupon-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    disabled={cuponBusy || !cuponCodigo.trim()}
+                    onClick={handleAplicarCupon}
+                  >
+                    {cuponBusy ? 'Revisando...' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+              {cuponError && <p className="error-text">{cuponError}</p>}
+            </div>
             <p>
-              Total: <strong>{hayAprox ? '≈ ' : ''}{formatCLP(total)}</strong>
+              {cuponAplicado && (
+                <>
+                  Subtotal: {formatCLP(total)}
+                  <br />
+                </>
+              )}
+              Total: <strong>{hayAprox ? '≈ ' : ''}{formatCLP(totalConDescuento)}</strong>
             </p>
             {hayAprox && (
               <p className="subtitle">

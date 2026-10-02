@@ -86,6 +86,8 @@ export interface PedidoTiendaInput {
   items: { producto_id: string; cantidad?: number; gramos?: number; unidades?: number; es_combo?: boolean }[]
   /** Si paga en efectivo: con cuanto billete va a pagar, para que el trabajador lleve el vuelto listo. */
   pagoCon?: number
+  /** Codigo de cupon de descuento, si el cliente puso uno. */
+  cupon?: string
 }
 
 export async function crearPedidoTienda(
@@ -99,10 +101,64 @@ export async function crearPedidoTienda(
     p_items: input.items,
     p_metodo: input.metodo,
     p_pago_con: input.pagoCon || null,
+    p_cupon: input.cupon || null,
   })
   if (error) throw error
   const row = Array.isArray(data) ? data[0] : data
   return { pedido_id: row.pedido_id, total: Number(row.total) }
+}
+
+export interface CuponValidado {
+  cupon_id: string
+  descuento_pct: number
+  monto_descuento: number
+}
+
+/** Revisa si un codigo de cupon es valido para un subtotal dado, sin aplicarlo todavia (se aplica recien al crear el pedido). */
+export async function validarCupon(codigo: string, subtotal: number): Promise<CuponValidado> {
+  const { data, error } = await supabase.rpc('ingreso_validar_cupon', { p_codigo: codigo, p_subtotal: subtotal })
+  if (error) throw error
+  const row = Array.isArray(data) ? data[0] : data
+  return {
+    cupon_id: row.cupon_id,
+    descuento_pct: Number(row.descuento_pct),
+    monto_descuento: Number(row.monto_descuento),
+  }
+}
+
+export interface Cupon {
+  id: string
+  codigo: string
+  descuento_pct: number
+  activo: boolean
+  vence_at: string | null
+  usos_maximos: number | null
+  usos_actuales: number
+  created_at: string
+}
+
+/** Solo admin. */
+export async function loadCupones(): Promise<Cupon[]> {
+  const { data, error } = await supabase.rpc('ingreso_listar_cupones')
+  if (error) throw error
+  return ((data as Cupon[]) ?? []).map((c) => ({ ...c, descuento_pct: Number(c.descuento_pct) }))
+}
+
+/** Solo admin. */
+export async function crearCupon(codigo: string, descuentoPct: number, venceAt?: string, usosMaximos?: number) {
+  const { error } = await supabase.rpc('ingreso_crear_cupon', {
+    p_codigo: codigo,
+    p_descuento_pct: descuentoPct,
+    p_vence_at: venceAt || null,
+    p_usos_maximos: usosMaximos || null,
+  })
+  if (error) throw error
+}
+
+/** Solo admin. */
+export async function desactivarCupon(cuponId: string) {
+  const { error } = await supabase.rpc('ingreso_desactivar_cupon', { p_cupon_id: cuponId })
+  if (error) throw error
 }
 
 export { productoFotoUrl }

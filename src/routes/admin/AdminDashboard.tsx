@@ -13,6 +13,7 @@ import { AgregarPendientes } from '../../components/AgregarPendientes'
 import { InventarioAdmin } from '../../components/InventarioAdmin'
 import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
 import { ClientesSeguimiento } from '../../components/ClientesSeguimiento'
+import { CuponesAdmin } from '../../components/CuponesAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { RegistrarArqueo } from '../../components/RegistrarArqueo'
@@ -1869,7 +1870,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
 
       {activeTab === 'estadisticas' && <EstadisticasAdmin />}
 
-      {activeTab === 'cupones' && <ClientesSeguimiento />}
+      {activeTab === 'cupones' && (
+        <>
+          <CuponesAdmin />
+          <ClientesSeguimiento />
+        </>
+      )}
       <AlertaPedidosNuevos onVerPedidos={() => setActiveTab('pedidos')} onCantidad={setPedidosPendientes} />
       <AsistenteTienda />
     </div>

@@ -33,17 +33,29 @@ import {
 // atribuido a Darlin y viceversa): de lunes a viernes antes de las 17:30, Ricardo solo puede marcar
 // "Ya lo entregue" (entrega fisica); solo Darlin confirma el pago con "Entregado" en ese horario.
 const RICARDO_ID = '798c0601-f744-48b5-b6b4-762669ae6073'
+const DAVID_ID = '95bd2ec5-d274-4bb3-9239-a0bb8666b74f'
 
-function entregadoBloqueadoPorHorario(): boolean {
+function horaSantiago(): { dia: number; minutos: number } {
   const ahora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santiago' }))
-  const dia = ahora.getDay()
-  const minutos = ahora.getHours() * 60 + ahora.getMinutes()
-  return dia >= 1 && dia <= 5 && minutos < 17 * 60 + 30
+  return { dia: ahora.getDay(), minutos: ahora.getHours() * 60 + ahora.getMinutes() }
+}
+
+// Solo "Ya lo entregue" queda habilitado para estos trabajadores en el horario indicado.
+const BLOQUEO_ENTREGADO: Record<string, () => boolean> = {
+  [RICARDO_ID]: () => {
+    const { dia, minutos } = horaSantiago()
+    return dia >= 1 && dia <= 5 && minutos < 17 * 60 + 30
+  },
+  // David: sabado y domingo hasta las 21:00 (cuando sale del turno).
+  [DAVID_ID]: () => {
+    const { dia, minutos } = horaSantiago()
+    return (dia === 6 || dia === 0) && minutos < 21 * 60
+  },
 }
 
 export function PedidosTienda() {
   const { session } = useAuth()
-  const bloquearEntregado = session?.user.id === RICARDO_ID && entregadoBloqueadoPorHorario()
+  const bloquearEntregado = !!session && BLOQUEO_ENTREGADO[session.user.id]?.() === true
   const [pedidos, setPedidos] = useState<PedidoTienda[]>([])
   const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -256,7 +268,7 @@ export function PedidosTienda() {
       </div>
       {bloquearEntregado && (
         <p className="subtitle">
-          ⏰ Antes de las 17:30 (lunes a viernes) solo puedes marcar "Ya lo entregué": Darlin confirma el pago con
+          ⏰ Por ahora solo puedes marcar "Ya lo entregué": el pago lo confirma el trabajador de turno con
           "Entregado" para que no se mezcle quién cobró cada pedido.
         </p>
       )}

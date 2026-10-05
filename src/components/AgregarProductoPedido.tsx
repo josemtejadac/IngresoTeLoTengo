@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
-import { agregarItemPedido, loadCatalogoTienda, type ProductoTienda } from '../lib/tienda'
+import { agregarItemPedido, agregarItemPesoPedido, loadCatalogoTienda, type ProductoTienda } from '../lib/tienda'
 
 interface Props {
   pedidoId: string
@@ -18,13 +18,14 @@ export function AgregarProductoPedido({ pedidoId, onAgregado }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [agregado, setAgregado] = useState<string | null>(null)
+  const [gramosPorId, setGramosPorId] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (!abierto) return
     setCargando(true)
     const t = setTimeout(() => {
       loadCatalogoTienda({ search: busqueda.trim() || undefined })
-        .then((r) => setProductos(r.filter((p) => p.disponible && !p.por_peso).slice(0, MAX_RESULTADOS)))
+        .then((r) => setProductos(r.filter((p) => p.disponible).slice(0, MAX_RESULTADOS)))
         .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar los productos'))
         .finally(() => setCargando(false))
     }, 250)
@@ -36,7 +37,12 @@ export function AgregarProductoPedido({ pedidoId, onAgregado }: Props) {
     setError(null)
     setAgregado(null)
     try {
-      await agregarItemPedido(pedidoId, p.id, 1, esCombo)
+      if (p.por_peso) {
+        const gramos = Math.round(Number(gramosPorId[p.id] ?? 250))
+        await agregarItemPesoPedido(pedidoId, p.id, gramos)
+      } else {
+        await agregarItemPedido(pedidoId, p.id, 1, esCombo)
+      }
       setAgregado(p.nombre)
       onAgregado()
     } catch (err) {
@@ -80,7 +86,20 @@ export function AgregarProductoPedido({ pedidoId, onAgregado }: Props) {
           <div key={p.id} className="agregar-item-fila">
             <span className="agregar-item-nombre">
               {p.nombre} · {formatCLP(p.precio)}
+              {p.por_peso ? ' /kg' : ''}
             </span>
+            {p.por_peso && (
+              <input
+                type="number"
+                min={50}
+                step={50}
+                className="agregar-item-gramos"
+                value={gramosPorId[p.id] ?? '250'}
+                onChange={(e) => setGramosPorId((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                aria-label="Gramos"
+                title="Gramos a agregar"
+              />
+            )}
             <button
               type="button"
               className="btn btn-primary btn-small"
@@ -89,7 +108,7 @@ export function AgregarProductoPedido({ pedidoId, onAgregado }: Props) {
             >
               {busyId === p.id ? '...' : '+ Agregar'}
             </button>
-            {p.combo_cantidad && p.combo_precio && (
+            {!p.por_peso && p.combo_cantidad && p.combo_precio && (
               <button
                 type="button"
                 className="btn btn-secondary btn-small"

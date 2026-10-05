@@ -1010,6 +1010,13 @@ select {
   min-width: 0;
 }
 
+.agregar-item-gramos {
+  width: 84px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
 .chat-mic-btn {
   flex: 0 0 auto;
   width: 38px;

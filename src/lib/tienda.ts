@@ -457,6 +457,17 @@ export async function agregarItemPedido(pedidoId: string, productoId: string, ca
 }
 
 /** El personal quita un producto de un pedido ya hecho (ej. se olvido de marcar que no habia stock). Devuelve el stock y ajusta el total. */
+/** Agrega un producto por peso a un pedido existente (en gramos). Solo personal. */
+export async function agregarItemPesoPedido(pedidoId: string, productoId: string, gramos: number) {
+  const { error } = await supabase.rpc('ingreso_agregar_item_peso_pedido', {
+    p_pedido: pedidoId,
+    p_producto: productoId,
+    p_gramos: gramos,
+    p_unidades: null,
+  })
+  if (error) throw error
+}
+
 export async function quitarItemPedido(itemId: string) {
   const { error } = await supabase.rpc('ingreso_quitar_item_pedido', { p_item: itemId })
   if (error) throw error

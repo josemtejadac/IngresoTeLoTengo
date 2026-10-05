@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { useAuth } from '../lib/useAuth'
 import { formatCLP } from '../lib/payroll'
@@ -91,16 +91,25 @@ export function PedidosTienda() {
     }
   }
 
+  // Cada recarga tiene un numero: si una respuesta vieja llega despues de una nueva, se descarta
+  // (si no, un pedido ya entregado puede reaparecer unos segundos como pendiente).
+  const ultimaCarga = useRef(0)
+
   const load = useCallback(async () => {
+    const numero = ++ultimaCarga.current
     try {
       const rows = await loadPedidosTiendaPendientes()
+      if (numero !== ultimaCarga.current) return
       setPedidos(rows)
       const entries = await Promise.all(
         rows.map(async (p) => [p.id, await loadPedidoTiendaItems(p.id)] as const),
       )
+      if (numero !== ultimaCarga.current) return
       setItems(Object.fromEntries(entries))
       const idsProductos = [...new Set(entries.flatMap(([, its]) => its.map((i) => i.producto_id).filter((x): x is string => !!x)))]
-      setFotos(await loadFotosProductos(idsProductos))
+      const fotosNuevas = await loadFotosProductos(idsProductos)
+      if (numero !== ultimaCarga.current) return
+      setFotos(fotosNuevas)
       // Se limpia cualquier error viejo: si esto se ejecuto es porque la carga funciono.
       setError(null)
     } catch {
@@ -124,6 +133,8 @@ export function PedidosTienda() {
     setError(null)
     try {
       await marcarPedidoTiendaEntregado(p.id)
+      // Sale de la lista al instante, sin esperar a la recarga.
+      setPedidos((prev) => prev.filter((x) => x.id !== p.id))
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error marcando el pedido')

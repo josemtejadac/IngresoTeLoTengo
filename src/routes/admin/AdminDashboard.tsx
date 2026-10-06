@@ -36,9 +36,7 @@ import {
   corregirArqueoDia,
   filasVigentesPorTrabajador,
   loadArqueoForDate,
-  loadArqueoManualHabilitado,
   loadWeeklySalesTotal,
-  setArqueoManualHabilitado as guardarArqueoManualHabilitado,
   textoOrigenArqueo,
   ventaTotal,
   WEEKLY_SALES_GOAL,
@@ -193,17 +191,12 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [arqueoRows, setArqueoRows] = useState<ArqueoRowWithWorker[]>([])
   const [arqueoDescargaWorker, setArqueoDescargaWorker] = useState('')
   const [arqueoPdfError, setArqueoPdfError] = useState<string | null>(null)
-  const [arqueoManualHabilitado, setArqueoManualHabilitadoState] = useState(false)
   const [corrigiendoWorkerId, setCorrigiendoWorkerId] = useState<string | null>(null)
   const [corrigiendoValores, setCorrigiendoValores] = useState({
     efectivo: '', tarjeta: '', transferencia: '', qr: '',
   })
   const [corrigiendoBusy, setCorrigiendoBusy] = useState(false)
   const [corrigiendoError, setCorrigiendoError] = useState<string | null>(null)
-
-  useEffect(() => {
-    loadArqueoManualHabilitado().then(setArqueoManualHabilitadoState).catch(() => {})
-  }, [])
 
   function abrirCorregirArqueo(workerId: string) {
     // Se parte desde la fila mas reciente de ese trabajador (la que vale para el total), no de la suma de todas.

@@ -39,9 +39,7 @@ import {
   corregirArqueoDia,
   filasVigentesPorTrabajador,
   loadArqueoForWorkerDay,
-  loadArqueoManualHabilitado,
   loadWeeklySalesTotal,
-  submitArqueo,
   textoOrigenArqueo,
   ventaTotal,
   WEEKLY_SALES_GOAL,
@@ -99,10 +97,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [weeklyBonusRows, setWeeklyBonusRows] = useState<WeeklyBonusRow[]>([])
   const [todayArqueo, setTodayArqueo] = useState<ArqueoEntry[]>([])
   const [weeklySales, setWeeklySales] = useState<number>(0)
-  const [efectivo, setEfectivo] = useState('')
-  const [tarjeta, setTarjeta] = useState('')
-  const [transferencia, setTransferencia] = useState('')
-  const [qr, setQr] = useState('')
   const [corrigiendoArqueo, setCorrigiendoArqueo] = useState(false)
   const [verArqueoFecha, setVerArqueoFecha] = useState(currentDateValue())
   const [editArqueoValores, setEditArqueoValores] = useState({

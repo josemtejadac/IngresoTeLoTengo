@@ -16,7 +16,6 @@ import { ClientesSeguimiento } from '../../components/ClientesSeguimiento'
 import { CuponesAdmin } from '../../components/CuponesAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
-import { RegistrarArqueo } from '../../components/RegistrarArqueo'
 import { MesActual } from '../../components/MesActual'
 import { NotificacionesPush } from '../../components/NotificacionesPush'
 import { downloadMonthlyHoursPdf } from '../../lib/monthlyReport'
@@ -195,7 +194,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   const [arqueoDescargaWorker, setArqueoDescargaWorker] = useState('')
   const [arqueoPdfError, setArqueoPdfError] = useState<string | null>(null)
   const [arqueoManualHabilitado, setArqueoManualHabilitadoState] = useState(false)
-  const [arqueoManualBusy, setArqueoManualBusy] = useState(false)
   const [corrigiendoWorkerId, setCorrigiendoWorkerId] = useState<string | null>(null)
   const [corrigiendoValores, setCorrigiendoValores] = useState({
     efectivo: '', tarjeta: '', transferencia: '', qr: '',
@@ -206,19 +204,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   useEffect(() => {
     loadArqueoManualHabilitado().then(setArqueoManualHabilitadoState).catch(() => {})
   }, [])
-
-  async function handleToggleArqueoManual() {
-    setArqueoManualBusy(true)
-    try {
-      const nuevo = !arqueoManualHabilitado
-      await guardarArqueoManualHabilitado(nuevo)
-      setArqueoManualHabilitadoState(nuevo)
-    } catch {
-      // se deja como estaba si falla
-    } finally {
-      setArqueoManualBusy(false)
-    }
-  }
 
   function abrirCorregirArqueo(workerId: string) {
     // Se parte desde la fila mas reciente de ese trabajador (la que vale para el total), no de la suma de todas.
@@ -1443,15 +1428,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
         <div className="section-header">
           <h2>Arqueo diario</h2>
           <div className="table-controls">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={arqueoManualHabilitado}
-                disabled={arqueoManualBusy}
-                onChange={handleToggleArqueoManual}
-              />
-              Permitir arqueo manual
-            </label>
             <input type="date" value={arqueoDate} onChange={(e) => setArqueoDate(e.target.value)} />
             <select value={arqueoDescargaWorker} onChange={(e) => setArqueoDescargaWorker(e.target.value)}>
               <option value="">Todos los trabajadores</option>
@@ -1477,16 +1453,6 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
           </div>
         </div>
         {arqueoPdfError && <p className="error-text">{arqueoPdfError}</p>}
-        {arqueoManualHabilitado && (
-          <RegistrarArqueo
-            workerId={profile.id}
-            fecha={currentDateValue()}
-            onGuardado={() => {
-              loadArqueoRows()
-              loadWeeklySales()
-            }}
-          />
-        )}
         <p className="subtitle">
           Cada fila queda para poder comparar (ej. la de la app vs. la corregida); el total del día solo cuenta la
           más reciente de cada trabajador.

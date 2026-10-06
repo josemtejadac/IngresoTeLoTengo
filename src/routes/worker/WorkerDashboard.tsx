@@ -103,8 +103,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   const [tarjeta, setTarjeta] = useState('')
   const [transferencia, setTransferencia] = useState('')
   const [qr, setQr] = useState('')
-  const [arqueoBusy, setArqueoBusy] = useState(false)
-  const [arqueoManualHabilitado, setArqueoManualHabilitado] = useState(false)
   const [corrigiendoArqueo, setCorrigiendoArqueo] = useState(false)
   const [verArqueoFecha, setVerArqueoFecha] = useState(currentDateValue())
   const [editArqueoValores, setEditArqueoValores] = useState({
@@ -115,8 +113,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   })
   const [editArqueoBusy, setEditArqueoBusy] = useState(false)
   const [editArqueoError, setEditArqueoError] = useState<string | null>(null)
-  const [arqueoMessage, setArqueoMessage] = useState<string | null>(null)
-  const [arqueoError, setArqueoError] = useState<string | null>(null)
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
   const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
   const [pendienteError, setPendienteError] = useState<string | null>(null)
@@ -247,7 +243,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   }, [])
 
   useEffect(() => {
-    loadArqueoManualHabilitado().then(setArqueoManualHabilitado).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -422,14 +417,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     }
   }
 
-  const arqueoValues = {
-    efectivo: Number(efectivo) || 0,
-    tarjeta: Number(tarjeta) || 0,
-    transferencia: Number(transferencia) || 0,
-    qr: Number(qr) || 0,
-  }
-  const arqueoVentaTotal = ventaTotal(arqueoValues)
-
   function abrirCorregirArqueo() {
     // Se parte desde la fila mas reciente (la que vale para el total hoy), no de la suma de todas.
     const [vigente] = filasVigentesPorTrabajador(todayArqueo)
@@ -467,27 +454,6 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       setEditArqueoError(err instanceof Error ? err.message : 'Error guardando los cambios')
     } finally {
       setEditArqueoBusy(false)
-    }
-  }
-
-  async function handleSubmitArqueo(e: React.FormEvent) {
-    e.preventDefault()
-    setArqueoBusy(true)
-    setArqueoError(null)
-    setArqueoMessage(null)
-    try {
-      await submitArqueo(profile.id, currentDateValue(), arqueoValues)
-      setEfectivo('')
-      setTarjeta('')
-      setTransferencia('')
-      setQr('')
-      setArqueoMessage('Arqueo guardado correctamente.')
-      await loadTodayArqueo()
-      await loadWeeklySales()
-    } catch (err) {
-      setArqueoError(err instanceof Error ? err.message : 'Error guardando el arqueo')
-    } finally {
-      setArqueoBusy(false)
     }
   }
 
@@ -745,57 +711,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
           <section className="card">
             <h2>Arqueo del día</h2>
-            {arqueoManualHabilitado ? (
-              <>
-                <p className="subtitle">Ingresa las ventas de tu turno de hoy.</p>
-                <form onSubmit={handleSubmitArqueo} className="worker-form">
-                  <label>
-                    Efectivo
-                    <input
-                      type="number"
-                      min={0}
-                      value={efectivo}
-                      onChange={(e) => setEfectivo(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Tarjeta
-                    <input
-                      type="number"
-                      min={0}
-                      value={tarjeta}
-                      onChange={(e) => setTarjeta(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Transferencia
-                    <input
-                      type="number"
-                      min={0}
-                      value={transferencia}
-                      onChange={(e) => setTransferencia(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    QR
-                    <input type="number" min={0} value={qr} onChange={(e) => setQr(e.target.value)} />
-                  </label>
-                  <p>
-                    Venta total: <strong>{formatCLP(arqueoVentaTotal)}</strong>
-                  </p>
-                  {arqueoError && <p className="error-text">{arqueoError}</p>}
-                  {arqueoMessage && <p className="info-text">{arqueoMessage}</p>}
-                  <button type="submit" className="btn btn-primary" disabled={arqueoBusy}>
-                    {arqueoBusy ? 'Guardando...' : 'Guardar arqueo'}
-                  </button>
-                </form>
-              </>
-            ) : (
-              <p className="subtitle">
+            <p className="subtitle">
                 El arqueo se completa solo con tus pedidos y abonos cobrados. Si algún monto está mal, usa
                 "Corregir totales del día" más abajo.
-              </p>
-            )}
+            </p>
 
         <div className="section-header">
           <h2>{verArqueoFecha === currentDateValue() ? 'Arqueos de hoy' : `Arqueos del ${verArqueoFecha}`}</h2>

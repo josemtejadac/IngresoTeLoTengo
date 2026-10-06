@@ -202,6 +202,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
 
   async function handleCerrarArqueo(workerId: string) {
     if (cerrandoArqueoWorkerId) return
+    if (!window.confirm('¿Cerrar el arqueo de este trabajador ahora? Si sigue vendiendo, las ventas nuevas van al siguiente arqueo.')) return
     setCerrandoArqueoWorkerId(workerId)
     try {
       await cerrarArqueo(workerId, arqueoDate)

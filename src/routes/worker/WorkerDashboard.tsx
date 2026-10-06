@@ -429,6 +429,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
   async function handleCerrarArqueo() {
     if (cerrandoArqueo) return
+    if (!window.confirm('¿Cerrar el arqueo ahora? Si sigues vendiendo, las ventas nuevas van al siguiente arqueo.')) return
     setCerrandoArqueo(true)
     try {
       await cerrarArqueo(profile.id, currentDateValue())

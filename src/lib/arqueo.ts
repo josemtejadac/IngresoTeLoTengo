@@ -20,6 +20,10 @@ export interface ArqueoEntry {
   pedido_id?: string | null
   /** true solo si alguien realmente escribio/confirmo estos montos (formulario manual o Editar); false = la sumo sola la app. */
   tiene_ingreso_manual?: boolean
+  /** Turno del dia: 1 es el primero; si se cierra el arqueo y se sigue vendiendo, se abre el siguiente (2, 3...). */
+  turno?: number
+  /** Fecha de cierre del turno (null mientras el turno siga abierto). */
+  cerrado_at?: string | null
 }
 
 export interface ArqueoRowWithWorker extends ArqueoEntry {
@@ -38,19 +42,25 @@ export function ventaTotal(a: ArqueoInput): number {
 }
 
 /**
- * Si un trabajador (o dia) tiene varias filas (ej. la de la app y una corregida despues), la que vale para
- * el total es la MAS RECIENTE: una correccion reemplaza a la fila vieja para el total, no se suman ambas.
- * Las demas quedan solo como historial para comparar.
+ * Por cada trabajador y turno vale la fila MAS RECIENTE; las demas son solo historial.
+ * Un trabajador con dos turnos (cerro el arqueo y siguio vendiendo) tiene una fila vigente por turno.
  */
-export function filasVigentesPorTrabajador<T extends Pick<ArqueoEntry, 'worker_id' | 'created_at'>>(rows: T[]): T[] {
-  const porTrabajador = new Map<string, T>()
+export function filasVigentesPorTrabajador<T extends Pick<ArqueoEntry, 'worker_id' | 'created_at' | 'turno'>>(rows: T[]): T[] {
+  const porTurno = new Map<string, T>()
   for (const r of rows) {
-    const actual = porTrabajador.get(r.worker_id)
+    const clave = `${r.worker_id}|${r.turno ?? 1}`
+    const actual = porTurno.get(clave)
     if (!actual || new Date(r.created_at) > new Date(actual.created_at)) {
-      porTrabajador.set(r.worker_id, r)
+      porTurno.set(clave, r)
     }
   }
-  return [...porTrabajador.values()]
+  return [...porTurno.values()]
+}
+
+/** Cierra el arqueo abierto del trabajador en la fecha; si sigue vendiendo, la app abre el turno siguiente solo. */
+export async function cerrarArqueo(workerId: string, date: string) {
+  const { error } = await supabase.rpc('ingreso_cerrar_arqueo', { p_worker: workerId, p_date: date })
+  if (error) throw error
 }
 
 /** Como mostrar el origen de una fila de arqueo: "Arqueo editado" solo si se corrigio con Corregir; el resto es de la app. */

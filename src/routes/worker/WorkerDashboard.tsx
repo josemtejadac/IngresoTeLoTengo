@@ -40,6 +40,7 @@ import {
   filasVigentesPorTrabajador,
   loadArqueoForWorkerDay,
   loadWeeklySalesTotal,
+  cerrarArqueo,
   textoOrigenArqueo,
   ventaTotal,
   WEEKLY_SALES_GOAL,
@@ -106,6 +107,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     qr: '',
   })
   const [editArqueoBusy, setEditArqueoBusy] = useState(false)
+  const [cerrandoArqueo, setCerrandoArqueo] = useState(false)
   const [editArqueoError, setEditArqueoError] = useState<string | null>(null)
   const [pendientes, setPendientes] = useState<PendienteEntry[]>([])
   const [nameDirectory, setNameDirectory] = useState<Record<string, string>>({})
@@ -413,7 +415,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
 
   function abrirCorregirArqueo() {
     // Se parte desde la fila mas reciente (la que vale para el total hoy), no de la suma de todas.
-    const [vigente] = filasVigentesPorTrabajador(todayArqueo)
+    const vigente = filasVigentesPorTrabajador(todayArqueo).find((a) => !a.cerrado_at)
     const sumaActual = vigente ?? { efectivo: 0, tarjeta: 0, transferencia: 0, qr: 0 }
     setCorrigiendoArqueo(true)
     setEditArqueoError(null)
@@ -423,6 +425,20 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       transferencia: String(sumaActual.transferencia),
       qr: String(sumaActual.qr),
     })
+  }
+
+  async function handleCerrarArqueo() {
+    if (cerrandoArqueo) return
+    setCerrandoArqueo(true)
+    try {
+      await cerrarArqueo(profile.id, currentDateValue())
+      await loadTodayArqueo()
+      await loadWeeklySales()
+    } catch (err) {
+      setEditArqueoError(err instanceof Error ? err.message : 'No se pudo cerrar el arqueo')
+    } finally {
+      setCerrandoArqueo(false)
+    }
   }
 
   async function handleGuardarEdicionArqueo() {
@@ -721,7 +737,10 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               {todayArqueo.map((a) => (
                 <div key={a.id} className="arqueo-card">
                   <div className="arqueo-card-head">
-                    <span className="subtitle">{textoOrigenArqueo(a)}</span>
+                    <span className="subtitle">
+                      {textoOrigenArqueo(a)} · Arqueo {a.turno ?? 1}
+                      {a.cerrado_at ? ' · cerrado' : ''}
+                    </span>
                   </div>
                   <div className="arqueo-card-montos">
                     <span className="arqueo-chip">Efectivo {formatCLP(a.efectivo)}</span>
@@ -738,15 +757,22 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
               ))}
             </div>
             {verArqueoFecha === currentDateValue() && (
-              <button type="button" className="btn btn-secondary btn-small" onClick={abrirCorregirArqueo}>
-                Corregir totales del día
-              </button>
+              <div className="arqueo-acciones">
+                <button type="button" className="btn btn-secondary btn-small" onClick={abrirCorregirArqueo}>
+                  Corregir totales del día
+                </button>
+                {filasVigentesPorTrabajador(todayArqueo).some((a) => !a.cerrado_at) && (
+                  <button type="button" className="btn btn-secondary btn-small" onClick={handleCerrarArqueo} disabled={cerrandoArqueo}>
+                    {cerrandoArqueo ? 'Cerrando...' : 'Cerrar arqueo'}
+                  </button>
+                )}
+              </div>
             )}
           </>
         )}
         <p className="subtitle">
-          Puedes corregir tu arqueo solo durante el mismo día; después ya no se puede editar. La corrección queda
-          como una fila nueva, sin borrar la que dejó la app.
+          Puedes corregir tu arqueo solo durante el mismo día; después ya no se puede editar. Si cierras el arqueo y
+          sigues vendiendo, las ventas nuevas van al siguiente arqueo y el total del día suma todos.
         </p>
         <VentasOnlineDia
           fecha={verArqueoFecha}

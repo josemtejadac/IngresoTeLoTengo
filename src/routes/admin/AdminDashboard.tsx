@@ -36,6 +36,7 @@ import {
   corregirArqueoDia,
   filasVigentesPorTrabajador,
   loadArqueoForDate,
+  cerrarArqueo,
   loadWeeklySalesTotal,
   textoOrigenArqueo,
   ventaTotal,
@@ -197,10 +198,25 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   })
   const [corrigiendoBusy, setCorrigiendoBusy] = useState(false)
   const [corrigiendoError, setCorrigiendoError] = useState<string | null>(null)
+  const [cerrandoArqueoWorkerId, setCerrandoArqueoWorkerId] = useState<string | null>(null)
+
+  async function handleCerrarArqueo(workerId: string) {
+    if (cerrandoArqueoWorkerId) return
+    setCerrandoArqueoWorkerId(workerId)
+    try {
+      await cerrarArqueo(workerId, arqueoDate)
+      const rows = await loadArqueoForDate(arqueoDate)
+      setArqueoRows(rows)
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'No se pudo cerrar el arqueo')
+    } finally {
+      setCerrandoArqueoWorkerId(null)
+    }
+  }
 
   function abrirCorregirArqueo(workerId: string) {
     // Se parte desde la fila mas reciente de ese trabajador (la que vale para el total), no de la suma de todas.
-    const [vigente] = filasVigentesPorTrabajador(arqueoRows.filter((a) => a.worker_id === workerId))
+    const vigente = filasVigentesPorTrabajador(arqueoRows.filter((a) => a.worker_id === workerId)).find((a) => !a.cerrado_at)
     const base = vigente ?? { efectivo: 0, tarjeta: 0, transferencia: 0, qr: 0 }
     setCorrigiendoWorkerId(workerId)
     setCorrigiendoError(null)
@@ -1472,6 +1488,17 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
                     Corregir
                   </button>
                 )}
+                {arqueoDate === currentDateValue() &&
+                  !a.cerrado_at &&
+                  filasVigentesPorTrabajador(arqueoRows).some((v) => v.id === a.id) && (
+                    <button
+                      className="btn btn-secondary btn-small"
+                      disabled={cerrandoArqueoWorkerId !== null}
+                      onClick={() => handleCerrarArqueo(a.worker_id)}
+                    >
+                      {cerrandoArqueoWorkerId === a.worker_id ? 'Cerrando...' : 'Cerrar arqueo'}
+                    </button>
+                  )}
               </div>
             </div>
           ))}

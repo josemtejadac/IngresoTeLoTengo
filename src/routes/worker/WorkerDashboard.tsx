@@ -566,6 +566,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           className="btn btn-primary"
           disabled={!canRegisterEntrada || busy}
           onClick={() => {
+            if (!window.confirm('¿Registrar ENTRADA ahora? Revisa que sea el momento correcto.')) return
             setCameraAction('entrada')
             setShowCamera(true)
           }}
@@ -575,14 +576,20 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
         <button
           className="btn btn-secondary"
           disabled={!canRegisterIngresoColacion || busy}
-          onClick={() => registrarSimple('ingreso_colacion')}
+          onClick={() => {
+            if (!window.confirm('¿Registrar INGRESO A COLACIÓN ahora? Solo confirma si ya vas a colación.')) return
+            registrarSimple('ingreso_colacion')
+          }}
         >
           Ingreso colación
         </button>
         <button
           className="btn btn-secondary"
           disabled={!canRegisterSalidaColacion || busy}
-          onClick={() => registrarSimple('salida_colacion')}
+          onClick={() => {
+            if (!window.confirm('¿Registrar SALIDA DE COLACIÓN ahora? Solo confirma si ya volviste de colación.')) return
+            registrarSimple('salida_colacion')
+          }}
         >
           Salida colación
         </button>
@@ -590,6 +597,7 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
           className="btn btn-danger"
           disabled={!canRegisterSalida || busy}
           onClick={() => {
+            if (!window.confirm('¿Registrar SALIDA ahora? Esta marca termina tu jornada.')) return
             setCameraAction('salida')
             setShowCamera(true)
           }}

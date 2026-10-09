@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useAuth } from './lib/useAuth'
 import { supabaseConfigError } from './lib/supabase'
 import { Home } from './routes/Home'
 import { Login } from './routes/Login'
-import { Tienda } from './routes/Tienda'
-import { AdminDashboard } from './routes/admin/AdminDashboard'
-import { WorkerDashboard } from './routes/worker/WorkerDashboard'
 import { MarcaAgua } from './components/MarcaAgua'
 import './App.css'
+
+// Cada ruta se baja aparte: asi un trabajador que solo marca entrada no descarga el panel de
+// admin (con jsPDF, xlsx, html2canvas) ni la tienda, y el cliente de la tienda no descarga los
+// paneles. Esto es lo que mas pesaba el arranque de la app en celulares con señal mala.
+const Tienda = lazy(() => import('./routes/Tienda').then((m) => ({ default: m.Tienda })))
+const AdminDashboard = lazy(() => import('./routes/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })))
+const WorkerDashboard = lazy(() => import('./routes/worker/WorkerDashboard').then((m) => ({ default: m.WorkerDashboard })))
 
 function App() {
   const isTienda = window.location.pathname.startsWith('/tienda')
@@ -62,7 +66,7 @@ function App() {
 
   return (
     <>
-      {contenido}
+      <Suspense fallback={<div className="page-center"><p>Cargando...</p></div>}>{contenido}</Suspense>
       <MarcaAgua />
     </>
   )

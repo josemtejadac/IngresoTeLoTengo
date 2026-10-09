@@ -20,15 +20,22 @@ export function useAuth() {
       if (active) setProfile((data as Profile) ?? null)
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return
-      setSession(data.session)
-      if (data.session) {
-        loadProfile(data.session.user.id).finally(() => active && setLoading(false))
-      } else {
-        setLoading(false)
-      }
-    })
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return
+        setSession(data.session)
+        if (data.session) {
+          loadProfile(data.session.user.id).finally(() => active && setLoading(false))
+        } else {
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        // Con mala señal, getSession puede fallar en vez de demorarse: no se deja la pantalla
+        // de "Cargando..." pegada para siempre, se manda a la pantalla de inicio/login.
+        if (active) setLoading(false)
+      })
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)

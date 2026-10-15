@@ -359,6 +359,13 @@ select {
   align-items: center;
 }
 
+.cupon-enviado-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .cliente-chip-telefono {
   background: #dcfce7;
   color: #15803d;

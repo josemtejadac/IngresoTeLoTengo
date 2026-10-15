@@ -187,6 +187,22 @@ export async function loadCuponesRecibidos(telefono: string): Promise<CuponRecib
   return ((data as CuponRecibido[]) ?? []).map((c) => ({ ...c, descuento_pct: Number(c.descuento_pct) }))
 }
 
+export interface CuponEnviado {
+  telefono: string
+  torre: string | null
+  depto: string | null
+  codigo: string
+  descuento_pct: number
+  enviado_at: string
+}
+
+/** Historial de a quien se le ha mandado cada cupon (para mostrar "ya se le mandó" en el seguimiento). Solo admin. */
+export async function loadCuponesEnviados(): Promise<CuponEnviado[]> {
+  const { data, error } = await supabase.rpc('ingreso_listar_cupones_enviados')
+  if (error) throw error
+  return ((data as CuponEnviado[]) ?? []).map((c) => ({ ...c, descuento_pct: Number(c.descuento_pct) }))
+}
+
 export { productoFotoUrl }
 
 export interface PedidoTiendaItem {

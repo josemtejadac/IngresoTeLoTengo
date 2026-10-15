@@ -5,11 +5,13 @@ import {
   enviarCupon,
   loadClientesSeguimiento,
   loadCupones,
+  loadCuponesEnviados,
   loadPedidosCliente,
   telefonoParaWhatsapp,
   METODO_PAGO_LABEL,
   type ClienteSeguimiento,
   type Cupon,
+  type CuponEnviado,
   type MetodoPago,
   type PedidoCliente,
 } from '../lib/tienda'
@@ -51,7 +53,10 @@ export function ClientesSeguimiento() {
   const [cupones, setCupones] = useState<Cupon[]>([])
   const [cuponElegido, setCuponElegido] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState<string | null>(null)
-  const [enviados, setEnviados] = useState<Record<string, boolean>>({})
+  const [historialEnviados, setHistorialEnviados] = useState<CuponEnviado[]>([])
+  // Si ya se le mando un cupon, la tarjeta muestra ese envio en vez del selector; esto deja volver a abrirlo
+  // para mandarle otro distinto.
+  const [mostrarSelector, setMostrarSelector] = useState<Record<string, boolean>>({})
   const [detalleAbierto, setDetalleAbierto] = useState<string | null>(null)
   const [detallePedidos, setDetallePedidos] = useState<Record<string, PedidoCliente[]>>({})
   const [detalleBusy, setDetalleBusy] = useState<string | null>(null)
@@ -84,18 +89,41 @@ export function ClientesSeguimiento() {
   // Si se crea/desactiva un cupon en el formulario de arriba mientras esta pantalla esta abierta, se entera solo.
   useRealtimeRefresh(['ingreso_cupones'], recargarCupones)
 
+  const recargarHistorialEnviados = useCallback(() => {
+    loadCuponesEnviados()
+      .then(setHistorialEnviados)
+      .catch(() => {})
+  }, [])
+  useEffect(() => {
+    recargarHistorialEnviados()
+  }, [recargarHistorialEnviados])
+  // Para que quede marcado "ya enviado" apenas alguien manda un cupon, sin tener que recargar la pagina.
+  useRealtimeRefresh(['ingreso_cupones_enviados'], recargarHistorialEnviados)
+
   const cuponesVigentes = cupones.filter(cuponVigente)
 
   async function handleEnviar(f: ClienteSeguimiento) {
     const clave = `${f.torre}-${f.depto}`
     const cuponId = cuponElegido[clave]
-    if (!cuponId || !f.telefono) return
+    const cupon = cuponesVigentes.find((c) => c.id === cuponId)
+    if (!cupon || !f.telefono) return
     setEnviando(clave)
     setError(null)
     try {
-      await enviarCupon(cuponId, f.telefono, f.torre, f.depto)
-      setEnviados((prev) => ({ ...prev, [clave]: true }))
-      setTimeout(() => setEnviados((prev) => ({ ...prev, [clave]: false })), 4000)
+      await enviarCupon(cupon.id, f.telefono, f.torre, f.depto)
+      // Se agrega de una vez a la lista (no se espera el aviso en tiempo real) para que la tarjeta cambie al toque.
+      setHistorialEnviados((prev) => [
+        {
+          telefono: f.telefono!,
+          torre: f.torre,
+          depto: f.depto,
+          codigo: cupon.codigo,
+          descuento_pct: cupon.descuento_pct,
+          enviado_at: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+      setMostrarSelector((prev) => ({ ...prev, [clave]: false }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error mandando el cupón')
     } finally {
@@ -153,6 +181,9 @@ export function ClientesSeguimiento() {
             {filas.map((f) => {
               const clave = `${f.torre}-${f.depto}`
               const abierto = detalleAbierto === clave
+              const enviosDeEsteDepto = historialEnviados.filter(
+                (e) => e.telefono === f.telefono || (e.torre === f.torre && e.depto === f.depto),
+              )
               return (
                 <div key={clave} className="cliente-card">
                   <div className="cliente-card-head">
@@ -198,8 +229,25 @@ export function ClientesSeguimiento() {
                     </div>
                   )}
                   <div className="cliente-card-foot">
-                    {enviados[clave] ? (
-                      <span className="cupon-estado cupon-estado-vigente">✓ Cupón enviado</span>
+                    {enviosDeEsteDepto.length > 0 && !mostrarSelector[clave] ? (
+                      <div className="cupon-enviado-resumen">
+                        <span className="cupon-estado cupon-estado-vigente">
+                          🎟️ Cupón enviado: {enviosDeEsteDepto[0].codigo} (-{enviosDeEsteDepto[0].descuento_pct}%) ·{' '}
+                          {new Date(enviosDeEsteDepto[0].enviado_at).toLocaleDateString('es-CL', {
+                            day: '2-digit',
+                            month: '2-digit',
+                          })}
+                        </span>
+                        {f.telefono && cuponesVigentes.length > 0 && (
+                          <button
+                            type="button"
+                            className="btn-link-sutil"
+                            onClick={() => setMostrarSelector((prev) => ({ ...prev, [clave]: true }))}
+                          >
+                            Mandar otro cupón
+                          </button>
+                        )}
+                      </div>
                     ) : !f.telefono ? (
                       <span className="subtitle">Sin teléfono: no se le puede mandar cupón.</span>
                     ) : cuponesVigentes.length === 0 ? null : (
@@ -237,6 +285,15 @@ export function ClientesSeguimiento() {
                           >
                             📲 WhatsApp
                           </a>
+                        )}
+                        {enviosDeEsteDepto.length > 0 && (
+                          <button
+                            type="button"
+                            className="btn-link-sutil"
+                            onClick={() => setMostrarSelector((prev) => ({ ...prev, [clave]: false }))}
+                          >
+                            Cancelar
+                          </button>
                         )}
                       </div>
                     )}

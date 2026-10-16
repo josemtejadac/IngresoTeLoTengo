@@ -2,7 +2,10 @@
 export function MarcaAgua() {
   return (
     <p className="marca-agua">
-      Página Realizada por <strong className="marca-agua-nombre">SpotGo Tecnología Spa</strong>
+      Página Realizada por{' '}
+      <a className="marca-agua-nombre" href="https://spotgo.cl" target="_blank" rel="noopener noreferrer">
+        SpotGo Tecnología Spa
+      </a>
     </p>
   )
 }

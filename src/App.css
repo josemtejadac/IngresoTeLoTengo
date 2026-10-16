@@ -36,6 +36,11 @@ html {
 .marca-agua-nombre {
   color: #7c3aed;
   font-weight: 700;
+  text-decoration: none;
+}
+
+.marca-agua-nombre:hover {
+  text-decoration: underline;
 }
 
 .page {

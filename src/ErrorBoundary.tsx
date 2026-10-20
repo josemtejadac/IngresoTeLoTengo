@@ -15,6 +15,23 @@ export class ErrorBoundary extends Component<Props, State> {
     return { error }
   }
 
+  componentDidCatch(error: Error) {
+    // Una pestaña con la version anterior abierta pide archivos que ya no existen: se recarga sola (una vez por
+    // minuto como maximo) para tomar la version nueva, en vez de dejar un error en pantalla.
+    const esDeCarga = /dynamically imported module|Failed to fetch|Importing a module script failed|error loading/i.test(
+      error.message,
+    )
+    if (!esDeCarga) return
+    try {
+      const ultima = Number(sessionStorage.getItem('tlt-recarga-error') ?? 0)
+      if (Date.now() - ultima < 60_000) return
+      sessionStorage.setItem('tlt-recarga-error', String(Date.now()))
+    } catch {
+      // sin almacenamiento: se intenta recargar igual
+    }
+    window.location.reload()
+  }
+
   render() {
     if (this.state.error) {
       return (

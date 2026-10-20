@@ -316,12 +316,10 @@ export function PedidosTienda() {
               </p>
             )}
             <div className="pedido-meta">{etiquetaPago(p)}</div>
-            <p className="pedido-items">
-              {(items[p.id] ?? []).length} producto(s):{' '}
-              {(items[p.id] ?? []).map(textoItem).join(', ')}
-            </p>
             <button type="button" className="btn-detalle" onClick={() => alternarDetalle(p.id)}>
-              {abiertos.has(p.id) ? 'Ocultar detalle ▴' : 'Ver detalle del pedido ▾'}
+              {abiertos.has(p.id)
+                ? 'Ocultar detalle ▴'
+                : `Ver detalle del pedido · ${(items[p.id] ?? []).length} producto(s) ▾`}
             </button>
             {abiertos.has(p.id) && (
               <div className="pedido-detalle">

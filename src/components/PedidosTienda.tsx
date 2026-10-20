@@ -9,6 +9,7 @@ import { CambiarProductoItem } from './CambiarProductoItem'
 import { EntregarMixto } from './EntregarMixto'
 import { FiltroPagoBotones } from './FiltroPagoBotones'
 import { PedidoManual } from './PedidoManual'
+import { conTiempo, encolar, esErrorDeRed, guardarCache, leerCache, leerCola, procesarCola } from '../lib/pedidosOffline'
 import {
   ajustarPesoItem,
   cambiarMetodoPedido,
@@ -56,14 +57,18 @@ const BLOQUEO_ENTREGADO: Record<string, () => boolean> = {
 export function PedidosTienda() {
   const { session } = useAuth()
   const bloquearEntregado = !!session && BLOQUEO_ENTREGADO[session.user.id]?.() === true
-  const [pedidos, setPedidos] = useState<PedidoTienda[]>([])
-  const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>({})
+  // Arranca con la ultima lista guardada en el telefono: si no hay señal al abrir, los pedidos se ven igual.
+  const [cacheInicial] = useState(() => leerCache())
+  const [pedidos, setPedidos] = useState<PedidoTienda[]>(() => cacheInicial?.pedidos ?? [])
+  const [items, setItems] = useState<Record<string, PedidoTiendaItem[]>>(() => cacheInicial?.items ?? {})
+  const [sinSenal, setSinSenal] = useState(false)
+  const [enCola, setEnCola] = useState(() => leerCola().length)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<FiltroPago>('todos')
   const [ajustando, setAjustando] = useState<string | null>(null)
   const [ajusteGramos, setAjusteGramos] = useState('')
-  const [fotos, setFotos] = useState<Record<string, string | null>>({})
+  const [fotos, setFotos] = useState<Record<string, string | null>>(() => cacheInicial?.fotos ?? {})
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
   const [nombres, setNombres] = useState<Record<string, string>>({})
   // Reloj para el "hace X min" de cada pedido.
@@ -98,24 +103,33 @@ export function PedidosTienda() {
   const load = useCallback(async () => {
     const numero = ++ultimaCarga.current
     try {
-      const rows = await loadPedidosTiendaPendientes()
+      // Primero se envian las entregas que se marcaron sin señal (si ya volvio internet).
+      if (leerCola().length > 0) await procesarCola()
+      setEnCola(leerCola().length)
+      const rows = (await loadPedidosTiendaPendientes()).filter(
+        // Lo que se marco "Entregado" sin señal y aun no se envia no debe reaparecer como pendiente.
+        (p) => !leerCola().some((a) => a.tipo === 'entregado' && a.id === p.id),
+      )
       if (numero !== ultimaCarga.current) return
       setPedidos(rows)
       const entries = await Promise.all(
         rows.map(async (p) => [p.id, await loadPedidoTiendaItems(p.id)] as const),
       )
       if (numero !== ultimaCarga.current) return
-      setItems(Object.fromEntries(entries))
+      const itemsNuevos = Object.fromEntries(entries)
+      setItems(itemsNuevos)
       const idsProductos = [...new Set(entries.flatMap(([, its]) => its.map((i) => i.producto_id).filter((x): x is string => !!x)))]
       const fotosNuevas = await loadFotosProductos(idsProductos)
       if (numero !== ultimaCarga.current) return
       setFotos(fotosNuevas)
+      guardarCache({ pedidos: rows, items: itemsNuevos, fotos: fotosNuevas })
       // Se limpia cualquier error viejo: si esto se ejecuto es porque la carga funciono.
       setError(null)
+      setSinSenal(false)
     } catch {
-      // Suele ser la app despertando de segundo plano con la conexion aun reconectandose: no es un error real,
-      // se reintenta sola (tiempo real + respaldo cada 20s) y se mantiene la ultima lista conocida en pantalla.
-      setError('Reconectando... la lista se actualiza sola en unos segundos.')
+      // Sin señal (o la app despertando de segundo plano): NO se borra nada, se mantiene la ultima lista conocida
+      // y se reintenta sola (tiempo real + respaldo cada 8 s + al volver internet).
+      setSinSenal(true)
     }
   }, [])
 
@@ -132,12 +146,20 @@ export function PedidosTienda() {
     setBusyId(p.id)
     setError(null)
     try {
-      await marcarPedidoTiendaEntregado(p.id)
+      await conTiempo(marcarPedidoTiendaEntregado(p.id))
       // Sale de la lista al instante, sin esperar a la recarga.
       setPedidos((prev) => prev.filter((x) => x.id !== p.id))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error marcando el pedido')
+      if (esErrorDeRed(err)) {
+        // Sin señal: queda guardado en el telefono y se envia solo apenas vuelva internet.
+        encolar({ tipo: 'entregado', id: p.id, cuando: Date.now() })
+        setEnCola(leerCola().length)
+        setPedidos((prev) => prev.filter((x) => x.id !== p.id))
+        setError('Sin señal: la entrega quedó guardada y se enviará sola apenas vuelva internet.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Error marcando el pedido')
+      }
     } finally {
       setBusyId(null)
     }
@@ -161,10 +183,16 @@ export function PedidosTienda() {
     setBusyId(p.id)
     setError(null)
     try {
-      await marcarEntregaFisica(p.id, entregar)
+      await conTiempo(marcarEntregaFisica(p.id, entregar))
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error marcando la entrega')
+      if (esErrorDeRed(err)) {
+        encolar({ tipo: 'entrega_fisica', id: p.id, entregar, cuando: Date.now() })
+        setEnCola(leerCola().length)
+        setError('Sin señal: quedó guardado y se enviará solo apenas vuelva internet.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Error marcando la entrega')
+      }
     } finally {
       setBusyId(null)
     }
@@ -284,6 +312,14 @@ export function PedidosTienda() {
         </p>
       )}
       <FiltroPagoBotones value={filtro} onChange={setFiltro} cuentas={cuentas} />
+      {sinSenal && (
+        <p className="conexion-aviso">
+          📶 Sin señal: sigues viendo tus últimos pedidos y puedes marcar entregas; todo se envía solo al volver internet.
+        </p>
+      )}
+      {enCola > 0 && (
+        <p className="conexion-aviso">⏳ {enCola} acción(es) guardada(s) esperando señal para enviarse.</p>
+      )}
       {error && <p className="error-text">{error}</p>}
       {visibles.length === 0 && <p className="subtitle">No hay pedidos con este filtro.</p>}
       <div className="pedidos-grid">

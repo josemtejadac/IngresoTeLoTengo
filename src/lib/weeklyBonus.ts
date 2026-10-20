@@ -19,28 +19,34 @@ function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Semanas que empiezan desde esta fecha pertenecen al mes en que empiezan; las anteriores quedan como estaban (ya pagadas). */
+const SEMANA_POR_INICIO_DESDE = '2026-10-26'
+
 /**
  * Las semanas de pago van de lunes a domingo (el corte/cierre es el
  * domingo). Una semana "pertenece" al mes en que cae su domingo de
- * cierre, aunque haya empezado un lunes del mes anterior — asi las
- * semanas que cruzan de un mes a otro quedan resueltas sin ambiguedad.
+ * cierre (semanas anteriores al 26/10/2026). Desde la semana que empieza el
+ * 26/10/2026, pertenece al mes en que empieza (su lunes).
  * Segun el mes, puede haber 4 o 5 domingos (5 semanas), nunca siempre 4.
  */
 export function getWeeksEndingInMonth(month: string): WeekRange[] {
   const [yearStr, monthStr] = month.split('-')
   const year = Number(yearStr)
   const monthIndex = Number(monthStr) - 1
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
 
+  // Se recorren los lunes cercanos al mes y se queda con las semanas que le pertenecen.
   const weeks: WeekRange[] = []
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, monthIndex, day)
-    if (date.getDay() === 0) {
-      const end = date
-      const start = new Date(end)
-      start.setDate(start.getDate() - 6)
-      weeks.push({ start, end })
-    }
+  const cursor = new Date(year, monthIndex, 1 - 7)
+  cursor.setDate(cursor.getDate() + ((8 - cursor.getDay()) % 7)) // primer lunes
+  const limite = new Date(year, monthIndex + 1, 7)
+  while (cursor <= limite) {
+    const start = new Date(cursor)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 6)
+    // Desde SEMANA_POR_INICIO_DESDE la semana cuenta en el mes donde empieza (lunes); antes, en el de su domingo.
+    const duenio = toISODate(start) >= SEMANA_POR_INICIO_DESDE ? start : end
+    if (duenio.getFullYear() === year && duenio.getMonth() === monthIndex) weeks.push({ start, end })
+    cursor.setDate(cursor.getDate() + 7)
   }
   return weeks
 }

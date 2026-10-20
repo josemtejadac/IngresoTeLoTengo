@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable'
 import { supabase } from './supabase'
 import type { Attendance, Profile } from '../types'
 import { computeShifts, formatHoursMinutes, formatTime } from './hours'
-import { annotateOvertime, computePaySummary, formatCLP } from './payroll'
+import { annotateOvertime, computePaySummary, formatCLP, loadExtensionesTrabajador } from './payroll'
 import { loadWeeklyBonusForWorker, totalEarned, WEEKLY_BONUS_AMOUNT } from './weeklyBonus'
 import { computeFeriadoBonus, loadFeriados, loadFeriadoExclusionsForWorker } from './feriados'
 
@@ -49,7 +49,8 @@ export async function downloadMonthlyHoursPdf(worker: Profile, month: string) {
 
   if (error) throw error
 
-  const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker)
+  const extensiones = await loadExtensionesTrabajador(worker.id, start, end)
+  const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker, extensiones)
   const totalMs = shifts.reduce((sum, s) => sum + s.workedMs, 0)
   const pay = computePaySummary(shifts, worker, start, end)
   const weeklyBonusRows = await loadWeeklyBonusForWorker(worker.id, month)

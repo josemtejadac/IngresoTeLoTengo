@@ -21,6 +21,7 @@ import {
   annotateOvertime,
   computePaySummary,
   formatCLP,
+  loadExtensionesTrabajador,
   OVERTIME_RATE_PER_HOUR,
   type PaySummary,
 } from '../../lib/payroll'
@@ -190,7 +191,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
       .lt('recorded_at', end.toISOString())
       .order('recorded_at', { ascending: true })
 
-    const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), profile)
+    const extensiones = await loadExtensionesTrabajador(profile.id, start, end).catch(() => ({}))
+    const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), profile, extensiones)
     setPaySummary(computePaySummary(shifts, profile, start, end))
 
     const feriados = await loadFeriados()

@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { Attendance, Profile } from '../types'
 import { computeShifts } from './hours'
-import { annotateOvertime, computePaySummary, type PaySummary } from './payroll'
+import { annotateOvertime, computePaySummary, loadExtensionesTrabajador, type PaySummary } from './payroll'
 import {
   WEEKLY_BONUS_AMOUNT,
   formatWeekLabel,
@@ -72,7 +72,8 @@ export async function loadMonthPaySummary(worker: Profile, month: string): Promi
     .order('recorded_at', { ascending: true })
   if (error) throw error
 
-  const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker)
+  const extensiones = await loadExtensionesTrabajador(worker.id, start, end)
+  const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker, extensiones)
   const pay = computePaySummary(shifts, worker, start, end)
 
   const weeklyBonusRows = await loadWeeklyBonusForWorker(worker.id, month)
@@ -148,7 +149,8 @@ export async function loadWeekPaySummary(worker: Profile, week: WeekRange): Prom
     .order('recorded_at', { ascending: true })
   if (error) throw error
 
-  const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker)
+  const extensiones = await loadExtensionesTrabajador(worker.id, start, end)
+  const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), worker, extensiones)
   const pay = computePaySummary(shifts, worker, start, end)
 
   const bonusRow = await loadWeeklyBonusRow(worker.id, week)

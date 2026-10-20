@@ -1,5 +1,31 @@
 import type { Profile } from '../types'
 import type { ShiftSummary } from './hours'
+import { supabase } from './supabase'
+
+/**
+ * Desde esta fecha, salir despues del horario cuenta como hora extra SOLO si el admin agrego tiempo ese dia
+ * ("+ Tiempo"). Entrar antes de la hora sigue contando sola. Antes de esta fecha se calcula como siempre, para
+ * no cambiar lo que ya se pago.
+ */
+const SALIDA_SOLO_CON_ADMIN_DESDE = '2026-10-20'
+
+function fechaLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Minutos extra que el admin autorizo a un trabajador, por dia ("YYYY-MM-DD" -> minutos), en un rango de fechas. */
+export async function loadExtensionesTrabajador(workerId: string, desde: Date, hasta: Date): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('ingreso_extension_horas')
+    .select('fecha, minutos')
+    .eq('worker_id', workerId)
+    .gte('fecha', fechaLocal(desde))
+    .lte('fecha', fechaLocal(hasta))
+  if (error) throw error
+  const mapa: Record<string, number> = {}
+  for (const r of (data as { fecha: string; minutos: number }[]) ?? []) mapa[r.fecha] = (mapa[r.fecha] ?? 0) + r.minutos
+  return mapa
+}
 
 /** Valor de la hora extra, igual para todos los trabajadores. */
 export const OVERTIME_RATE_PER_HOUR = 2500
@@ -24,8 +50,13 @@ function parseTimeToMinutes(value: string | undefined): number | null {
  * 10:30-19:00). Si el dia no tiene horario configurado, no se calcula
  * hora extra (no hay con que comparar), pero las horas trabajadas igual
  * se cuentan.
+ * Salir despues de la hora solo suma lo que el admin autorizo ese dia (`extensiones`, en minutos).
  */
-export function annotateOvertime(shifts: ShiftSummary[], profile: Profile): ShiftWithOvertime[] {
+export function annotateOvertime(
+  shifts: ShiftSummary[],
+  profile: Profile,
+  extensiones: Record<string, number> = {},
+): ShiftWithOvertime[] {
   return shifts.map((s) => {
     const weekday = s.entrada.getDay()
     const daySchedule = profile.weekly_schedule?.[String(weekday)]
@@ -42,7 +73,9 @@ export function annotateOvertime(shifts: ShiftSummary[], profile: Profile): Shif
     schedEnd.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0)
 
     const earlyMs = Math.max(0, schedStart.getTime() - s.entrada.getTime())
-    const lateMs = s.salida ? Math.max(0, s.salida.getTime() - schedEnd.getTime()) : 0
+    let lateMs = s.salida ? Math.max(0, s.salida.getTime() - schedEnd.getTime()) : 0
+    const fecha = fechaLocal(s.entrada)
+    if (fecha >= SALIDA_SOLO_CON_ADMIN_DESDE) lateMs = Math.min(lateMs, (extensiones[fecha] ?? 0) * 60000)
 
     return { ...s, overtimeMs: earlyMs + lateMs, isScheduledDay: true }
   })

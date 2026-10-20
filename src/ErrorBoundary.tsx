@@ -20,6 +20,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="page-center">
           <p className="error-text">Ocurrió un error: {this.state.error.message}</p>
+          <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+            Volver a cargar
+          </button>
         </div>
       )
     }

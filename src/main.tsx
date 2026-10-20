@@ -7,6 +7,19 @@ import { registrarServiceWorker } from './registrarServiceWorker'
 
 registrarServiceWorker()
 
+// Si al abrir una pantalla falla la descarga de su archivo (por ejemplo justo mientras se publica una version
+// nueva), se recarga la app una sola vez para tomar los archivos nuevos, en vez de quedar en blanco.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  try {
+    if (sessionStorage.getItem('tlt-recarga-chunk')) return
+    sessionStorage.setItem('tlt-recarga-chunk', '1')
+  } catch {
+    // sin sessionStorage igual se intenta recargar
+  }
+  window.location.reload()
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

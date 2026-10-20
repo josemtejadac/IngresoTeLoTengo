@@ -67,6 +67,34 @@ export async function activarNotificaciones() {
   if (error) throw error
 }
 
+/**
+ * Si el permiso ya esta dado, vuelve a guardar la suscripcion de este dispositivo (y la recrea si el navegador la
+ * perdio). Se llama cada vez que se abre la app para que los avisos no se corten por una suscripcion vencida.
+ * Devuelve true si el dispositivo quedo registrado.
+ */
+export async function sincronizarNotificaciones(): Promise<boolean> {
+  if (!pushSoportado() || Notification.permission !== 'granted') return false
+  try {
+    const reg = await navigator.serviceWorker.ready
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      })
+    }
+    const json = sub.toJSON()
+    const { error } = await supabase.rpc('ingreso_push_suscribir', {
+      p_endpoint: json.endpoint,
+      p_p256dh: json.keys?.p256dh,
+      p_auth: json.keys?.auth,
+    })
+    return !error
+  } catch {
+    return false
+  }
+}
+
 /** Apaga las notificaciones en este dispositivo (no afecta a otros trabajadores ni a otros dispositivos). */
 export async function desactivarNotificaciones() {
   if (!pushSoportado()) return

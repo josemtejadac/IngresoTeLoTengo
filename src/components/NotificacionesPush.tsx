@@ -3,6 +3,7 @@ import {
   activarNotificaciones,
   desactivarNotificaciones,
   estadoNotificaciones,
+  sincronizarNotificaciones,
 } from '../lib/pushNotificaciones'
 
 /** Boton para activar/desactivar los avisos de pedidos nuevos en este dispositivo (funcionan con la app cerrada). */
@@ -14,9 +15,19 @@ export function NotificacionesPush() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Al abrir la app (y al volver a ella) se renueva la suscripcion guardada si el permiso ya estaba dado.
+    const sincronizar = () => {
+      sincronizarNotificaciones().then(() => estadoNotificaciones().then(setEstado).catch(() => {}))
+    }
     estadoNotificaciones()
       .then(setEstado)
       .catch(() => setEstado('no_soportado'))
+    sincronizar()
+    const alVolver = () => {
+      if (document.visibilityState === 'visible') sincronizar()
+    }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => document.removeEventListener('visibilitychange', alVolver)
   }, [])
 
   async function alternar() {
@@ -42,7 +53,7 @@ export function NotificacionesPush() {
   if (estado === 'bloqueadas') {
     return (
       <span className="subtitle notif-bloqueadas" title="Actívalas desde el candado/permisos del navegador">
-        🔕 Notificaciones bloqueadas
+        🔕 Notificaciones bloqueadas: actívalas en los permisos del navegador para recibir pedidos
       </span>
     )
   }
@@ -51,11 +62,15 @@ export function NotificacionesPush() {
     <div className="notif-push">
       <button
         type="button"
-        className={estado === 'activadas' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+        className={estado === 'activadas' ? 'btn btn-primary btn-small' : 'btn btn-danger btn-small notif-alerta'}
         disabled={busy}
         onClick={alternar}
       >
-        {busy ? '...' : estado === 'activadas' ? '🔔 Notificaciones activadas' : '🔕 Activar notificaciones'}
+        {busy
+          ? '...'
+          : estado === 'activadas'
+            ? '🔔 Notificaciones activadas'
+            : '🔕 ACTIVA las notificaciones para recibir los pedidos'}
       </button>
       {error && <p className="error-text">{error}</p>}
     </div>

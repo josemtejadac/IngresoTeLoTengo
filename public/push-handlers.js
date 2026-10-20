@@ -17,8 +17,9 @@ self.addEventListener('push', (event) => {
       renotify: true,
       // Sin esto, algunos navegadores muestran la notificacion muda: se fuerza sonido y vibracion.
       silent: false,
-      vibrate: [200, 100, 200],
-      requireInteraction: false,
+      vibrate: datos.urgente ? [300, 150, 300, 150, 300] : [200, 100, 200],
+      // Los avisos de pedidos para el personal se quedan en pantalla hasta que los toquen.
+      requireInteraction: !!datos.urgente,
       data: { pedidoId: datos.pedidoId, url: datos.url || '/' },
     }),
   )

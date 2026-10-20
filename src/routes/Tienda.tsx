@@ -96,27 +96,9 @@ function quedaPocoStock(p: ProductoTienda): boolean {
   return p.stock_max !== null && p.stock_max <= STOCK_BAJO_UNIDADES
 }
 
-// Cupones ya vistos (aplicados o cerrados) en este navegador, para no mostrar el mismo aviso de nuevo.
-const CUPONES_VISTOS_KEY = 'tlt_cupones_vistos'
-
-function cuponesVistosLocal(): string[] {
-  try {
-    const raw = localStorage.getItem(CUPONES_VISTOS_KEY)
-    const ids = raw ? (JSON.parse(raw) as unknown) : []
-    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-function marcarCuponVistoLocal(id: string) {
-  try {
-    const vistos = cuponesVistosLocal()
-    localStorage.setItem(CUPONES_VISTOS_KEY, JSON.stringify([id, ...vistos.filter((x) => x !== id)].slice(0, 50)))
-  } catch {
-    // sin almacenamiento: en el peor caso vuelve a aparecer el aviso
-  }
-}
+// El aviso del cupon sigue apareciendo cada vez que el cliente entra, hasta que lo use o venza. "Cerrar" solo
+// lo esconde mientras la pagina siga abierta (al volver a entrar, reaparece).
+const cuponesCerradosEnEstaVisita = new Set<string>()
 
 export function Tienda() {
   const [search, setSearch] = useState('')
@@ -265,9 +247,9 @@ export function Tienda() {
     if (!tel) return
     loadCuponesRecibidos(tel)
       .then((lista) => {
-        const vistos = cuponesVistosLocal()
-        const nuevo = lista.find((c) => c.vigente && !vistos.includes(c.id))
-        if (nuevo) setCuponRecibido(nuevo)
+        // Solo cupones vigentes (no usados ni vencidos) y que no haya cerrado en esta visita.
+        const nuevo = lista.find((c) => c.vigente && !cuponesCerradosEnEstaVisita.has(c.id))
+        setCuponRecibido(nuevo ?? null)
       })
       .catch(() => {})
   }, [guardado?.telefono])
@@ -277,7 +259,7 @@ export function Tienda() {
   useRealtimeRefresh(['ingreso_cupones_enviados'], recargarCuponesRecibidos)
 
   function cerrarCuponRecibido() {
-    if (cuponRecibido) marcarCuponVistoLocal(cuponRecibido.id)
+    if (cuponRecibido) cuponesCerradosEnEstaVisita.add(cuponRecibido.id)
     setCuponRecibido(null)
   }
 
@@ -285,7 +267,7 @@ export function Tienda() {
     if (!cuponRecibido) return
     const codigo = cuponRecibido.codigo
     setCuponCodigo(codigo)
-    marcarCuponVistoLocal(cuponRecibido.id)
+    cuponesCerradosEnEstaVisita.add(cuponRecibido.id)
     setCuponRecibido(null)
     setShowCheckout(true)
     if (cart.length > 0) {

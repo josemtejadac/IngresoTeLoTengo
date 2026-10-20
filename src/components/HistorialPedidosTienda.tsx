@@ -91,13 +91,20 @@ export function HistorialPedidosTienda() {
     ...new Set(pedidos.map((p) => p.entregado_por).filter((id): id is string => !!id)),
   ]
 
-  const montoBuscado = buscarMonto.replace(/\D/g, '')
+  // El buscador acepta monto, depto (ej. 1507), torre o nombre del cliente.
+  const textoBuscado = buscarMonto.trim().toLowerCase()
+  const coincideBusqueda = (p: PedidoTienda) =>
+    !textoBuscado ||
+    String(p.total).includes(textoBuscado.replace(/\D/g, '') || '\u0000') ||
+    (p.depto ?? '').toLowerCase().includes(textoBuscado) ||
+    (p.torre ?? '').toLowerCase() === textoBuscado ||
+    (p.nombre_cliente ?? '').toLowerCase().includes(textoBuscado)
 
   const pedidosDelWorker = pedidos.filter((p) => !filtroWorker || p.entregado_por === filtroWorker)
 
   const filtrados = pedidosDelWorker
     .filter((p) => filtroMetodo === 'todos' || p.metodo_pago === filtroMetodo)
-    .filter((p) => !montoBuscado || String(p.total).includes(montoBuscado))
+    .filter(coincideBusqueda)
   const cuentasMetodo: Record<FiltroMetodo, number> = {
     todos: pedidosDelWorker.length,
     efectivo: pedidosDelWorker.filter((p) => p.metodo_pago === 'efectivo').length,
@@ -165,8 +172,7 @@ export function HistorialPedidosTienda() {
       <div className="table-controls">
         <input
           type="text"
-          inputMode="numeric"
-          placeholder="Buscar por monto (ej. 4950)"
+          placeholder="Buscar por monto, depto o nombre (ej. 1507)"
           value={buscarMonto}
           onChange={(e) => setBuscarMonto(e.target.value)}
         />

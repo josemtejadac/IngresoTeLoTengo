@@ -187,6 +187,22 @@ export async function loadCuponesRecibidos(telefono: string): Promise<CuponRecib
   return ((data as CuponRecibido[]) ?? []).map((c) => ({ ...c, descuento_pct: Number(c.descuento_pct) }))
 }
 
+export interface CuponUso {
+  cupon_id: string
+  usado_at: string
+  nombre_cliente: string | null
+  torre: string | null
+  depto: string | null
+  monto_descontado: number
+}
+
+/** Quien y cuando uso cada cupon. Solo admin. */
+export async function loadCuponesUsos(): Promise<CuponUso[]> {
+  const { data, error } = await supabase.rpc('ingreso_listar_cupones_usos')
+  if (error) throw error
+  return ((data as CuponUso[]) ?? []).map((u) => ({ ...u, monto_descontado: Number(u.monto_descontado) }))
+}
+
 export interface CuponEnviado {
   telefono: string
   torre: string | null

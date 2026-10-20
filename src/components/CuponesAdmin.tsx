@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { crearCupon, desactivarCupon, loadCupones, type Cupon } from '../lib/tienda'
+import { crearCupon, desactivarCupon, loadCupones, loadCuponesUsos, type Cupon, type CuponUso } from '../lib/tienda'
+
+function fechaHora(iso: string): string {
+  return new Date(iso).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 export function CuponesAdmin() {
   const [cupones, setCupones] = useState<Cupon[]>([])
+  const [usos, setUsos] = useState<CuponUso[]>([])
   const [error, setError] = useState<string | null>(null)
   const [codigo, setCodigo] = useState('')
   const [descuento, setDescuento] = useState('20')
@@ -14,6 +19,7 @@ export function CuponesAdmin() {
   const cargar = useCallback(async () => {
     try {
       setCupones(await loadCupones())
+      loadCuponesUsos().then(setUsos).catch(() => {})
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando los cupones')
@@ -143,6 +149,15 @@ export function CuponesAdmin() {
               <tr key={c.id}>
                 <td>
                   <strong>{c.codigo}</strong>
+                  {usos
+                    .filter((u) => u.cupon_id === c.id)
+                    .map((u, i) => (
+                      <div key={i} className="subtitle">
+                        ✅ Usado el {fechaHora(u.usado_at)}
+                        {u.nombre_cliente ? ` · ${u.nombre_cliente}` : ''}
+                        {u.torre ? ` (Torre ${u.torre}, depto ${u.depto})` : ''} · -${u.monto_descontado.toLocaleString('es-CL')}
+                      </div>
+                    ))}
                 </td>
                 <td>{c.descuento_pct}%</td>
                 <td>

@@ -6,6 +6,8 @@ import { ErrorBoundary } from './ErrorBoundary.tsx'
 import { registrarServiceWorker } from './registrarServiceWorker'
 
 registrarServiceWorker()
+// Marca de version (cambia el nombre del archivo principal al publicar, util tras limpiar la cache de Cloudflare).
+;(window as unknown as { __tltBuild: string }).__tltBuild = '2026-10-20b'
 
 // Si al abrir una pantalla falla la descarga de su archivo (por ejemplo justo mientras se publica una version
 // nueva), se recarga la app una sola vez para tomar los archivos nuevos, en vez de quedar en blanco.

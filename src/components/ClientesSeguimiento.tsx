@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { formatCLP } from '../lib/payroll'
 import { useRealtimeRefresh } from '../lib/realtime'
 import {
+  EVENTO_CUPONES,
   enviarCupon,
   loadClientesSeguimiento,
   loadCupones,
@@ -88,6 +89,11 @@ export function ClientesSeguimiento() {
   }, [recargarCupones])
   // Si se crea/desactiva un cupon en el formulario de arriba mientras esta pantalla esta abierta, se entera solo.
   useRealtimeRefresh(['ingreso_cupones'], recargarCupones)
+  // Aviso inmediato desde el formulario de cupones (no depende de la conexion en tiempo real).
+  useEffect(() => {
+    window.addEventListener(EVENTO_CUPONES, recargarCupones)
+    return () => window.removeEventListener(EVENTO_CUPONES, recargarCupones)
+  }, [recargarCupones])
 
   const recargarHistorialEnviados = useCallback(() => {
     loadCuponesEnviados()

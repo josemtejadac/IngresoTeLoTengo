@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { crearCupon, desactivarCupon, loadCupones, loadCuponesUsos, type Cupon, type CuponUso } from '../lib/tienda'
+import {
+  avisarCuponesCambiaron,
+  crearCupon,
+  desactivarCupon,
+  loadCupones,
+  loadCuponesUsos,
+  type Cupon,
+  type CuponUso,
+} from '../lib/tienda'
+import { useRealtimeRefresh } from '../lib/realtime'
 
 function fechaHora(iso: string): string {
   return new Date(iso).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -29,6 +38,8 @@ export function CuponesAdmin() {
   useEffect(() => {
     cargar()
   }, [cargar])
+  // Si otro admin crea o desactiva un cupon, o un cliente usa uno, la lista se pone al dia sola.
+  useRealtimeRefresh(['ingreso_cupones', 'ingreso_cupones_usos'], cargar)
 
   async function handleCrear(e: React.FormEvent) {
     e.preventDefault()
@@ -50,6 +61,7 @@ export function CuponesAdmin() {
       setDuracionDias('')
       setUsosMaximos('')
       await cargar()
+      avisarCuponesCambiaron()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error creando el cupón')
     } finally {
@@ -62,6 +74,7 @@ export function CuponesAdmin() {
     try {
       await desactivarCupon(c.id)
       await cargar()
+      avisarCuponesCambiaron()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desactivando el cupón')
     }

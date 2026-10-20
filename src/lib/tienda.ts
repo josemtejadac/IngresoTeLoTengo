@@ -187,6 +187,12 @@ export async function loadCuponesRecibidos(telefono: string): Promise<CuponRecib
   return ((data as CuponRecibido[]) ?? []).map((c) => ({ ...c, descuento_pct: Number(c.descuento_pct) }))
 }
 
+/** Avisa a las otras pantallas abiertas (ej. el selector de cupones del seguimiento) que la lista de cupones cambio. */
+export const EVENTO_CUPONES = 'tlt-cupones-cambiaron'
+export function avisarCuponesCambiaron() {
+  window.dispatchEvent(new Event(EVENTO_CUPONES))
+}
+
 export interface CuponUso {
   cupon_id: string
   usado_at: string

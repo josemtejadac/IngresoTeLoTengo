@@ -37,15 +37,25 @@ export async function preguntarEstadisticasIA(
   question: string,
   history: HistorialIA[],
 ): Promise<string> {
+  const llamar = async (token: string) => {
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingreso-chat-estadisticas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ question, history, estadisticas }),
+    })
+    return { res, body: await res.json().catch(() => ({})) }
+  }
   const { data: sessionData } = await supabase.auth.getSession()
   const token = sessionData.session?.access_token
   if (!token) throw new Error('Debes iniciar sesión de nuevo.')
-  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingreso-chat-estadisticas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question, history, estadisticas }),
-  })
-  const body = await res.json()
+  let { res, body } = await llamar(token)
+  if (res.status === 401) {
+    // El pase de sesion de una pestaña abierta mucho rato vence: se renueva y se reintenta una vez.
+    const { data: renovada } = await supabase.auth.refreshSession()
+    const nuevo = renovada.session?.access_token
+    if (nuevo) ({ res, body } = await llamar(nuevo))
+    if (res.status === 401) throw new Error('Tu sesión venció: cierra sesión y vuelve a entrar.')
+  }
   if (!res.ok) throw new Error(body?.error ?? 'No se pudo consultar a la IA')
   return String(body.answer ?? '')
 }

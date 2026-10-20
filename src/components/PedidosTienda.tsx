@@ -298,7 +298,9 @@ export function PedidosTienda() {
             </div>
             {!!p.descuento_cupon && (
               <p className="pedido-cupon-aviso">
-                🎟️ Cupón aplicado: -{formatCLP(p.descuento_cupon)} (subtotal {formatCLP(p.total + p.descuento_cupon)})
+                🎟️ CON CUPÓN -{Math.round((p.descuento_cupon / (p.total + p.descuento_cupon)) * 100)}%: el cliente
+                paga <strong>{formatCLP(p.total)}</strong> (subtotal {formatCLP(p.total + p.descuento_cupon)} menos{' '}
+                {formatCLP(p.descuento_cupon)})
               </p>
             )}
             <p className="pedido-direccion">

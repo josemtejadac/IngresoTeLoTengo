@@ -51,6 +51,13 @@ export async function loadCategoriasTienda(): Promise<string[]> {
   return [...categorias.filter((c) => c === CATEGORIA_PROMOS), ...categorias.filter((c) => c !== CATEGORIA_PROMOS)]
 }
 
+/** Subcategoria de cada producto activo que tiene una (id -> subcategoria). Vacio si aun no existe la funcion. */
+export async function loadSubcategoriasTienda(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.rpc('ingreso_tienda_subcategorias')
+  if (error) throw error
+  return Object.fromEntries(((data as { id: string; subcategoria: string }[]) ?? []).map((r) => [r.id, r.subcategoria.trim()]))
+}
+
 /** Categoria fija de las promos de varios productos. */
 export const CATEGORIA_PROMOS = 'PROMOS'
 

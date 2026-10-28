@@ -5,7 +5,7 @@ import { FotoImg } from '../components/FotoImg'
 import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo, resumenPromo } from '../components/PromoTienda'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { useArrastreHorizontal } from '../lib/arrastreHorizontal'
-import { esTemaHalloween } from '../lib/temaTienda'
+import { categoriasDestacadas, esTemaHalloween } from '../lib/temaTienda'
 import { EVENTO_ANTES_DE_RECARGAR, avisarOcupado } from '../registrarServiceWorker'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
@@ -32,6 +32,7 @@ import {
   loadCatalogoTienda,
   loadCategoriasTienda,
   loadPromosTienda,
+  loadSubcategoriasTienda,
   productoFotoUrl,
   type ProductoTienda,
   type PromoTienda,
@@ -173,6 +174,9 @@ export function Tienda() {
   useArrastreHorizontal(chipsEl)
   const [productos, setProductos] = useState<ProductoTienda[]>([])
   const [promos, setPromos] = useState<Record<string, PromoTienda>>({})
+  // Subcategorias (ej. HALLOWEEN -> Caramelos / Gomitas): aparecen al abrir una categoria que las tenga.
+  const [subcats, setSubcats] = useState<Record<string, string>>({})
+  const [subcategoria, setSubcategoria] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
   const [carritoRestaurado, setCarritoRestaurado] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
@@ -338,6 +342,7 @@ export function Tienda() {
       setProductos(rows)
       // Que incluye cada promo (para mostrarla con su etiqueta y lo que trae); si falla, se ve como producto normal.
       loadPromosTienda().then(setPromos).catch(() => {})
+      loadSubcategoriasTienda().then(setSubcats).catch(() => {})
       setSinConexion(false)
       setError(null)
     } catch (err) {
@@ -827,6 +832,21 @@ export function Tienda() {
     )
   }
 
+  // Categorias de temporada (ej. Halloween) van primero y resaltadas; el resto en su orden de siempre.
+  const destacadas = categoriasDestacadas().filter((c) => categorias.includes(c))
+  const categoriasOrdenadas = [...destacadas, ...categorias.filter((c) => !destacadas.includes(c))]
+  // Subcategorias de la categoria abierta (solo si sus productos tienen alguna).
+  const subsDeCategoria = categoria
+    ? [...new Set(productos.map((p) => subcats[p.id]).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b))
+    : []
+  const productosMostrados =
+    subcategoria && subsDeCategoria.includes(subcategoria) ? productos.filter((p) => subcats[p.id] === subcategoria) : productos
+
+  function elegirCategoria(c: string) {
+    setCategoria(c)
+    setSubcategoria('')
+  }
+
   return (
     <div className={halloween ? 'page tema-halloween' : 'page'}>
       {cuponRecibido && (
@@ -907,17 +927,18 @@ export function Tienda() {
           <button
             type="button"
             className={categoria === '' ? 'tienda-chip activo' : 'tienda-chip'}
-            onClick={() => setCategoria('')}
+            onClick={() => elegirCategoria('')}
           >
             Todas
           </button>
-          {categorias.map((c) => (
+          {categoriasOrdenadas.map((c) => (
             <button
               key={c}
               type="button"
-              className={categoria === c ? 'tienda-chip activo' : 'tienda-chip'}
-              onClick={() => setCategoria(c)}
+              className={`tienda-chip${categoria === c ? ' activo' : ''}${destacadas.includes(c) ? ' destacada' : ''}`}
+              onClick={() => elegirCategoria(c)}
             >
+              {destacadas.includes(c) && c === 'HALLOWEEN' ? '🎃 ' : ''}
               {c.replace(/\s+/g, ' ').trim().toLowerCase()}
             </button>
           ))}
@@ -930,10 +951,32 @@ export function Tienda() {
         </div>
       )}
 
+      {subsDeCategoria.length > 0 && (
+        <div className="tienda-subchips" role="tablist" aria-label="Subcategorías">
+          <button
+            type="button"
+            className={subcategoria === '' ? 'tienda-subchip activo' : 'tienda-subchip'}
+            onClick={() => setSubcategoria('')}
+          >
+            Todo
+          </button>
+          {subsDeCategoria.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={subcategoria === s ? 'tienda-subchip activo' : 'tienda-subchip'}
+              onClick={() => setSubcategoria(s)}
+            >
+              {s.toLowerCase()}
+            </button>
+          ))}
+        </div>
+      )}
+
       {productos.length === 0 && !sinConexion && <p className="subtitle">No encontramos productos con esa búsqueda.</p>}
 
       <div className={abierta ? 'tienda-grid' : 'tienda-grid tienda-grid-cerrada'}>
-        {productos.map((p) => {
+        {productosMostrados.map((p) => {
           const promo = promos[p.id]
           if (promo) {
             const ahorro = ahorroPromo(promo, p.precio)

@@ -4,6 +4,7 @@ import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
 import { Merma } from './Merma'
 import { ElegirProductosPromo, type ItemPromo } from './ElegirProductosPromo'
+import { CategoriasAdmin } from './CategoriasAdmin'
 import { CATEGORIA_PROMOS } from '../lib/tienda'
 import { downloadInventarioExcel } from '../lib/inventarioExcel'
 import { formatCLP } from '../lib/payroll'
@@ -20,6 +21,7 @@ import {
   updateProducto,
   uploadProductoFoto,
   unificarCategoria,
+  claveCategoria,
   type FiltroStock,
   type Producto,
 } from '../lib/inventario'
@@ -55,6 +57,7 @@ export function InventarioAdmin() {
   const [editNombre, setEditNombre] = useState('')
   const [editBarra, setEditBarra] = useState('')
   const [editCategoria, setEditCategoria] = useState('')
+  const [editSubcategoria, setEditSubcategoria] = useState('')
   const [editPrecio, setEditPrecio] = useState('')
   const [editStock, setEditStock] = useState('0')
   const [editLlego, setEditLlego] = useState('')
@@ -280,6 +283,7 @@ export function InventarioAdmin() {
     setEditNombre(p.nombre)
     setEditBarra(p.codigo_barras ?? '')
     setEditCategoria(p.categoria ?? '')
+    setEditSubcategoria(p.subcategoria ?? '')
     setEditPrecio(p.precio?.toString() ?? '')
     setEditStock(p.stock.toString())
     setEditLlego('')
@@ -315,6 +319,18 @@ export function InventarioAdmin() {
     setEditNota(p.nota ?? '')
     setEditDestacado(p.destacado)
     setError(null)
+  }
+
+  /** Subcategorias ya usadas en una categoria (para sugerirlas y no crear duplicadas). */
+  function subcategoriasDe(cat: string): string[] {
+    const clave = claveCategoria(cat)
+    return [
+      ...new Set(
+        productos
+          .filter((p) => p.categoria && claveCategoria(p.categoria) === clave && p.subcategoria)
+          .map((p) => p.subcategoria as string),
+      ),
+    ].sort()
   }
 
   /** Reutiliza la categoria ya existente si solo cambian mayusculas, tildes, espacios o el plural. */
@@ -377,6 +393,10 @@ export function InventarioAdmin() {
         descuento_pct: descuentoPct,
         nota: editNota.trim() === '' ? null : editNota.trim(),
         destacado: editDestacado,
+        // Solo si la base ya tiene subcategorias (asi no falla el guardado si aun no se corrio el SQL).
+        ...('subcategoria' in editing && !editing.es_promo
+          ? { subcategoria: unificarCategoria(editSubcategoria, subcategoriasDe(editCategoria)) }
+          : {}),
       })
       if (editing.es_promo && precio !== null) {
         await guardarPromo({
@@ -520,6 +540,13 @@ export function InventarioAdmin() {
           + Crear producto o promo (sin código de barras)
         </button>
       )}
+
+      <CategoriasAdmin
+        onCambio={() => {
+          runSearch()
+          loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
+        }}
+      />
 
       {(nuevoBarra || nuevoManual) && (
         <form onSubmit={handleCrearNuevo} className="nuevo-panel">
@@ -821,6 +848,22 @@ export function InventarioAdmin() {
                 ))}
               </datalist>
             </label>
+            )}
+            {!editing.es_promo && 'subcategoria' in editing && (
+              <label>
+                Subcategoría (opcional, ej. dentro de Halloween: Caramelos)
+                <input
+                  list="subcategorias-inventario"
+                  value={editSubcategoria}
+                  onChange={(e) => setEditSubcategoria(e.target.value)}
+                  placeholder="Sin subcategoría"
+                />
+                <datalist id="subcategorias-inventario">
+                  {subcategoriasDe(editCategoria).map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
+              </label>
             )}
 
             {editing.foto_path ? (

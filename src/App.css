@@ -4375,3 +4375,114 @@ body:has(.tema-halloween) {
 .tema-halloween .tienda-card {
   box-shadow: 0 1px 4px rgba(59, 7, 100, 0.12);
 }
+
+/* Categoria de temporada (ej. Halloween): primera y resaltada. */
+.tienda-chip.destacada {
+  background: linear-gradient(135deg, #2e1065, #ea580c);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.45);
+}
+
+.tienda-chip.destacada.activo {
+  box-shadow: 0 0 0 2px #fdba74, 0 2px 10px rgba(234, 88, 12, 0.5);
+}
+
+/* Subcategorias de la categoria abierta. */
+.tienda-subchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 18px 12px;
+}
+
+.tienda-subchip {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px dashed #fdba74;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+.tienda-subchip.activo {
+  border-style: solid;
+  border-color: #ea580c;
+  background: #ea580c;
+  color: #fff;
+}
+
+/* ---------- Inventario: categorias (mover o renombrar) ---------- */
+.categorias-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 14px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  max-width: 760px;
+}
+
+.categorias-admin-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.categorias-admin .subtitle {
+  margin: 0;
+}
+
+.categorias-admin-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.categorias-admin-lista li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.categorias-admin-nombre {
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-transform: capitalize;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.categorias-admin-nombre .subtitle {
+  font-weight: 400;
+  text-transform: none;
+}
+
+.categorias-admin-mover {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.categorias-admin-mover input {
+  width: 180px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}

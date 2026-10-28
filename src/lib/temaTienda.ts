@@ -15,3 +15,8 @@ export function esTemaHalloween(): boolean {
   const hoy = hoyChile()
   return hoy >= HALLOWEEN_DESDE && hoy < HALLOWEEN_HASTA
 }
+
+/** Categorias que van primero y resaltadas en la tienda mientras dura su temporada. */
+export function categoriasDestacadas(): string[] {
+  return esTemaHalloween() ? ['HALLOWEEN'] : []
+}

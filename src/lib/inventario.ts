@@ -29,6 +29,8 @@ export interface Producto {
   unidades_por_producto: number
   /** Promo de varios productos con un precio propio: su stock se calcula solo y al venderla se descuenta de cada producto. */
   es_promo?: boolean
+  /** Subcategoria dentro de su categoria (ej. HALLOWEEN -> Caramelos). Opcional. */
+  subcategoria?: string | null
 }
 
 export type FiltroStock = 'todos' | 'sinprecio' | 'sinstock' | 'bajostock'
@@ -255,7 +257,24 @@ export async function loadCategorias(incluirInactivos = false): Promise<string[]
 
 export async function updateProducto(
   id: string,
-  fields: Partial<Pick<Producto, 'nombre' | 'precio' | 'foto_path' | 'stock' | 'categoria' | 'active' | 'por_peso' | 'gramos_unidad' | 'codigo_barras' | 'descuento_pct' | 'nota' | 'destacado'>>,
+  fields: Partial<
+    Pick<
+      Producto,
+      | 'nombre'
+      | 'precio'
+      | 'foto_path'
+      | 'stock'
+      | 'categoria'
+      | 'subcategoria'
+      | 'active'
+      | 'por_peso'
+      | 'gramos_unidad'
+      | 'codigo_barras'
+      | 'descuento_pct'
+      | 'nota'
+      | 'destacado'
+    >
+  >,
 ) {
   const { error } = await supabase
     .from('ingreso_productos')

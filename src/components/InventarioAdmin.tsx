@@ -546,6 +546,8 @@ export function InventarioAdmin() {
           runSearch()
           loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
         }}
+        onEditar={openEdit}
+        actualizado={productos}
       />
 
       {(nuevoBarra || nuevoManual) && (

@@ -4,6 +4,7 @@ import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
 import { Merma } from './Merma'
 import { ElegirProductosPromo, type ItemPromo } from './ElegirProductosPromo'
+import { CATEGORIA_PROMOS } from '../lib/tienda'
 import { downloadInventarioExcel } from '../lib/inventarioExcel'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
@@ -192,7 +193,7 @@ export function InventarioAdmin() {
         const id = await guardarPromo({
           promoId: null,
           nombre: nuevoNombre,
-          categoria: normalizarCategoria(nuevaCategoria),
+          categoria: CATEGORIA_PROMOS,
           precio,
           items: nuevoItemsPromo.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
         })
@@ -372,7 +373,7 @@ export function InventarioAdmin() {
       await updateProducto(editing.id, {
         nombre,
         codigo_barras: barra === '' ? null : barra,
-        categoria: normalizarCategoria(editCategoria),
+        categoria: editing.es_promo ? CATEGORIA_PROMOS : normalizarCategoria(editCategoria),
         precio,
         // El stock de una promo se calcula solo desde sus productos: no se manda.
         ...(editing.es_promo ? {} : { stock: Math.round(stock), por_peso: editPorPeso, gramos_unidad: gramosUnidad }),
@@ -384,7 +385,7 @@ export function InventarioAdmin() {
         await guardarPromo({
           promoId: editing.id,
           nombre,
-          categoria: normalizarCategoria(editCategoria),
+          categoria: CATEGORIA_PROMOS,
           precio,
           items: editItemsPromo.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
         })
@@ -533,7 +534,7 @@ export function InventarioAdmin() {
                   El código <strong>{nuevoBarra}</strong> no está en el catálogo. Créalo aquí.
                 </>
               ) : nuevoEsPromo ? (
-                'Junta varios productos con un precio especial. Aparece en la tienda como un producto más.'
+                'Junta varios productos con un precio especial. En la tienda aparece con todos los productos y también en la categoría PROMOS.'
               ) : (
                 'El precio, descuento y lo demás lo puedes ajustar después en Editar.'
               )}
@@ -595,20 +596,22 @@ export function InventarioAdmin() {
                 />
               </label>
               <div className="nuevo-fila">
-                <label>
-                  Categoría
-                  <input
-                    list="categorias-nuevo"
-                    value={nuevaCategoria}
-                    onChange={(e) => setNuevaCategoria(e.target.value)}
-                    placeholder="Opcional"
-                  />
-                  <datalist id="categorias-nuevo">
-                    {categorias.map((c) => (
-                      <option key={c} value={c} />
-                    ))}
-                  </datalist>
-                </label>
+                {!(nuevoManual && nuevoEsPromo) && (
+                  <label>
+                    Categoría
+                    <input
+                      list="categorias-nuevo"
+                      value={nuevaCategoria}
+                      onChange={(e) => setNuevaCategoria(e.target.value)}
+                      placeholder="Opcional"
+                    />
+                    <datalist id="categorias-nuevo">
+                      {categorias.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </label>
+                )}
                 {nuevoManual && nuevoEsPromo ? (
                   <label>
                     Precio
@@ -806,6 +809,7 @@ export function InventarioAdmin() {
                 placeholder="Sin código"
               />
             </label>
+            {!editing.es_promo && (
             <label>
               Categoría
               <input
@@ -820,6 +824,7 @@ export function InventarioAdmin() {
                 ))}
               </datalist>
             </label>
+            )}
 
             {editing.foto_path ? (
               <img

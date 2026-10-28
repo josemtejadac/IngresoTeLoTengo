@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { Stepper } from '../components/Stepper'
 import { FotoImg } from '../components/FotoImg'
+import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo, resumenPromo } from '../components/PromoTienda'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
@@ -27,8 +28,10 @@ import {
   type MiPedido,
   loadCatalogoTienda,
   loadCategoriasTienda,
+  loadPromosTienda,
   productoFotoUrl,
   type ProductoTienda,
+  type PromoTienda,
   type ProgresoPedido,
 } from '../lib/tienda'
 
@@ -105,6 +108,7 @@ export function Tienda() {
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
   const [productos, setProductos] = useState<ProductoTienda[]>([])
+  const [promos, setPromos] = useState<Record<string, PromoTienda>>({})
   const [cart, setCart] = useState<CartLine[]>([])
   const [showCheckout, setShowCheckout] = useState(false)
   const [detalle, setDetalle] = useState<ProductoTienda | null>(null)
@@ -205,6 +209,8 @@ export function Tienda() {
         categoria: categoria || undefined,
       })
       setProductos(rows)
+      // Que incluye cada promo (para mostrarla con su etiqueta y lo que trae); si falla, se ve como producto normal.
+      loadPromosTienda().then(setPromos).catch(() => {})
       setSinConexion(false)
       setError(null)
     } catch (err) {
@@ -788,7 +794,34 @@ export function Tienda() {
       {productos.length === 0 && !sinConexion && <p className="subtitle">No encontramos productos con esa búsqueda.</p>}
 
       <div className={abierta ? 'tienda-grid' : 'tienda-grid tienda-grid-cerrada'}>
-        {productos.map((p) => (
+        {productos.map((p) => {
+          const promo = promos[p.id]
+          if (promo) {
+            const ahorro = ahorroPromo(promo, p.precio)
+            return (
+              <div key={p.id} className={p.disponible ? 'tienda-card tienda-card-promo' : 'tienda-card tienda-card-promo sin-stock'}>
+                <button type="button" className="tienda-abrir" onClick={() => abrirDetalle(p)}>
+                  <PromoFoto fotoPath={p.foto_path} promo={promo} nombre={p.nombre} precio={p.precio} />
+                  {!p.disponible && <span className="tienda-agotado">Sin stock</span>}
+                  {quedaPocoStock(p) && <span className="tienda-poco-stock">¡Quedan pocas!</span>}
+                  <p className="tienda-nombre">{p.nombre}</p>
+                </button>
+                <p className="tienda-precio">
+                  {ahorro > 0 && <span className="tienda-precio-original">{formatCLP(promo.precio_separado)}</span>}
+                  <span className="promo-precio">{formatCLP(p.precio)}</span>
+                </p>
+                <p className="promo-resumen-tienda">{resumenPromo(promo, p.precio)}</p>
+                <button
+                  className="btn btn-primary btn-small"
+                  disabled={!p.disponible || !abierta}
+                  onClick={() => addToCart(p)}
+                >
+                  {!abierta ? 'Tienda cerrada' : p.disponible ? '+ Agregar' : 'Sin stock'}
+                </button>
+              </div>
+            )
+          }
+          return (
           <div key={p.id} className={p.disponible ? 'tienda-card' : 'tienda-card sin-stock'}>
             <button type="button" className="tienda-abrir" onClick={() => abrirDetalle(p)}>
               {p.foto_path ? (
@@ -819,7 +852,8 @@ export function Tienda() {
               {!abierta ? 'Tienda cerrada' : p.disponible ? '+ Agregar' : 'Sin stock'}
             </button>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {abierta && (
@@ -1306,6 +1340,33 @@ export function Tienda() {
                 ← Volver
               </button>
             </div>
+            {promos[detalle.id] ? (
+              <>
+                <PromoFoto
+                  fotoPath={detalle.foto_path}
+                  promo={promos[detalle.id]}
+                  nombre={detalle.nombre}
+                  precio={detalle.precio}
+                  grande
+                />
+                <h2 className="detalle-nombre">{detalle.nombre}</h2>
+                <p className="detalle-precio">
+                  {ahorroPromo(promos[detalle.id], detalle.precio) > 0 && (
+                    <span className="tienda-precio-original">{formatCLP(promos[detalle.id].precio_separado)}</span>
+                  )}
+                  <span className="promo-precio">{formatCLP(detalle.precio)}</span>
+                </p>
+                {ahorroPromo(promos[detalle.id], detalle.precio) > 0 && (
+                  <p className="promo-ahorro-chip">
+                    Ahorras {formatCLP(ahorroPromo(promos[detalle.id], detalle.precio))} (
+                    {ahorroPct(promos[detalle.id], detalle.precio)}%) vs. comprar todo por separado
+                  </p>
+                )}
+                {detalle.nota && !detalle.nota.startsWith('Incluye:') && <p className="promo-descripcion">{detalle.nota}</p>}
+                <PromoIncluye promo={promos[detalle.id]} />
+              </>
+            ) : (
+              <>
             {detalle.foto_path ? (
               <FotoImg src={productoFotoUrl(detalle.foto_path)} alt={detalle.nombre} className="detalle-foto" />
             ) : (
@@ -1323,6 +1384,8 @@ export function Tienda() {
               {detalle.descuento_pct && <span className="tienda-descuento-badge">-{detalle.descuento_pct}%</span>}
             </p>
             {detalle.nota && <p className="tienda-nota">📌 {detalle.nota}</p>}
+              </>
+            )}
             {detalle.combo_cantidad && detalle.combo_precio && (
               <p className="detalle-pack">
                 O pack de {detalle.combo_cantidad} por {formatCLP(detalle.combo_precio)}

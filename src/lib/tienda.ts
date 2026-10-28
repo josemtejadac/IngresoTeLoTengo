@@ -46,8 +46,13 @@ export async function loadCatalogoTienda(params: {
 export async function loadCategoriasTienda(): Promise<string[]> {
   const { data, error } = await supabase.rpc('ingreso_tienda_categorias')
   if (error) throw error
-  return ((data as { categoria: string }[]) ?? []).map((r) => r.categoria)
+  const categorias = ((data as { categoria: string }[]) ?? []).map((r) => r.categoria)
+  // Las promos van primero (despues de "Todas"); igual aparecen mezcladas con todo en "Todas".
+  return [...categorias.filter((c) => c === CATEGORIA_PROMOS), ...categorias.filter((c) => c !== CATEGORIA_PROMOS)]
 }
+
+/** Categoria fija de las promos de varios productos. */
+export const CATEGORIA_PROMOS = 'PROMOS'
 
 export type PagoEstado = 'pendiente' | 'comprobante_subido' | 'pagado' | 'esperando_pago'
 
@@ -307,6 +312,22 @@ export async function loadPromosIncluyen(ids: string[]): Promise<PromosIncluyen>
     ;(mapa[r.promo_id] ??= []).push({ nombre: r.ingreso_productos?.nombre ?? '—', cantidad: r.cantidad })
   }
   return mapa
+}
+
+/** Datos de una promo para mostrarla en la tienda: que incluye y cuanto costaria comprar todo por separado. */
+export interface PromoTienda {
+  precio_separado: number
+  incluye: { nombre: string; cantidad: number; foto_path: string | null }[]
+}
+
+/** Promos activas de la tienda, por id del producto promo. */
+export async function loadPromosTienda(): Promise<Record<string, PromoTienda>> {
+  const { data, error } = await supabase.rpc('ingreso_tienda_promos')
+  if (error) throw error
+  type Fila = { promo_id: string; precio_separado: number; incluye: PromoTienda['incluye'] | null }
+  return Object.fromEntries(
+    ((data as Fila[]) ?? []).map((r) => [r.promo_id, { precio_separado: Number(r.precio_separado) || 0, incluye: r.incluye ?? [] }]),
+  )
 }
 
 export async function loadPedidoTiendaItems(pedidoId: string): Promise<PedidoTiendaItem[]> {

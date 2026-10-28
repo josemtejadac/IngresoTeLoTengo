@@ -27,6 +27,8 @@ export interface Producto {
   stock_base_producto_id: string | null
   /** Cuantas unidades del producto base consume 1 de este producto (ej. 15 para media bandeja). */
   unidades_por_producto: number
+  /** Promo de varios productos con un precio propio: su stock se calcula solo y al venderla se descuenta de cada producto. */
+  es_promo?: boolean
 }
 
 export type FiltroStock = 'todos' | 'sinprecio' | 'sinstock' | 'bajostock'
@@ -157,6 +159,50 @@ export async function crearProductoNuevo(params: {
     .single()
   if (error) throw error
   return data as Producto
+}
+
+export interface PromoComponente {
+  producto_id: string
+  cantidad: number
+  nombre: string
+  precio: number | null
+  stock: number
+}
+
+/** Productos (y cantidad de cada uno) que lleva una promo. */
+export async function loadPromoComponentes(promoId: string): Promise<PromoComponente[]> {
+  const { data, error } = await supabase
+    .from('ingreso_promo_componentes')
+    .select('producto_id, cantidad, ingreso_productos!ingreso_promo_componentes_producto_id_fkey(nombre, precio, stock)')
+    .eq('promo_id', promoId)
+  if (error) throw error
+  type Fila = { producto_id: string; cantidad: number; ingreso_productos: { nombre: string; precio: number | null; stock: number } | null }
+  return ((data as unknown as Fila[]) ?? []).map((r) => ({
+    producto_id: r.producto_id,
+    cantidad: r.cantidad,
+    nombre: r.ingreso_productos?.nombre ?? '—',
+    precio: r.ingreso_productos?.precio ?? null,
+    stock: r.ingreso_productos?.stock ?? 0,
+  }))
+}
+
+/** Crea (promoId null) o edita una promo de varios productos con su precio. Devuelve el id de la promo. */
+export async function guardarPromo(params: {
+  promoId: string | null
+  nombre: string
+  categoria: string | null
+  precio: number
+  items: { producto_id: string; cantidad: number }[]
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('ingreso_guardar_promo', {
+    p_id: params.promoId,
+    p_nombre: params.nombre,
+    p_categoria: params.categoria,
+    p_precio: params.precio,
+    p_items: params.items,
+  })
+  if (error) throw error
+  return data as string
 }
 
 export async function desactivarProducto(id: string) {

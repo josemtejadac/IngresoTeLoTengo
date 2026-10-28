@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { FiltroStockBotones } from './FiltroStockBotones'
 import { FacturaStock } from './FacturaStock'
 import { Merma } from './Merma'
+import { ElegirProductosPromo, type ItemPromo } from './ElegirProductosPromo'
 import { downloadInventarioExcel } from '../lib/inventarioExcel'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos } from '../lib/peso'
@@ -10,6 +11,8 @@ import {
   activarProductoPorBarra,
   coincideFiltroStock,
   crearProductoNuevo,
+  guardarPromo,
+  loadPromoComponentes,
   loadCategorias,
   loadProductos,
   productoFotoUrl,
@@ -31,6 +34,10 @@ export function InventarioAdmin() {
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevaCategoria, setNuevaCategoria] = useState('')
   const [nuevoStock, setNuevoStock] = useState('0')
+  const [nuevoEsPromo, setNuevoEsPromo] = useState(false)
+  const [nuevoPrecioPromo, setNuevoPrecioPromo] = useState('')
+  const [nuevoItemsPromo, setNuevoItemsPromo] = useState<ItemPromo[]>([])
+  const [editItemsPromo, setEditItemsPromo] = useState<ItemPromo[]>([])
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -132,6 +139,9 @@ export function InventarioAdmin() {
     setNuevoNombre('')
     setNuevaCategoria('')
     setNuevoStock('0')
+    setNuevoEsPromo(false)
+    setNuevoPrecioPromo('')
+    setNuevoItemsPromo([])
     setScanMessage(null)
     setScanError(null)
   }
@@ -140,6 +150,32 @@ export function InventarioAdmin() {
     e.preventDefault()
     if (!nuevoNombre.trim()) return
     setScanError(null)
+    if (nuevoManual && nuevoEsPromo) {
+      const precio = Number(nuevoPrecioPromo)
+      if (!precio || precio <= 0) {
+        setScanError('Pon el precio de la promo')
+        return
+      }
+      if (nuevoItemsPromo.length < 2) {
+        setScanError('Una promo necesita al menos 2 productos')
+        return
+      }
+      try {
+        await guardarPromo({
+          promoId: null,
+          nombre: nuevoNombre,
+          categoria: normalizarCategoria(nuevaCategoria),
+          precio,
+          items: nuevoItemsPromo.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
+        })
+        setScanMessage(`Promo creada: ${nuevoNombre.trim().toUpperCase()}`)
+        setNuevoManual(false)
+        await runSearch()
+      } catch (err) {
+        setScanError(err instanceof Error ? err.message : 'Error creando la promo')
+      }
+      return
+    }
     try {
       const p = await crearProductoNuevo({
         codigo_barras: nuevoBarra,
@@ -216,6 +252,14 @@ export function InventarioAdmin() {
         .single()
         .then(({ data }) => setEditBaseNombre((data as { nombre: string } | null)?.nombre ?? null))
     }
+    setEditItemsPromo([])
+    if (p.es_promo) {
+      loadPromoComponentes(p.id)
+        .then((rows) =>
+          setEditItemsPromo(rows.map((r) => ({ producto_id: r.producto_id, nombre: r.nombre, precio: r.precio, cantidad: r.cantidad }))),
+        )
+        .catch(() => setError('No se pudieron cargar los productos de la promo'))
+    }
     setEditPorPeso(p.por_peso)
     setEditGramosUnidad(p.gramos_unidad?.toString() ?? '')
     setEditDescuento(p.descuento_pct?.toString() ?? '')
@@ -265,6 +309,16 @@ export function InventarioAdmin() {
       setError('El descuento debe ser un porcentaje entre 1 y 90')
       return
     }
+    if (editing.es_promo) {
+      if (precio === null || precio <= 0) {
+        setError('Pon el precio de la promo')
+        return
+      }
+      if (editItemsPromo.length < 2) {
+        setError('Una promo necesita al menos 2 productos')
+        return
+      }
+    }
     setSavingId(editing.id)
     setError(null)
     try {
@@ -273,13 +327,21 @@ export function InventarioAdmin() {
         codigo_barras: barra === '' ? null : barra,
         categoria: normalizarCategoria(editCategoria),
         precio,
-        stock: Math.round(stock),
-        por_peso: editPorPeso,
-        gramos_unidad: gramosUnidad,
+        // El stock de una promo se calcula solo desde sus productos: no se manda.
+        ...(editing.es_promo ? {} : { stock: Math.round(stock), por_peso: editPorPeso, gramos_unidad: gramosUnidad }),
         descuento_pct: descuentoPct,
         nota: editNota.trim() === '' ? null : editNota.trim(),
         destacado: editDestacado,
       })
+      if (editing.es_promo && precio !== null) {
+        await guardarPromo({
+          promoId: editing.id,
+          nombre,
+          categoria: normalizarCategoria(editCategoria),
+          precio,
+          items: editItemsPromo.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
+        })
+      }
       await runSearch()
       loadCategorias(catalogoOculto).then(setCategorias).catch(() => {})
       setEditing(null)
@@ -430,6 +492,27 @@ export function InventarioAdmin() {
             <input value={nuevaCategoria} onChange={(e) => setNuevaCategoria(e.target.value)} />
           </label>
           {nuevoManual && (
+            <label className="checkbox-label">
+              <input type="checkbox" checked={nuevoEsPromo} onChange={(e) => setNuevoEsPromo(e.target.checked)} />
+              Es una promo de varios productos (ej. harina + jamón + queso)
+            </label>
+          )}
+          {nuevoManual && nuevoEsPromo && (
+            <>
+              <label>
+                Precio de la promo
+                <input
+                  type="number"
+                  min={1}
+                  value={nuevoPrecioPromo}
+                  onChange={(e) => setNuevoPrecioPromo(e.target.value)}
+                  className="qty-input"
+                />
+              </label>
+              <ElegirProductosPromo items={nuevoItemsPromo} onChange={setNuevoItemsPromo} />
+            </>
+          )}
+          {nuevoManual && !nuevoEsPromo && (
             <label>
               Stock inicial
               <input
@@ -443,7 +526,7 @@ export function InventarioAdmin() {
           )}
           <div className="report-row">
             <button type="submit" className="btn btn-primary">
-              Crear producto
+              {nuevoManual && nuevoEsPromo ? 'Crear promo' : 'Crear producto'}
             </button>
             <button
               type="button"
@@ -523,6 +606,7 @@ export function InventarioAdmin() {
               </td>
               <td className="col-nombre">
                 {p.destacado && '📌 '}
+                {p.es_promo && '🎁 '}
                 {p.nombre}
                 {!p.active && <span className="subtitle"> (oculto)</span>}
               </td>
@@ -627,15 +711,17 @@ export function InventarioAdmin() {
               />
             </label>
 
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={editPorPeso}
-                onChange={(e) => setEditPorPeso(e.target.checked)}
-              />
-              Se vende por peso (el precio es por kilo)
-            </label>
-            {editPorPeso && (
+            {!editing.es_promo && (
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={editPorPeso}
+                  onChange={(e) => setEditPorPeso(e.target.checked)}
+                />
+                Se vende por peso (el precio es por kilo)
+              </label>
+            )}
+            {editPorPeso && !editing.es_promo && (
               <label>
                 Gramos aprox. de una unidad (vacío = solo se vende por gramos)
                 <input
@@ -672,7 +758,15 @@ export function InventarioAdmin() {
                 Precio con descuento: {formatCLP(Math.round(Number(editPrecio) * (1 - Number(editDescuento) / 100)))}
               </p>
             )}
-            {editing?.stock_base_producto_id ? (
+            {editing.es_promo ? (
+              <>
+                <p className="subtitle">
+                  Stock: <strong>{editStock}</strong> promo(s) (se calcula solo: cuántas alcanzan con el stock de sus
+                  productos).
+                </p>
+                <ElegirProductosPromo items={editItemsPromo} onChange={setEditItemsPromo} />
+              </>
+            ) : editing?.stock_base_producto_id ? (
               <p className="subtitle">
                 Stock: <strong>{editStock}</strong> (se calcula solo desde{' '}
                 <strong>{editBaseNombre ?? 'el producto base'}</strong> · consume {editing.unidades_por_producto} de

@@ -3959,3 +3959,25 @@ textarea {
     flex: 1;
   }
 }
+
+/* Promo dentro de un pedido: lo que el personal tiene que sacar. */
+.pedido-promo-incluye {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+  padding: 6px 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #7c2d12;
+}
+
+.pedido-promo-titulo {
+  font-weight: 700;
+}
+
+.pedido-promo-linea {
+  overflow-wrap: anywhere;
+}

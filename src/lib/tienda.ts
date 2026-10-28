@@ -292,6 +292,23 @@ export async function loadFotosProductos(ids: string[]): Promise<Record<string, 
   return Object.fromEntries(((data as { id: string; foto_path: string | null }[]) ?? []).map((r) => [r.id, r.foto_path]))
 }
 
+/** Lo que lleva cada promo (por id de la promo), para que el personal sepa que productos sacar. */
+export type PromosIncluyen = Record<string, { nombre: string; cantidad: number }[]>
+
+export async function loadPromosIncluyen(ids: string[]): Promise<PromosIncluyen> {
+  if (ids.length === 0) return {}
+  const { data, error } = await supabase
+    .from('ingreso_promo_componentes')
+    .select('promo_id, cantidad, ingreso_productos!ingreso_promo_componentes_producto_id_fkey(nombre)')
+    .in('promo_id', ids)
+  if (error) throw error
+  const mapa: PromosIncluyen = {}
+  for (const r of (data as unknown as { promo_id: string; cantidad: number; ingreso_productos: { nombre: string } | null }[]) ?? []) {
+    ;(mapa[r.promo_id] ??= []).push({ nombre: r.ingreso_productos?.nombre ?? '—', cantidad: r.cantidad })
+  }
+  return mapa
+}
+
 export async function loadPedidoTiendaItems(pedidoId: string): Promise<PedidoTiendaItem[]> {
   const { data, error } = await supabase
     .from('ingreso_pedidos_tienda_items')

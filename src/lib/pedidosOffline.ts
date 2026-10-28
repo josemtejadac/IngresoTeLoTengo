@@ -1,4 +1,10 @@
-import { marcarEntregaFisica, marcarPedidoTiendaEntregado, type PedidoTienda, type PedidoTiendaItem } from './tienda'
+import {
+  marcarEntregaFisica,
+  marcarPedidoTiendaEntregado,
+  type PedidoTienda,
+  type PedidoTiendaItem,
+  type PromosIncluyen,
+} from './tienda'
 
 /**
  * Respaldo para cuando se va la señal: la ultima lista de pedidos queda guardada en el telefono (se ve igual aunque
@@ -12,6 +18,8 @@ export interface CachePedidos {
   pedidos: PedidoTienda[]
   items: Record<string, PedidoTiendaItem[]>
   fotos: Record<string, string | null>
+  /** Lo que lleva cada promo (puede faltar en caches guardados antes de que existieran las promos). */
+  promos?: PromosIncluyen
   guardado: number
 }
 

@@ -19,6 +19,7 @@ import {
   METODO_PAGO_LABEL,
   loadPedidosTiendaPendientes,
   loadFotosProductos,
+  loadPromosIncluyen,
   loadPedidoTiendaItems,
   marcarEntregaFisica,
   productoFotoUrl,
@@ -28,6 +29,7 @@ import {
   whatsappEnCaminoUrl,
   type PedidoTienda,
   type PedidoTiendaItem,
+  type PromosIncluyen,
 } from '../lib/tienda'
 
 // Para evitar que se mezcle a quien cobra un pedido entre turnos (ya paso que un pedido de Ricardo quedo
@@ -69,6 +71,7 @@ export function PedidosTienda() {
   const [ajustando, setAjustando] = useState<string | null>(null)
   const [ajusteGramos, setAjusteGramos] = useState('')
   const [fotos, setFotos] = useState<Record<string, string | null>>(() => cacheInicial?.fotos ?? {})
+  const [promos, setPromos] = useState<PromosIncluyen>(() => cacheInicial?.promos ?? {})
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
   const [nombres, setNombres] = useState<Record<string, string>>({})
   // Reloj para el "hace X min" de cada pedido.
@@ -119,10 +122,14 @@ export function PedidosTienda() {
       const itemsNuevos = Object.fromEntries(entries)
       setItems(itemsNuevos)
       const idsProductos = [...new Set(entries.flatMap(([, its]) => its.map((i) => i.producto_id).filter((x): x is string => !!x)))]
-      const fotosNuevas = await loadFotosProductos(idsProductos)
+      const [fotosNuevas, promosNuevas] = await Promise.all([
+        loadFotosProductos(idsProductos),
+        loadPromosIncluyen(idsProductos).catch(() => ({}) as PromosIncluyen),
+      ])
       if (numero !== ultimaCarga.current) return
       setFotos(fotosNuevas)
-      guardarCache({ pedidos: rows, items: itemsNuevos, fotos: fotosNuevas })
+      setPromos(promosNuevas)
+      guardarCache({ pedidos: rows, items: itemsNuevos, fotos: fotosNuevas, promos: promosNuevas })
       // Se limpia cualquier error viejo: si esto se ejecuto es porque la carga funciono.
       setError(null)
       setSinSenal(false)
@@ -355,7 +362,9 @@ export function PedidosTienda() {
             <button type="button" className="btn-detalle" onClick={() => alternarDetalle(p.id)}>
               {abiertos.has(p.id)
                 ? 'Ocultar detalle ▴'
-                : `Ver detalle del pedido · ${(items[p.id] ?? []).length} producto(s) ▾`}
+                : `Ver detalle del pedido · ${(items[p.id] ?? []).length} producto(s)${
+                    (items[p.id] ?? []).some((it) => it.producto_id && promos[it.producto_id]) ? ' · 🎁 trae promo' : ''
+                  } ▾`}
             </button>
             {abiertos.has(p.id) && (
               <div className="pedido-detalle">
@@ -380,6 +389,18 @@ export function PedidosTienda() {
                       <span className="pedido-detalle-info">
                         <span className="pedido-detalle-nombre">{it.nombre_producto}</span>
                         <span className="subtitle">{textoItem(it).replace(it.nombre_producto, '').trim() || `${it.cantidad} un`}</span>
+                        {it.producto_id && promos[it.producto_id] && (
+                          <span className="pedido-promo-incluye">
+                            <span className="pedido-promo-titulo">
+                              🎁 PROMO{it.cantidad > 1 ? ` x${it.cantidad}` : ''} · saca estos productos:
+                            </span>
+                            {promos[it.producto_id].map((c) => (
+                              <span key={c.nombre} className="pedido-promo-linea">
+                                <strong>{c.cantidad * it.cantidad}</strong> × {c.nombre}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                         {p.estado === 'pendiente' && (
                           <span className="pedido-detalle-acciones">
                             {!it.es_peso && !it.es_combo && (

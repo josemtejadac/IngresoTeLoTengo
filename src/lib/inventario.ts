@@ -219,6 +219,27 @@ export async function desactivarProducto(id: string) {
   if (error) throw error
 }
 
+/** Clave para comparar categorias sin importar mayusculas, tildes, espacios ni plural ("Lácteos" = "LACTEO"). */
+export function claveCategoria(c: string): string {
+  return c
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((p) => (p.length > 3 ? p.replace(/s$/, '') : p))
+    .join(' ')
+}
+
+/** Si ya existe una categoria equivalente devuelve esa, para no crear duplicadas; si no, la nueva en mayusculas. */
+export function unificarCategoria(valor: string, existentes: string[]): string | null {
+  const limpia = valor.replace(/\s+/g, ' ').trim()
+  if (!limpia) return null
+  const clave = claveCategoria(limpia)
+  return existentes.find((c) => claveCategoria(c) === clave) ?? limpia.toUpperCase()
+}
+
 export async function loadCategorias(incluirInactivos = false): Promise<string[]> {
   let query = supabase
     .from('ingreso_productos')

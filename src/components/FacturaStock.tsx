@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { loadCategorias, unificarCategoria } from '../lib/inventario'
 import { supabase } from '../lib/supabase'
 import { compressImageFile } from '../lib/compressImage'
 import { claveAlias, convertirCantidad, esKilo } from '../lib/facturaNombres'
@@ -70,6 +71,12 @@ export function FacturaStock({ onCerrar, onListo }: Props) {
   const [creando, setCreando] = useState<number | null>(null)
   const [form, setForm] = useState<FormNuevo>({ nombre: '', precio: '', porPeso: false, gramosUnidad: '', categoria: '' })
   const [creandoBusy, setCreandoBusy] = useState(false)
+  // Para no crear una categoria duplicada (ej. "Lacteo" si ya existe "LACTEOS").
+  const [categorias, setCategorias] = useState<string[]>([])
+
+  useEffect(() => {
+    loadCategorias().then(setCategorias).catch(() => {})
+  }, [])
 
   async function leer(file: File) {
     setError(null)
@@ -160,7 +167,7 @@ export function FacturaStock({ onCerrar, onListo }: Props) {
         p_precio: form.precio.trim() === '' ? null : Number(form.precio),
         p_por_peso: form.porPeso,
         p_gramos_unidad: gramosUnidad,
-        p_categoria: form.categoria,
+        p_categoria: unificarCategoria(form.categoria, categorias) ?? '',
       })
       if (rpcError) throw rpcError
       const nuevo: Candidato = {

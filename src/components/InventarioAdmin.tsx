@@ -19,6 +19,7 @@ import {
   productoFotoUrl,
   updateProducto,
   uploadProductoFoto,
+  unificarCategoria,
   type FiltroStock,
   type Producto,
 } from '../lib/inventario'
@@ -216,7 +217,7 @@ export function InventarioAdmin() {
       const p = await crearProductoNuevo({
         codigo_barras: nuevoBarra,
         nombre: nuevoNombre,
-        categoria: nuevaCategoria,
+        categoria: normalizarCategoria(nuevaCategoria) ?? '',
         stock: nuevoManual ? Number(nuevoStock) || 0 : sumarStock ? 1 : 0,
       })
       if (nuevaFoto) await uploadProductoFoto(p.id, nuevaFoto)
@@ -316,13 +317,9 @@ export function InventarioAdmin() {
     setError(null)
   }
 
-  /** Normaliza la categoria y reutiliza la ya existente si solo cambian mayusculas/espacios. */
+  /** Reutiliza la categoria ya existente si solo cambian mayusculas, tildes, espacios o el plural. */
   function normalizarCategoria(valor: string): string | null {
-    const limpia = valor.replace(/\s+/g, ' ').trim()
-    if (!limpia) return null
-    const clave = (c: string) => c.replace(/\s+/g, ' ').trim().toLowerCase()
-    const existente = categorias.find((c) => clave(c) === clave(limpia))
-    return existente ?? limpia.toUpperCase()
+    return unificarCategoria(valor, categorias)
   }
 
   async function handleSave() {

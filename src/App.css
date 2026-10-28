@@ -3458,3 +3458,25 @@ textarea {
   0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
   50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
 }
+
+/* Botones de arriba del inventario: compactos y alineados, sin estirarse a la altura del selector de Excel. */
+.inventario-acciones {
+  align-items: center;
+  gap: 6px;
+}
+
+.inventario-acciones .merma-trigger {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+}
+
+.inventario-excel {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.inventario-excel select {
+  padding: 5px 8px;
+  font-size: 0.8rem;
+}

@@ -416,13 +416,13 @@ export function InventarioAdmin() {
             {` · mostrando ${productosVisibles.length}`}
           </span>
         </h2>
-        <div className="table-controls">
-          <button className="btn btn-primary" onClick={() => setVerFactura(true)}>
+        <div className="table-controls inventario-acciones">
+          <button className="btn btn-primary btn-small" onClick={() => setVerFactura(true)}>
             🧾 Cargar factura
           </button>
           <Merma tipo="merma" />
           <Merma tipo="gasto_operativo" />
-          <label className="chat-input">
+          <label className="inventario-excel">
             <span className="subtitle">Excel de</span>
             <select value={filtroExcel} onChange={(e) => setFiltroExcel(e.target.value as FiltroStock)}>
               <option value="todos">Todos los productos</option>
@@ -431,10 +431,10 @@ export function InventarioAdmin() {
               <option value="sinprecio">Solo sin precio</option>
             </select>
           </label>
-          <button className="btn btn-secondary" disabled={descargandoExcel} onClick={handleDescargarExcel}>
+          <button className="btn btn-secondary btn-small" disabled={descargandoExcel} onClick={handleDescargarExcel}>
             {descargandoExcel ? 'Descargando...' : '📊 Descargar Excel'}
           </button>
-          <button className="btn btn-secondary" onClick={() => setOpen(false)}>
+          <button className="btn btn-secondary btn-small" onClick={() => setOpen(false)}>
             Cerrar
           </button>
         </div>

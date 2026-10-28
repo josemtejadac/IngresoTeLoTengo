@@ -37,3 +37,28 @@ self.addEventListener('notificationclick', (event) => {
     }),
   )
 })
+
+// Una version nueva de la app se activa apenas se instala (antes esperaba que la propia app se lo pidiera; si la app
+// habia quedado en blanco no podia pedirlo y el telefono seguia con la copia vieja).
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
+
+// Si el telefono guardo una copia danada de un archivo de la app (ej. se descargo justo mientras se publicaba una
+// version nueva y llego una pagina en vez del archivo), se ignora esa copia y se baja el archivo bueno de internet.
+// Este manejador va antes que el de workbox, asi que tiene prioridad para los archivos de /assets/.
+self.addEventListener('fetch', (event) => {
+  const req = event.request
+  if (req.method !== 'GET') return
+  const url = new URL(req.url)
+  if (url.origin !== self.location.origin || !url.pathname.startsWith('/assets/')) return
+  if (!/\.(js|css)$/.test(url.pathname)) return
+  event.respondWith(
+    (async () => {
+      const guardado = await caches.match(req, { ignoreSearch: true })
+      const tipo = guardado ? guardado.headers.get('content-type') || '' : ''
+      if (guardado && !tipo.includes('text/html')) return guardado
+      return fetch(req)
+    })(),
+  )
+})

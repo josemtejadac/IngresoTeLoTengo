@@ -10,6 +10,45 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Rescate de pantalla en blanco: si el codigo de la app ya se ejecuto y la pantalla sigue vacia (ej. el telefono
+      // guardo una copia danada de la app), se borra SOLO esa copia guardada (service worker y cache de archivos;
+      // NO la sesion ni los datos del cliente o trabajador) y se recarga una vez. Una sola vez por visita.
+      ;(function () {
+        var intentos = 0
+        function revisar() {
+          var root = document.getElementById('root')
+          if (root && root.children.length > 0) return
+          // Si todavia se esta descargando el codigo (internet lento), se espera un poco mas.
+          if (document.readyState === 'loading' && intentos++ < 15) return setTimeout(revisar, 4000)
+          try {
+            if (sessionStorage.getItem('tlt-rescate')) return
+            sessionStorage.setItem('tlt-rescate', '1')
+          } catch (e) {
+            return
+          }
+          var tareas = []
+          if ('serviceWorker' in navigator) {
+            tareas.push(
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister() }))
+              }),
+            )
+          }
+          if (window.caches) {
+            tareas.push(
+              caches.keys().then(function (claves) {
+                return Promise.all(claves.map(function (c) { return caches.delete(c) }))
+              }),
+            )
+          }
+          Promise.all(tareas)
+            .catch(function () {})
+            .then(function () { location.reload() })
+        }
+        setTimeout(revisar, 10000)
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

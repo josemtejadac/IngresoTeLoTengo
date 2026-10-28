@@ -160,6 +160,12 @@ export function InventarioAdmin() {
     })
   }
 
+  /** Recien creado, se abre Editar para completar codigo de barras, precio, stock, descuento, etc. */
+  async function abrirEditarRecienCreado(id: string) {
+    const { data } = await supabase.from('ingreso_productos').select('*').eq('id', id).single()
+    if (data) openEdit(data as Producto)
+  }
+
   function cerrarNuevo() {
     setNuevoBarra(null)
     setNuevoManual(false)
@@ -196,6 +202,7 @@ export function InventarioAdmin() {
         setScanMessage(`Promo creada: ${nuevoNombre.trim().toUpperCase()}`)
         cerrarNuevo()
         await runSearch()
+        await abrirEditarRecienCreado(id)
       } catch (err) {
         setScanError(err instanceof Error ? err.message : 'Error creando la promo')
       } finally {
@@ -215,6 +222,7 @@ export function InventarioAdmin() {
       setScanMessage(`Producto nuevo creado: ${p.nombre}`)
       cerrarNuevo()
       await runSearch()
+      await abrirEditarRecienCreado(p.id)
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Error creando el producto')
     } finally {

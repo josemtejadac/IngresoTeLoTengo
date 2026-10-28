@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { Stepper } from '../components/Stepper'
 import { FotoImg } from '../components/FotoImg'
+import { Murcielago } from '../components/Murcielago'
 import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo, resumenPromo } from '../components/PromoTienda'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { useArrastreHorizontal } from '../lib/arrastreHorizontal'
@@ -851,6 +852,20 @@ export function Tienda() {
 
   return (
     <div className={halloween ? 'page tema-halloween' : 'page'}>
+      {halloween && (
+        // Murcielagos que cruzan la pantalla de vez en cuando: no se pueden tocar (no tapan nada).
+        <div className="hw-vuelo" aria-hidden="true">
+          <span className="hw-vuela hw-v1">
+            <Murcielago className="hw-silueta" />
+          </span>
+          <span className="hw-vuela hw-v2">
+            <Murcielago className="hw-silueta" />
+          </span>
+          <span className="hw-vuela hw-v3">
+            <Murcielago className="hw-silueta" />
+          </span>
+        </div>
+      )}
       {cuponRecibido && (
         <div className="cupon-recibido-banner">
           <p>
@@ -871,9 +886,9 @@ export function Tienda() {
         {halloween && (
           <span className="halloween-deco" aria-hidden="true">
             <span className="hw-telarana">🕸️</span>
-            <span className="hw-murcielago hw-m1">🦇</span>
-            <span className="hw-murcielago hw-m2">🦇</span>
-            <span className="hw-murcielago hw-m3">🦇</span>
+            <Murcielago className="hw-murcielago hw-m1" />
+            <Murcielago className="hw-murcielago hw-m2" />
+            <Murcielago className="hw-murcielago hw-m3" />
             <span className="hw-calabaza">🎃</span>
           </span>
         )}

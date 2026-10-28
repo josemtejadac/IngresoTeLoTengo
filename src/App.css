@@ -4287,8 +4287,10 @@ body:has(.tema-halloween) {
 
 .hw-murcielago {
   position: absolute;
-  font-size: 18px;
-  opacity: 0.55;
+  width: 30px;
+  height: auto;
+  color: #0b0612;
+  filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.75));
   animation: hw-volar 14s linear infinite;
 }
 
@@ -4299,14 +4301,14 @@ body:has(.tema-halloween) {
 
 .hw-m2 {
   top: 34%;
-  font-size: 14px;
+  width: 24px;
   animation-delay: -5s;
   animation-duration: 18s;
 }
 
 .hw-m3 {
   top: 6%;
-  font-size: 12px;
+  width: 20px;
   animation-delay: -10s;
   animation-duration: 22s;
 }
@@ -4600,5 +4602,87 @@ body:has(.tema-halloween) {
 
   .categorias-form-botones .btn {
     flex: 1;
+  }
+}
+
+/* Halloween: murcielagos chicos que cruzan la pantalla de vez en cuando. No reciben toques (no tapan nada) y
+   quedan bajo las ventanas (detalle, pedido). Se van solos cuando termina el tema. */
+.hw-vuelo {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 45;
+}
+
+.hw-vuela {
+  position: absolute;
+  left: 0;
+  width: 46px;
+  will-change: transform;
+  animation: hw-cruzar 26s linear infinite backwards;
+}
+
+.hw-silueta {
+  display: block;
+  width: 100%;
+  height: auto;
+  color: #0b0612;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25)) drop-shadow(0 0 3px rgba(249, 115, 22, 0.45));
+  animation: hw-aletear 0.32s ease-in-out infinite alternate;
+}
+
+.hw-v1 {
+  top: 24%;
+  animation-delay: 3s;
+}
+
+.hw-v2 {
+  top: 56%;
+  width: 38px;
+  animation-duration: 31s;
+  animation-delay: 13s;
+  animation-direction: reverse;
+}
+
+.hw-v3 {
+  top: 80%;
+  width: 32px;
+  animation-duration: 37s;
+  animation-delay: 23s;
+}
+
+/* Cruza en el primer 28% del ciclo (unos 7-10 s) y el resto del tiempo queda fuera de la pantalla. */
+@keyframes hw-cruzar {
+  0% {
+    transform: translate3d(-12vw, 0, 0);
+  }
+  7% {
+    transform: translate3d(18vw, -22px, 0);
+  }
+  14% {
+    transform: translate3d(46vw, 10px, 0);
+  }
+  21% {
+    transform: translate3d(76vw, -16px, 0);
+  }
+  28%,
+  100% {
+    transform: translate3d(112vw, 0, 0);
+  }
+}
+
+@keyframes hw-aletear {
+  from {
+    transform: translateY(-3px) scaleY(1);
+  }
+  to {
+    transform: translateY(3px) scaleY(0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-vuelo {
+    display: none;
   }
 }

@@ -5,6 +5,8 @@ import { FotoImg } from '../components/FotoImg'
 import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo, resumenPromo } from '../components/PromoTienda'
 import { useRealtimeRefresh } from '../lib/realtime'
 import { useArrastreHorizontal } from '../lib/arrastreHorizontal'
+import { esTemaHalloween } from '../lib/temaTienda'
+import { avisarOcupado } from '../registrarServiceWorker'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
 import { useAtrasCierra } from '../lib/atras'
@@ -71,6 +73,47 @@ interface CartLine {
   esCombo?: boolean
 }
 
+// El carrito queda guardado en el telefono: si la pagina se recarga (ej. llega una version nueva) no se pierde.
+const CARRITO_KEY = 'tlt-carrito-v1'
+const CARRITO_VIGENCIA_MS = 24 * 60 * 60 * 1000
+
+interface LineaGuardada {
+  producto_id: string
+  cantidad: number
+  modo?: 'unidades' | 'gramos'
+  esCombo?: boolean
+}
+
+function guardarCarrito(lineas: CartLine[]) {
+  try {
+    if (lineas.length === 0) {
+      localStorage.removeItem(CARRITO_KEY)
+      return
+    }
+    const guardadas: LineaGuardada[] = lineas.map((l) => ({
+      producto_id: l.producto.id,
+      cantidad: l.cantidad,
+      modo: l.modo,
+      esCombo: l.esCombo,
+    }))
+    localStorage.setItem(CARRITO_KEY, JSON.stringify({ guardado: Date.now(), lineas: guardadas }))
+  } catch {
+    // sin almacenamiento: el carrito simplemente no se guarda
+  }
+}
+
+function leerCarritoGuardado(): LineaGuardada[] {
+  try {
+    const raw = localStorage.getItem(CARRITO_KEY)
+    if (!raw) return []
+    const c = JSON.parse(raw) as { guardado: number; lineas: LineaGuardada[] }
+    if (!Array.isArray(c.lineas) || Date.now() - c.guardado > CARRITO_VIGENCIA_MS) return []
+    return c.lineas.filter((l) => typeof l.producto_id === 'string' && l.cantidad > 0)
+  } catch {
+    return []
+  }
+}
+
 function gramosLinea(l: CartLine): number {
   if (!l.producto.por_peso) return 0
   return l.modo === 'unidades' ? l.cantidad * (l.producto.gramos_unidad ?? 0) : l.cantidad
@@ -108,12 +151,15 @@ export function Tienda() {
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
+  // Tema de temporada (solo el aspecto): se apaga solo cuando termina la fecha.
+  const halloween = esTemaHalloween()
   // En PC las categorias se pueden arrastrar con el mouse o mover con la rueda.
   const [chipsEl, setChipsEl] = useState<HTMLDivElement | null>(null)
   useArrastreHorizontal(chipsEl)
   const [productos, setProductos] = useState<ProductoTienda[]>([])
   const [promos, setPromos] = useState<Record<string, PromoTienda>>({})
   const [cart, setCart] = useState<CartLine[]>([])
+  const [carritoRestaurado, setCarritoRestaurado] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
   const [detalle, setDetalle] = useState<ProductoTienda | null>(null)
   const [detalleCant, setDetalleCant] = useState(1)
@@ -205,6 +251,44 @@ export function Tienda() {
   useEffect(() => {
     loadCategoriasTienda().then(setCategorias).catch(() => {})
   }, [])
+
+  // Al entrar, se recupera el carrito guardado (con precios y stock al dia; lo que ya no esta disponible se omite).
+  useEffect(() => {
+    const guardadas = leerCarritoGuardado()
+    if (guardadas.length === 0) {
+      setCarritoRestaurado(true)
+      return
+    }
+    loadProductosPorIds(guardadas.map((l) => l.producto_id))
+      .then((prods) => {
+        const porId = new Map(prods.map((p) => [p.id, p]))
+        const lineas: CartLine[] = []
+        for (const g of guardadas) {
+          const p = porId.get(g.producto_id)
+          if (!p || !p.disponible) continue
+          if (g.esCombo) {
+            if (p.combo_disponible) lineas.push({ producto: p, cantidad: g.cantidad, esCombo: true })
+          } else if (p.por_peso) {
+            lineas.push({ producto: p, cantidad: g.cantidad, modo: g.modo })
+          } else {
+            lineas.push({ producto: p, cantidad: Math.min(g.cantidad, p.stock_max ?? g.cantidad) })
+          }
+        }
+        setCart((prev) => (prev.length === 0 ? lineas : prev))
+      })
+      .catch(() => {})
+      .finally(() => setCarritoRestaurado(true))
+  }, [])
+
+  useEffect(() => {
+    if (carritoRestaurado) guardarCarrito(cart)
+  }, [cart, carritoRestaurado])
+
+  // Con algo en el carrito o llenando el pedido, una actualizacion de la app espera a que salga para recargar.
+  useEffect(() => {
+    avisarOcupado(cart.length > 0 || showCheckout)
+    return () => avisarOcupado(false)
+  }, [cart.length, showCheckout])
 
   const runSearch = useCallback(async () => {
     try {
@@ -496,6 +580,8 @@ export function Tienda() {
       }
       guardarPedidoIdLocal(result.pedido_id)
       if (metodo === 'online') {
+        // El pedido ya quedo hecho: el carrito no debe reaparecer al volver de Flow.
+        guardarCarrito([])
         // Se lleva al cliente a Flow; al pagar vuelve a la tienda con el pedido.
         window.location.href = await iniciarPagoFlow(result.pedido_id, email.trim())
         return
@@ -703,7 +789,7 @@ export function Tienda() {
   }
 
   return (
-    <div className="page">
+    <div className={halloween ? 'page tema-halloween' : 'page'}>
       {cuponRecibido && (
         <div className="cupon-recibido-banner">
           <p>
@@ -721,6 +807,15 @@ export function Tienda() {
         </div>
       )}
       <header className="tienda-hero">
+        {halloween && (
+          <span className="halloween-deco" aria-hidden="true">
+            <span className="hw-telarana">🕸️</span>
+            <span className="hw-murcielago hw-m1">🦇</span>
+            <span className="hw-murcielago hw-m2">🦇</span>
+            <span className="hw-murcielago hw-m3">🦇</span>
+            <span className="hw-calabaza">🎃</span>
+          </span>
+        )}
         <div className="tienda-hero-top">
           <div className="brand-row">
             <Logo size={52} />
@@ -748,6 +843,7 @@ export function Tienda() {
           </div>
         </div>
         <div className="tienda-beneficios">
+          {halloween && <span className="hw-pill">🎃 ¡Especial Halloween!</span>}
           <span>🚚 Te lo llevamos a tu depto</span>
           <span>💳 Paga online o al recibir</span>
           <span>🕒 Atendemos hoy de {horarioHoyTexto()}</span>

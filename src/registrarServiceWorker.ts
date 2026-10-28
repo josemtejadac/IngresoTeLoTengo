@@ -7,6 +7,14 @@
  * que casi nadie hace en el celular). Por eso aca se revisa seguido si hay una version nueva Y se le manda el
  * aviso para que se active de inmediato, en vez de esperar.
  */
+// Mientras el cliente esta comprando (carrito con cosas o llenando el pedido), una version nueva no recarga la
+// pagina de golpe: espera a que salga de la app. Nada de lo guardado en el telefono se borra al actualizar.
+let ocupado = false
+
+export function avisarOcupado(valor: boolean) {
+  ocupado = valor
+}
+
 export function registrarServiceWorker() {
   if (!('serviceWorker' in navigator)) return
 
@@ -23,7 +31,13 @@ export function registrarServiceWorker() {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (yaRecargo) return
       yaRecargo = true
-      window.location.reload()
+      if (!ocupado) {
+        window.location.reload()
+        return
+      }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') window.location.reload()
+      })
     })
 
     // Si encuentra una version nueva mientras esta pestaña esta abierta, apenas termine de instalarse se activa.

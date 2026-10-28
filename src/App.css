@@ -4234,3 +4234,144 @@ textarea {
 .tienda-chips.arrastrando .tienda-chip {
   cursor: grabbing;
 }
+
+/* ---------- Tema Halloween (solo tienda; se apaga solo por fecha, ver lib/temaTienda.ts) ---------- */
+body:has(.tema-halloween) {
+  background: #fdf4e7;
+}
+
+.tema-halloween {
+  --tienda-chips-bg: #fdf4e7;
+}
+
+.tema-halloween .tienda-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 85% 120%, rgba(249, 115, 22, 0.55) 0%, transparent 55%),
+    linear-gradient(135deg, #140a24 0%, #3b0764 55%, #7c2d12 100%);
+  box-shadow: 0 8px 22px rgba(59, 7, 100, 0.35);
+}
+
+/* El contenido del encabezado queda sobre los adornos. */
+.tema-halloween .tienda-hero > :not(.halloween-deco) {
+  position: relative;
+  z-index: 1;
+}
+
+.halloween-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hw-telarana {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  font-size: 54px;
+  opacity: 0.22;
+  transform: rotate(-12deg);
+}
+
+.hw-calabaza {
+  position: absolute;
+  right: 10px;
+  bottom: 62px;
+  font-size: 44px;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.7));
+  animation: hw-flotar 3.2s ease-in-out infinite;
+}
+
+.hw-murcielago {
+  position: absolute;
+  font-size: 18px;
+  opacity: 0.55;
+  animation: hw-volar 14s linear infinite;
+}
+
+.hw-m1 {
+  top: 12%;
+  animation-delay: 0s;
+}
+
+.hw-m2 {
+  top: 34%;
+  font-size: 14px;
+  animation-delay: -5s;
+  animation-duration: 18s;
+}
+
+.hw-m3 {
+  top: 6%;
+  font-size: 12px;
+  animation-delay: -10s;
+  animation-duration: 22s;
+}
+
+@keyframes hw-volar {
+  0% {
+    left: -8%;
+    transform: translateY(0) rotate(-6deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(6deg);
+  }
+  50% {
+    transform: translateY(6px) rotate(-4deg);
+  }
+  75% {
+    transform: translateY(-6px) rotate(5deg);
+  }
+  100% {
+    left: 104%;
+    transform: translateY(0) rotate(-6deg);
+  }
+}
+
+@keyframes hw-flotar {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-calabaza,
+  .hw-murcielago {
+    animation: none;
+  }
+
+  .hw-murcielago {
+    display: none;
+  }
+}
+
+.tema-halloween .tienda-beneficios .hw-pill {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.45);
+}
+
+.tema-halloween .tienda-buscar {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(249, 115, 22, 0.55);
+}
+
+.tema-halloween .tienda-chip.activo {
+  background: #ea580c;
+  border-color: #ea580c;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
+}
+
+.tema-halloween .tienda-card .btn-primary:not(:disabled) {
+  background: linear-gradient(135deg, #f97316, #c2410c);
+}
+
+.tema-halloween .tienda-card {
+  box-shadow: 0 1px 4px rgba(59, 7, 100, 0.12);
+}

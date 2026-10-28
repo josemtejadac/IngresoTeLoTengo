@@ -7,12 +7,25 @@
  * que casi nadie hace en el celular). Por eso aca se revisa seguido si hay una version nueva Y se le manda el
  * aviso para que se active de inmediato, en vez de esperar.
  */
-// Mientras el cliente esta comprando (carrito con cosas o llenando el pedido), una version nueva no recarga la
-// pagina de golpe: espera a que salga de la app. Nada de lo guardado en el telefono se borra al actualizar.
+// Una version nueva recarga la pagina al instante (el carrito y los datos guardados en el telefono no se borran).
+// Solo si el cliente esta llenando el pedido se espera a que lo envie o lo cierre, para no borrarle lo que escribia.
+// Antes de recargar se avisa con el evento EVENTO_ANTES_DE_RECARGAR para que la pagina guarde donde estaba.
+export const EVENTO_ANTES_DE_RECARGAR = 'tlt-antes-de-recargar'
+
 let ocupado = false
+let recargaPendiente = false
+
+function recargar() {
+  window.dispatchEvent(new Event(EVENTO_ANTES_DE_RECARGAR))
+  window.location.reload()
+}
 
 export function avisarOcupado(valor: boolean) {
   ocupado = valor
+  if (!valor && recargaPendiente) {
+    recargaPendiente = false
+    recargar()
+  }
 }
 
 export function registrarServiceWorker() {
@@ -32,11 +45,17 @@ export function registrarServiceWorker() {
       if (yaRecargo) return
       yaRecargo = true
       if (!ocupado) {
-        window.location.reload()
+        recargar()
         return
       }
+      recargaPendiente = true
+      // Si sale de la app con el pedido a medio llenar, se recarga ahi (lo que ya escribio queda en pantalla al volver
+      // solo si el navegador conserva la pagina; el carrito siempre queda guardado).
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') window.location.reload()
+        if (document.visibilityState === 'hidden' && recargaPendiente) {
+          recargaPendiente = false
+          recargar()
+        }
       })
     })
 
@@ -51,7 +70,7 @@ export function registrarServiceWorker() {
 
     activarSiHayUnoEsperando()
 
-    // Revisa si hay una version nueva: al volver a la pestaña/app y cada 5 minutos mientras esta abierta.
+    // Revisa si hay una version nueva: al volver a la pestaña/app y cada 2 minutos mientras esta abierta.
     const revisar = () => {
       activarSiHayUnoEsperando()
       reg.update().catch(() => {})
@@ -60,6 +79,6 @@ export function registrarServiceWorker() {
       if (document.visibilityState === 'visible') revisar()
     })
     window.addEventListener('focus', revisar)
-    setInterval(revisar, 5 * 60 * 1000)
+    setInterval(revisar, 2 * 60 * 1000)
   })
 }

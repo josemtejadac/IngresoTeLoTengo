@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { Stepper } from '../components/Stepper'
 import { FotoImg } from '../components/FotoImg'
@@ -6,7 +6,7 @@ import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo, resumenPromo } from '.
 import { useRealtimeRefresh } from '../lib/realtime'
 import { useArrastreHorizontal } from '../lib/arrastreHorizontal'
 import { esTemaHalloween } from '../lib/temaTienda'
-import { avisarOcupado } from '../registrarServiceWorker'
+import { EVENTO_ANTES_DE_RECARGAR, avisarOcupado } from '../registrarServiceWorker'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
 import { useAtrasCierra } from '../lib/atras'
@@ -114,6 +114,21 @@ function leerCarritoGuardado(): LineaGuardada[] {
   }
 }
 
+// Si la pagina se recarga sola por una version nueva, vuelve a la misma categoria, busqueda y posicion.
+const VISTA_KEY = 'tlt-tienda-vista'
+
+function leerVistaGuardada(): { categoria: string; search: string; scrollY: number } | null {
+  try {
+    const raw = sessionStorage.getItem(VISTA_KEY)
+    sessionStorage.removeItem(VISTA_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+const vistaInicial = typeof window !== 'undefined' ? leerVistaGuardada() : null
+
 function gramosLinea(l: CartLine): number {
   if (!l.producto.por_peso) return 0
   return l.modo === 'unidades' ? l.cantidad * (l.producto.gramos_unidad ?? 0) : l.cantidad
@@ -148,8 +163,8 @@ function quedaPocoStock(p: ProductoTienda): boolean {
 const cuponesCerradosEnEstaVisita = new Set<string>()
 
 export function Tienda() {
-  const [search, setSearch] = useState('')
-  const [categoria, setCategoria] = useState('')
+  const [search, setSearch] = useState(() => vistaInicial?.search ?? '')
+  const [categoria, setCategoria] = useState(() => vistaInicial?.categoria ?? '')
   const [categorias, setCategorias] = useState<string[]>([])
   // Tema de temporada (solo el aspecto): se apaga solo cuando termina la fecha.
   const halloween = esTemaHalloween()
@@ -284,11 +299,35 @@ export function Tienda() {
     if (carritoRestaurado) guardarCarrito(cart)
   }, [cart, carritoRestaurado])
 
-  // Con algo en el carrito o llenando el pedido, una actualizacion de la app espera a que salga para recargar.
+  // Llenando el pedido (o viendo la confirmacion), una actualizacion de la app espera a que termine para recargar.
   useEffect(() => {
-    avisarOcupado(cart.length > 0 || showCheckout)
+    avisarOcupado(showCheckout || confirmacion !== null)
     return () => avisarOcupado(false)
-  }, [cart.length, showCheckout])
+  }, [showCheckout, confirmacion])
+
+  // Antes de una recarga automatica se guarda donde estaba el cliente, para volver ahi mismo.
+  const vistaRef = useRef({ categoria, search })
+  vistaRef.current = { categoria, search }
+  useEffect(() => {
+    const guardar = () => {
+      try {
+        sessionStorage.setItem(VISTA_KEY, JSON.stringify({ ...vistaRef.current, scrollY: window.scrollY }))
+      } catch {
+        // sin almacenamiento: vuelve al inicio de la tienda
+      }
+    }
+    window.addEventListener(EVENTO_ANTES_DE_RECARGAR, guardar)
+    return () => window.removeEventListener(EVENTO_ANTES_DE_RECARGAR, guardar)
+  }, [])
+
+  // Tras esa recarga, apenas aparecen los productos se vuelve a la misma altura de la pagina.
+  const scrollPendiente = useRef(vistaInicial?.scrollY ?? 0)
+  useEffect(() => {
+    if (scrollPendiente.current <= 0 || productos.length === 0) return
+    const y = scrollPendiente.current
+    scrollPendiente.current = 0
+    requestAnimationFrame(() => window.scrollTo(0, y))
+  }, [productos])
 
   const runSearch = useCallback(async () => {
     try {

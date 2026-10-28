@@ -4,6 +4,7 @@ import { Stepper } from '../components/Stepper'
 import { FotoImg } from '../components/FotoImg'
 import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo, resumenPromo } from '../components/PromoTienda'
 import { useRealtimeRefresh } from '../lib/realtime'
+import { useArrastreHorizontal } from '../lib/arrastreHorizontal'
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
 import { useAtrasCierra } from '../lib/atras'
@@ -107,6 +108,9 @@ export function Tienda() {
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
+  // En PC las categorias se pueden arrastrar con el mouse o mover con la rueda.
+  const [chipsEl, setChipsEl] = useState<HTMLDivElement | null>(null)
+  useArrastreHorizontal(chipsEl)
   const [productos, setProductos] = useState<ProductoTienda[]>([])
   const [promos, setPromos] = useState<Record<string, PromoTienda>>({})
   const [cart, setCart] = useState<CartLine[]>([])
@@ -764,7 +768,7 @@ export function Tienda() {
       {error && <p className="error-text">{error}</p>}
 
       <div className="tienda-chips-wrap">
-        <div className="tienda-chips" role="tablist" aria-label="Categorías">
+        <div className="tienda-chips" role="tablist" aria-label="Categorías" ref={setChipsEl}>
           <button
             type="button"
             className={categoria === '' ? 'tienda-chip activo' : 'tienda-chip'}

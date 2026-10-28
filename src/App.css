@@ -4205,3 +4205,32 @@ textarea {
   font-size: 0.9rem;
   font-weight: 800;
 }
+
+/* En PC (mouse): las categorias se arrastran o se mueven con la rueda, y se ve una barrita para desplazarlas. */
+@media (hover: hover) and (pointer: fine) {
+  .tienda-chips {
+    cursor: grab;
+    user-select: none;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  .tienda-chips::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+
+  .tienda-chips::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+  }
+
+  .tienda-chips::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+.tienda-chips.arrastrando,
+.tienda-chips.arrastrando .tienda-chip {
+  cursor: grabbing;
+}

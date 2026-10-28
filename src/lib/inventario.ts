@@ -167,22 +167,28 @@ export interface PromoComponente {
   nombre: string
   precio: number | null
   stock: number
+  foto_path: string | null
 }
 
 /** Productos (y cantidad de cada uno) que lleva una promo. */
 export async function loadPromoComponentes(promoId: string): Promise<PromoComponente[]> {
   const { data, error } = await supabase
     .from('ingreso_promo_componentes')
-    .select('producto_id, cantidad, ingreso_productos!ingreso_promo_componentes_producto_id_fkey(nombre, precio, stock)')
+    .select('producto_id, cantidad, ingreso_productos!ingreso_promo_componentes_producto_id_fkey(nombre, precio, stock, foto_path)')
     .eq('promo_id', promoId)
   if (error) throw error
-  type Fila = { producto_id: string; cantidad: number; ingreso_productos: { nombre: string; precio: number | null; stock: number } | null }
+  type Fila = {
+    producto_id: string
+    cantidad: number
+    ingreso_productos: { nombre: string; precio: number | null; stock: number; foto_path: string | null } | null
+  }
   return ((data as unknown as Fila[]) ?? []).map((r) => ({
     producto_id: r.producto_id,
     cantidad: r.cantidad,
     nombre: r.ingreso_productos?.nombre ?? '—',
     precio: r.ingreso_productos?.precio ?? null,
     stock: r.ingreso_productos?.stock ?? 0,
+    foto_path: r.ingreso_productos?.foto_path ?? null,
   }))
 }
 

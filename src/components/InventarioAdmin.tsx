@@ -38,6 +38,10 @@ export function InventarioAdmin() {
   const [nuevoPrecioPromo, setNuevoPrecioPromo] = useState('')
   const [nuevoItemsPromo, setNuevoItemsPromo] = useState<ItemPromo[]>([])
   const [editItemsPromo, setEditItemsPromo] = useState<ItemPromo[]>([])
+  const [nuevaDescripcion, setNuevaDescripcion] = useState('')
+  const [nuevaFoto, setNuevaFoto] = useState<File | null>(null)
+  const [nuevaFotoUrl, setNuevaFotoUrl] = useState<string | null>(null)
+  const [creando, setCreando] = useState(false)
   const [search, setSearch] = useState('')
   const [categoria, setCategoria] = useState('')
   const [categorias, setCategorias] = useState<string[]>([])
@@ -142,7 +146,24 @@ export function InventarioAdmin() {
     setNuevoEsPromo(false)
     setNuevoPrecioPromo('')
     setNuevoItemsPromo([])
+    setNuevaDescripcion('')
+    elegirNuevaFoto(null)
     setScanMessage(null)
+    setScanError(null)
+  }
+
+  function elegirNuevaFoto(file: File | null) {
+    setNuevaFoto(file)
+    setNuevaFotoUrl((anterior) => {
+      if (anterior) URL.revokeObjectURL(anterior)
+      return file ? URL.createObjectURL(file) : null
+    })
+  }
+
+  function cerrarNuevo() {
+    setNuevoBarra(null)
+    setNuevoManual(false)
+    elegirNuevaFoto(null)
     setScanError(null)
   }
 
@@ -160,22 +181,29 @@ export function InventarioAdmin() {
         setScanError('Una promo necesita al menos 2 productos')
         return
       }
+      setCreando(true)
       try {
-        await guardarPromo({
+        const id = await guardarPromo({
           promoId: null,
           nombre: nuevoNombre,
           categoria: normalizarCategoria(nuevaCategoria),
           precio,
           items: nuevoItemsPromo.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad })),
         })
+        // Sin descripcion queda la automatica ("Incluye: 1 x Harina, ...").
+        if (nuevaDescripcion.trim()) await updateProducto(id, { nota: nuevaDescripcion.trim() })
+        if (nuevaFoto) await uploadProductoFoto(id, nuevaFoto)
         setScanMessage(`Promo creada: ${nuevoNombre.trim().toUpperCase()}`)
-        setNuevoManual(false)
+        cerrarNuevo()
         await runSearch()
       } catch (err) {
         setScanError(err instanceof Error ? err.message : 'Error creando la promo')
+      } finally {
+        setCreando(false)
       }
       return
     }
+    setCreando(true)
     try {
       const p = await crearProductoNuevo({
         codigo_barras: nuevoBarra,
@@ -183,12 +211,14 @@ export function InventarioAdmin() {
         categoria: nuevaCategoria,
         stock: nuevoManual ? Number(nuevoStock) || 0 : sumarStock ? 1 : 0,
       })
+      if (nuevaFoto) await uploadProductoFoto(p.id, nuevaFoto)
       setScanMessage(`Producto nuevo creado: ${p.nombre}`)
-      setNuevoBarra(null)
-      setNuevoManual(false)
+      cerrarNuevo()
       await runSearch()
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Error creando el producto')
+    } finally {
+      setCreando(false)
     }
   }
 
@@ -256,7 +286,16 @@ export function InventarioAdmin() {
     if (p.es_promo) {
       loadPromoComponentes(p.id)
         .then((rows) =>
-          setEditItemsPromo(rows.map((r) => ({ producto_id: r.producto_id, nombre: r.nombre, precio: r.precio, cantidad: r.cantidad }))),
+          setEditItemsPromo(
+            rows.map((r) => ({
+              producto_id: r.producto_id,
+              nombre: r.nombre,
+              precio: r.precio,
+              stock: r.stock,
+              foto_path: r.foto_path,
+              cantidad: r.cantidad,
+            })),
+          ),
         )
         .catch(() => setError('No se pudieron cargar los productos de la promo'))
     }
@@ -468,75 +507,160 @@ export function InventarioAdmin() {
         </label>
       </form>
       {scanMessage && <p className="info-text">{scanMessage}</p>}
-      {scanError && <p className="error-text">{scanError}</p>}
+      {scanError && !nuevoBarra && !nuevoManual && <p className="error-text">{scanError}</p>}
 
       {!nuevoBarra && !nuevoManual && (
         <button type="button" className="btn-detalle" onClick={abrirCrearManual}>
-          + Crear producto nuevo (sin código de barras)
+          + Crear producto o promo (sin código de barras)
         </button>
       )}
 
       {(nuevoBarra || nuevoManual) && (
-        <form onSubmit={handleCrearNuevo} className="worker-form">
-          <p>
-            {nuevoBarra
-              ? <>El código <strong>{nuevoBarra}</strong> no está en el catálogo. Créalo como producto nuevo:</>
-              : 'Datos del producto nuevo (podrás ponerle precio y foto después, en Editar):'}
-          </p>
-          <label>
-            Nombre
-            <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required autoFocus />
-          </label>
-          <label>
-            Categoría (opcional)
-            <input value={nuevaCategoria} onChange={(e) => setNuevaCategoria(e.target.value)} />
-          </label>
+        <form onSubmit={handleCrearNuevo} className="nuevo-panel">
+          <div className="nuevo-panel-head">
+            <h3>{nuevoManual && nuevoEsPromo ? '🎁 Nueva promo' : '📦 Nuevo producto'}</h3>
+            <p className="subtitle">
+              {nuevoBarra ? (
+                <>
+                  El código <strong>{nuevoBarra}</strong> no está en el catálogo. Créalo aquí.
+                </>
+              ) : nuevoEsPromo ? (
+                'Junta varios productos con un precio especial. Aparece en la tienda como un producto más.'
+              ) : (
+                'El precio, descuento y lo demás lo puedes ajustar después en Editar.'
+              )}
+            </p>
+          </div>
+
           {nuevoManual && (
-            <label className="checkbox-label">
-              <input type="checkbox" checked={nuevoEsPromo} onChange={(e) => setNuevoEsPromo(e.target.checked)} />
-              Es una promo de varios productos (ej. harina + jamón + queso)
-            </label>
+            <div className="segmento" role="radiogroup" aria-label="Tipo">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!nuevoEsPromo}
+                className={nuevoEsPromo ? 'segmento-op' : 'segmento-op activo'}
+                onClick={() => setNuevoEsPromo(false)}
+              >
+                📦 Producto
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={nuevoEsPromo}
+                className={nuevoEsPromo ? 'segmento-op activo' : 'segmento-op'}
+                onClick={() => setNuevoEsPromo(true)}
+              >
+                🎁 Promo
+              </button>
+            </div>
           )}
+
+          <div className="nuevo-cuerpo">
+            <label className="nuevo-foto">
+              {nuevaFotoUrl ? (
+                <img src={nuevaFotoUrl} alt="" />
+              ) : (
+                <span className="nuevo-foto-vacia">
+                  <span aria-hidden="true">📷</span>
+                  Foto
+                </span>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  elegirNuevaFoto(e.target.files?.[0] ?? null)
+                  e.target.value = ''
+                }}
+              />
+            </label>
+            <div className="nuevo-campos">
+              <label>
+                Nombre
+                <input
+                  value={nuevoNombre}
+                  onChange={(e) => setNuevoNombre(e.target.value)}
+                  placeholder={nuevoManual && nuevoEsPromo ? 'Ej: PROMO AREPA' : 'Ej: GALLETAS OREO 36G'}
+                  required
+                  autoFocus
+                />
+              </label>
+              <div className="nuevo-fila">
+                <label>
+                  Categoría
+                  <input
+                    list="categorias-nuevo"
+                    value={nuevaCategoria}
+                    onChange={(e) => setNuevaCategoria(e.target.value)}
+                    placeholder="Opcional"
+                  />
+                  <datalist id="categorias-nuevo">
+                    {categorias.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </label>
+                {nuevoManual && nuevoEsPromo ? (
+                  <label>
+                    Precio
+                    <span className="input-precio">
+                      <span aria-hidden="true">$</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        value={nuevoPrecioPromo}
+                        onChange={(e) => setNuevoPrecioPromo(e.target.value)}
+                        placeholder="0"
+                      />
+                    </span>
+                  </label>
+                ) : (
+                  nuevoManual && (
+                    <label>
+                      Stock inicial
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        value={nuevoStock}
+                        onChange={(e) => setNuevoStock(e.target.value)}
+                      />
+                    </label>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+
           {nuevoManual && nuevoEsPromo && (
             <>
               <label>
-                Precio de la promo
-                <input
-                  type="number"
-                  min={1}
-                  value={nuevoPrecioPromo}
-                  onChange={(e) => setNuevoPrecioPromo(e.target.value)}
-                  className="qty-input"
+                Descripción para el cliente
+                <textarea
+                  rows={2}
+                  value={nuevaDescripcion}
+                  onChange={(e) => setNuevaDescripcion(e.target.value)}
+                  placeholder="Opcional. Si la dejas vacía, se muestra lo que incluye."
                 />
               </label>
-              <ElegirProductosPromo items={nuevoItemsPromo} onChange={setNuevoItemsPromo} />
+              <ElegirProductosPromo
+                items={nuevoItemsPromo}
+                onChange={setNuevoItemsPromo}
+                precioPromo={Number(nuevoPrecioPromo) || 0}
+              />
             </>
           )}
-          {nuevoManual && !nuevoEsPromo && (
-            <label>
-              Stock inicial
-              <input
-                type="number"
-                min={0}
-                value={nuevoStock}
-                onChange={(e) => setNuevoStock(e.target.value)}
-                className="qty-input"
-              />
-            </label>
-          )}
-          <div className="report-row">
-            <button type="submit" className="btn btn-primary">
-              {nuevoManual && nuevoEsPromo ? 'Crear promo' : 'Crear producto'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                setNuevoBarra(null)
-                setNuevoManual(false)
-              }}
-            >
+
+          {scanError && <p className="error-text">{scanError}</p>}
+
+          <div className="nuevo-acciones">
+            <button type="button" className="btn btn-secondary" onClick={cerrarNuevo} disabled={creando}>
               Cancelar
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={creando}>
+              {creando ? 'Creando...' : nuevoManual && nuevoEsPromo ? 'Crear promo' : 'Crear producto'}
             </button>
           </div>
         </form>
@@ -764,7 +888,11 @@ export function InventarioAdmin() {
                   Stock: <strong>{editStock}</strong> promo(s) (se calcula solo: cuántas alcanzan con el stock de sus
                   productos).
                 </p>
-                <ElegirProductosPromo items={editItemsPromo} onChange={setEditItemsPromo} />
+                <ElegirProductosPromo
+                  items={editItemsPromo}
+                  onChange={setEditItemsPromo}
+                  precioPromo={Number(editPrecio) || 0}
+                />
               </>
             ) : editing?.stock_base_producto_id ? (
               <p className="subtitle">

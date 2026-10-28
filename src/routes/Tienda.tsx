@@ -343,6 +343,8 @@ export function Tienda() {
       // Que incluye cada promo (para mostrarla con su etiqueta y lo que trae); si falla, se ve como producto normal.
       loadPromosTienda().then(setPromos).catch(() => {})
       loadSubcategoriasTienda().then(setSubcats).catch(() => {})
+      // Las categorias tambien se ponen al dia solas (ej. si se crea o se vacia una, como Halloween).
+      loadCategoriasTienda().then(setCategorias).catch(() => {})
       setSinConexion(false)
       setError(null)
     } catch (err) {

@@ -25,6 +25,29 @@ import './paginaWeb.css'
  * carrito guardado en el telefono y lleva a la tienda, que lo recupera solo.
  */
 
+/**
+ * Productos de la portada, elegidos porque su foto es limpia (fondo blanco, sin mano). Se muestran los 6 primeros que
+ * esten disponibles; el resto es reserva por si alguno se agota.
+ */
+const VITRINA_IDS = [
+  '533c2ea1-9a09-4614-8b4f-9f90514efc5c', // Coca Cola Zero 1.5L
+  'bf6466b0-f7cd-4239-863b-923878f21f1a', // Milka Oreo
+  '25bb11b5-8630-4467-a15f-09d7dbae7372', // De Todito
+  '0a248832-e0dd-4caa-a8a0-d7ecc5ee9d47', // Pomarola
+  'd851f6d3-c85f-458b-8abd-f78c465e77b0', // Huevos bandeja 30
+  '65ee8d21-d853-44a1-8cbf-346143f0c49f', // Kem Pina 3L
+  '8949dfc0-ed94-48e6-b947-0ccc07abb6d2', // Watts Tuttifrutilla
+  '2a51ec72-f91b-4be3-9c77-616bb5eea6d4', // Limon
+  '037d6a6d-9331-4dfb-bf87-96530ba721be', // Kraft Mayo Deli
+  '97efa32a-db1f-4d8b-a025-cee4d54cc271', // Quaker
+  '69ebf156-e99e-41ef-a120-611222b83f4f', // Arroz Bonanza
+  '22307805-130e-48be-94b6-5bddc49a4105', // Trencito
+  '129996eb-f90a-4695-b16d-d3a044eeffec', // Savoy
+  '4a314005-61af-4d01-a490-7e69cb36d9d0', // Toblerone
+  '0dbea91b-4ecb-4266-bb14-bc2caa91df20', // Colun leche chocolate
+  '84582bea-96a7-4d78-80f9-62d69ca512c3', // Protex
+]
+
 /** Cuanto se muestra cada foto del carrusel antes de pasar a la siguiente. */
 const DURACION_FOTO_MS = 3000
 const WHATSAPP = 'https://wa.me/56971605299?text=Hola%2C%20quiero%20hacer%20un%20pedido'
@@ -467,7 +490,13 @@ export function PaginaWeb() {
     [productos, promos],
   )
 
-  const vitrina = useMemo(() => productos.filter((p) => p.disponible && p.foto_path).slice(0, 6), [productos])
+  const vitrina = useMemo(
+    () =>
+      VITRINA_IDS.map((id) => porId.get(id))
+        .filter((p): p is ProductoTienda => !!p && p.disponible && !!p.foto_path)
+        .slice(0, 6),
+    [porId],
+  )
   const disponibles = useMemo(() => productos.filter((p) => p.disponible).length, [productos])
   const cantOfertas = useMemo(() => productos.filter((p) => p.disponible && (p.descuento_pct || promos[p.id])).length, [productos, promos])
 

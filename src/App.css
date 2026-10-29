@@ -4686,3 +4686,16 @@ body:has(.tema-halloween) {
     display: none;
   }
 }
+
+/* Inicio: boton a la pagina web publica. */
+.btn-web {
+  background: linear-gradient(135deg, #16a34a, #0f5132);
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.3);
+}
+
+.btn-web:hover {
+  filter: brightness(1.06);
+}

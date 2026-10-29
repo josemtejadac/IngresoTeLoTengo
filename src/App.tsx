@@ -12,9 +12,11 @@ import './App.css'
 const Tienda = lazy(() => import('./routes/Tienda').then((m) => ({ default: m.Tienda })))
 const AdminDashboard = lazy(() => import('./routes/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })))
 const WorkerDashboard = lazy(() => import('./routes/worker/WorkerDashboard').then((m) => ({ default: m.WorkerDashboard })))
+const PaginaWeb = lazy(() => import('./routes/PaginaWeb').then((m) => ({ default: m.PaginaWeb })))
 
 function App() {
   const isTienda = window.location.pathname.startsWith('/tienda')
+  const isWeb = window.location.pathname.startsWith('/web')
   const [showLogin, setShowLogin] = useState(false)
 
   const { session, profile, loading } = useAuth()
@@ -31,6 +33,11 @@ function App() {
     // La tienda es publica: no requiere iniciar sesion.
     if (isTienda) {
       return <Tienda />
+    }
+
+    // La pagina web tambien es publica (vitrina del catalogo; para pagar lleva a la tienda).
+    if (isWeb) {
+      return <PaginaWeb />
     }
 
     if (loading) {

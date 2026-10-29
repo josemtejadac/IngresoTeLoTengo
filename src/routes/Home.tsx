@@ -21,6 +21,9 @@ export function Home({ onIngreso }: HomeProps) {
         <a className="btn btn-secondary" href="/tienda">
           Tienda
         </a>
+        <a className="btn btn-web" href="/web">
+          🌐 Página web
+        </a>
       </div>
     </div>
   )

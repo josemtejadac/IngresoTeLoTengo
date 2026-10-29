@@ -613,7 +613,7 @@ body.pw-sin-scroll {
 }
 
 .pw-slide.activo .pw-slide-img {
-  animation: pw-kenburns 7s ease-out both;
+  animation: pw-kenburns 3.5s ease-out both;
 }
 
 @keyframes pw-kenburns {
@@ -733,7 +733,7 @@ body.pw-sin-scroll {
   inset: 0;
   background: #fff;
   transform-origin: left;
-  animation: pw-progreso 5.5s linear both;
+  animation: pw-progreso 3s linear both;
 }
 
 @keyframes pw-progreso {

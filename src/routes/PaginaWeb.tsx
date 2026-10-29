@@ -25,6 +25,8 @@ import './paginaWeb.css'
  * carrito guardado en el telefono y lleva a la tienda, que lo recupera solo.
  */
 
+/** Cuanto se muestra cada foto del carrusel antes de pasar a la siguiente. */
+const DURACION_FOTO_MS = 3000
 const WHATSAPP = 'https://wa.me/56971605299?text=Hola%2C%20quiero%20hacer%20un%20pedido'
 const POR_PAGINA = 40
 const STOCK_BAJO = 3
@@ -219,7 +221,7 @@ function Carrusel({ onElegir }: { onElegir: (b: Banner) => void }) {
 
   useEffect(() => {
     if (pausa) return
-    const t = setTimeout(() => ir(idx + 1), 5500)
+    const t = setTimeout(() => ir(idx + 1), DURACION_FOTO_MS)
     return () => clearTimeout(t)
   }, [idx, pausa, ir])
 

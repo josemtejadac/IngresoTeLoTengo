@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useRealtimeRefresh } from '../lib/realtime'
 import type { Profile } from '../types'
 import { formatCLP } from '../lib/payroll'
 import { formatHoursMinutes } from '../lib/hours'
@@ -22,22 +23,18 @@ export function HistorialPagos({ profile }: { profile: Profile }) {
   const [error, setError] = useState<string | null>(null)
   const [abierto, setAbierto] = useState<string | null>(null)
 
-  useEffect(() => {
-    let vivo = true
+  const cargar = useCallback(() => {
+    const falla = (err: unknown) => setError(err instanceof Error ? err.message : 'Error cargando el historial de pagos')
     if (esSemanal) {
-      loadWeekPayHistory(profile, previousWeeks(SEMANAS_A_MOSTRAR))
-        .then((r) => vivo && setSemanas(r))
-        .catch((err) => vivo && setError(err instanceof Error ? err.message : 'Error cargando el historial de pagos'))
+      loadWeekPayHistory(profile, previousWeeks(SEMANAS_A_MOSTRAR)).then(setSemanas).catch(falla)
     } else {
-      loadPayHistory(profile, previousMonths(MESES_A_MOSTRAR))
-        .then((r) => vivo && setMeses(r))
-        .catch((err) => vivo && setError(err instanceof Error ? err.message : 'Error cargando el historial de pagos'))
-    }
-    return () => {
-      vivo = false
+      loadPayHistory(profile, previousMonths(MESES_A_MOSTRAR)).then(setMeses).catch(falla)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.id, esSemanal])
+
+  // Se pone al dia sola: si una semana cumple la meta (el bono se marca solo), se ve en verde y se suma sin recargar.
+  useRealtimeRefresh(['ingreso_weekly_bonus'], cargar, 60000)
 
   if (esSemanal) {
     const conDatos = (semanas ?? []).filter(
@@ -143,6 +140,18 @@ export function HistorialPagos({ profile }: { profile: Profile }) {
               {profile.weekly_bonus_eligible && (
                 <p>
                   Bono semanal: <strong>{formatCLP(m.weeklyBonusTotal)}</strong>
+                  <span className="bonus-semanas">
+                    {m.semanas.map((w) => (
+                      <span
+                        key={w.label}
+                        className={w.earned ? 'bonus-week earned' : 'bonus-week'}
+                        title={w.earned ? 'Meta cumplida' : 'Meta no cumplida (todavía)'}
+                      >
+                        {w.earned ? '✓ ' : ''}
+                        {w.label}
+                      </span>
+                    ))}
+                  </span>
                 </p>
               )}
               {m.feriadoDays.length > 0 && (

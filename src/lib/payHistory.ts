@@ -6,6 +6,8 @@ import {
   WEEKLY_BONUS_AMOUNT,
   formatWeekLabel,
   getCurrentWeek,
+  getWeeksEndingInMonth,
+  isWeekEarned,
   loadWeeklyBonusForWorker,
   loadWeeklyBonusRow,
   totalEarned,
@@ -23,6 +25,8 @@ export interface MonthPaySummary {
   label: string
   pay: PaySummary
   weeklyBonusTotal: number
+  /** Semanas del mes (las que cuentan para el bono semanal) y si cada una cumplio la meta. */
+  semanas: { label: string; earned: boolean }[]
   feriadoDays: FeriadoDay[]
   feriadoTotal: number
   /** Solo tiene sentido para sueldo mensual: base + extras + bonos ganados ese mes. */
@@ -93,6 +97,7 @@ export async function loadMonthPaySummary(worker: Profile, month: string): Promi
     label: `${MONTH_NAMES[monthIndex]} ${year}`,
     pay,
     weeklyBonusTotal,
+    semanas: getWeeksEndingInMonth(month).map((w) => ({ label: formatWeekLabel(w), earned: isWeekEarned(weeklyBonusRows, w) })),
     feriadoDays: feriadoSummary.days,
     feriadoTotal: feriadoSummary.total,
     total,

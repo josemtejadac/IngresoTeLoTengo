@@ -4699,3 +4699,9 @@ body:has(.tema-halloween) {
 .btn-web:hover {
   filter: brightness(1.06);
 }
+
+/* Historial de pagos: semanas del mes con su meta (verde = cumplida, gris = no / todavia). */
+.bonus-semanas {
+  display: block;
+  margin-top: 4px;
+}

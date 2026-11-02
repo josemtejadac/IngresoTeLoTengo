@@ -283,6 +283,19 @@ export async function updateProducto(
   if (error) throw error
 }
 
+/**
+ * Stock que se guarda al editar un producto. Mientras la ventana de edicion estaba abierta pudieron entrar ventas o
+ * facturas, asi que NO se pisa con el numero que se vio al abrir: se aplica solo el cambio que la persona hizo
+ * (`deseado - original`) sobre el stock ACTUAL. Si no toco el stock, queda el actual tal cual.
+ */
+export async function stockAGuardar(id: string, original: number, deseado: number): Promise<number> {
+  const { data, error } = await supabase.from('ingreso_productos').select('stock').eq('id', id).single()
+  if (error) throw error
+  const actual = (data as { stock: number }).stock
+  if (deseado === original) return actual
+  return Math.max(0, Math.round(actual + (deseado - original)))
+}
+
 /** Un trabajador (no solo el admin) corrige el precio y el stock de un producto ya activo. */
 export async function actualizarPrecioStock(id: string, precio: number | null, stock: number) {
   const { error } = await supabase.rpc('ingreso_worker_actualizar_precio_stock', {

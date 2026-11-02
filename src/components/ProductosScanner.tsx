@@ -11,6 +11,7 @@ import {
   loadCategorias,
   loadProductos,
   productoFotoUrl,
+  stockAGuardar,
   uploadProductoFoto,
   type FiltroStock,
   type Producto,
@@ -20,10 +21,12 @@ interface Borrador {
   precio: string
   stock: string
   llego: string
+  /** Stock que tenia el producto al abrir la edicion (para aplicar solo lo que la persona cambio). */
+  stockInicial: number
 }
 
 function borradorDe(p: Producto): Borrador {
-  return { precio: p.precio !== null ? String(p.precio) : '', stock: String(p.stock), llego: '' }
+  return { precio: p.precio !== null ? String(p.precio) : '', stock: String(p.stock), llego: '', stockInicial: p.stock }
 }
 
 export function ProductosScanner() {
@@ -35,7 +38,7 @@ export function ProductosScanner() {
   const [error, setError] = useState<string | null>(null)
   // Solo se edita una fila a la vez: primero se toca Editar, recien ahi se pueden cambiar precio y stock.
   const [editandoId, setEditandoId] = useState<string | null>(null)
-  const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '', llego: '' })
+  const [borrador, setBorrador] = useState<Borrador>({ precio: '', stock: '', llego: '', stockInicial: 0 })
   const [guardandoId, setGuardandoId] = useState<string | null>(null)
   // El admin decide quien puede editar; se consulta cada vez que se abre esta pestaña.
   const [puedeEditar, setPuedeEditar] = useState(false)
@@ -110,8 +113,10 @@ export function ProductosScanner() {
     setGuardandoId(p.id)
     setError(null)
     try {
-      await actualizarPrecioStock(p.id, precio, stock)
-      setResultados((prev) => prev.map((x) => (x.id === p.id ? { ...x, precio, stock } : x)))
+      // Se guarda solo lo que se cambio sobre el stock de ahora (puede haber habido ventas mientras se editaba).
+      const stockFinal = await stockAGuardar(p.id, borrador.stockInicial, stock)
+      await actualizarPrecioStock(p.id, precio, stockFinal)
+      setResultados((prev) => prev.map((x) => (x.id === p.id ? { ...x, precio, stock: stockFinal } : x)))
       setEditandoId(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error guardando el producto')

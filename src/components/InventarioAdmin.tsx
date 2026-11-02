@@ -22,6 +22,7 @@ import {
   uploadProductoFoto,
   unificarCategoria,
   claveCategoria,
+  stockAGuardar,
   type FiltroStock,
   type Producto,
 } from '../lib/inventario'
@@ -383,13 +384,15 @@ export function InventarioAdmin() {
     setSavingId(editing.id)
     setError(null)
     try {
+      // Solo se aplica lo que se cambio sobre el stock de AHORA: si entraron ventas con esta ventana abierta, no se pierden.
+      const stockFinal = editing.es_promo ? 0 : await stockAGuardar(editing.id, editing.stock, Math.round(stock))
       await updateProducto(editing.id, {
         nombre,
         codigo_barras: barra === '' ? null : barra,
         categoria: editing.es_promo ? CATEGORIA_PROMOS : normalizarCategoria(editCategoria),
         precio,
         // El stock de una promo se calcula solo desde sus productos: no se manda.
-        ...(editing.es_promo ? {} : { stock: Math.round(stock), por_peso: editPorPeso, gramos_unidad: gramosUnidad }),
+        ...(editing.es_promo ? {} : { stock: stockFinal, por_peso: editPorPeso, gramos_unidad: gramosUnidad }),
         descuento_pct: descuentoPct,
         nota: editNota.trim() === '' ? null : editNota.trim(),
         destacado: editDestacado,

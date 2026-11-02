@@ -19,16 +19,23 @@ function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Semanas que empiezan desde esta fecha pertenecen al mes en que empiezan; las anteriores quedan como estaban (ya pagadas). */
-const SEMANA_POR_INICIO_DESDE = '2026-10-26'
+/** Desde las semanas que empiezan en esta fecha rige la regla de "los dias 1 y 2" (ver getWeeksEndingInMonth). */
+const REGLA_DIA_2_DESDE = '2026-10-26'
 
 /**
- * Las semanas de pago van de lunes a domingo (el corte/cierre es el
- * domingo). Una semana "pertenece" al mes en que cae su domingo de
- * cierre (semanas anteriores al 26/10/2026). Desde la semana que empieza el
- * 26/10/2026, pertenece al mes en que empieza (su lunes).
- * Segun el mes, puede haber 4 o 5 domingos (5 semanas), nunca siempre 4.
+ * Las semanas de pago van de lunes a domingo (el corte/cierre es el domingo). Una semana que cruza de un mes a otro
+ * cuenta para el mes donde caen la mayoria de sus dias laborales:
+ *  - si termina el dia 1 o 2 del mes siguiente, sigue contando en el mes que se cierra (ej. 26/10-01/11 es de octubre);
+ *  - si termina el dia 3 o despues, cuenta en el mes que entra (ej. 30/11-06/12 es de diciembre).
+ * Antes del 26/10/2026 se mantiene la regla anterior (el mes de su domingo) para no cambiar lo ya pagado.
+ * Segun el mes salen 4 o 5 semanas.
  */
+function mesDeLaSemana(start: Date, end: Date): { year: number; month: number } {
+  const usaFin = toISODate(start) < REGLA_DIA_2_DESDE || end.getDate() > 2
+  const ref = usaFin ? end : start
+  return { year: ref.getFullYear(), month: ref.getMonth() }
+}
+
 export function getWeeksEndingInMonth(month: string): WeekRange[] {
   const [yearStr, monthStr] = month.split('-')
   const year = Number(yearStr)
@@ -43,9 +50,8 @@ export function getWeeksEndingInMonth(month: string): WeekRange[] {
     const start = new Date(cursor)
     const end = new Date(start)
     end.setDate(end.getDate() + 6)
-    // Desde SEMANA_POR_INICIO_DESDE la semana cuenta en el mes donde empieza (lunes); antes, en el de su domingo.
-    const duenio = toISODate(start) >= SEMANA_POR_INICIO_DESDE ? start : end
-    if (duenio.getFullYear() === year && duenio.getMonth() === monthIndex) weeks.push({ start, end })
+    const dueno = mesDeLaSemana(start, end)
+    if (dueno.year === year && dueno.month === monthIndex) weeks.push({ start, end })
     cursor.setDate(cursor.getDate() + 7)
   }
   return weeks

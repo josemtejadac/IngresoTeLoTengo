@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import type { Profile } from '../types'
 import { formatCLP } from '../lib/payroll'
@@ -16,7 +16,7 @@ const MESES_A_MOSTRAR = 6
 const SEMANAS_A_MOSTRAR = 8
 
 /** Historial de sueldo de meses/semanas ya cerrados (todo lo que "Mi sueldo" mostraba mientras corria ese periodo). */
-export function HistorialPagos({ profile }: { profile: Profile }) {
+export function HistorialPagos({ profile, selector }: { profile: Profile; selector?: ReactNode }) {
   const esSemanal = profile.pay_frequency === 'weekly'
   const [meses, setMeses] = useState<MonthPaySummary[] | null>(null)
   const [semanas, setSemanas] = useState<WeekPaySummary[] | null>(null)
@@ -33,6 +33,11 @@ export function HistorialPagos({ profile }: { profile: Profile }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.id, esSemanal])
 
+  // Carga al abrir (y al cambiar de trabajador), sin depender de la conexion en tiempo real.
+  useEffect(() => {
+    cargar()
+  }, [cargar])
+
   // Se pone al dia sola: si una semana cumple la meta (el bono se marca solo), se ve en verde y se suma sin recargar.
   useRealtimeRefresh(['ingreso_weekly_bonus'], cargar, 60000)
 
@@ -46,6 +51,7 @@ export function HistorialPagos({ profile }: { profile: Profile }) {
         <p className="subtitle">
           El corte de cada semana es el domingo a las 12pm. Aquí queda el detalle de las semanas ya cerradas.
         </p>
+        {selector}
         {error && <p className="error-text">{error}</p>}
         {!semanas && !error && <p className="subtitle">Cargando...</p>}
         {semanas && conDatos.length === 0 && <p className="subtitle">Todavía no hay semanas anteriores con datos.</p>}
@@ -108,6 +114,7 @@ export function HistorialPagos({ profile }: { profile: Profile }) {
         Cuando termina el mes, &quot;Mi sueldo&quot; pasa solo al mes nuevo. Aquí queda el detalle de los meses
         anteriores.
       </p>
+      {selector}
       {error && <p className="error-text">{error}</p>}
       {!meses && !error && <p className="subtitle">Cargando...</p>}
       {meses && conDatos.length === 0 && <p className="subtitle">Todavía no hay meses anteriores con datos.</p>}

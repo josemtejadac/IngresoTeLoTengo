@@ -1198,29 +1198,30 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
 
       {activeTab === 'trabajadores' && <SueldosEnVivo workers={workers} />}
 
-      {activeTab === 'trabajadores' && (
-      <section className="card">
-        <h2>Historial de sueldos</h2>
-        <p className="subtitle">
-          El detalle de sueldo de meses o semanas ya cerrados de cada trabajador (según cobre mensual o semanal).
-        </p>
-        <label>
-          Trabajador
-          <select value={historialSueldoWorkerId} onChange={(e) => setHistorialSueldoWorkerId(e.target.value)}>
-            {workers.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.full_name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
-      )}
-
+      {/* Un solo historial: el selector de trabajador va dentro del mismo cuadro. */}
       {activeTab === 'trabajadores' &&
         (() => {
           const worker = workers.find((w) => w.id === historialSueldoWorkerId)
-          return worker ? <HistorialPagos profile={worker} /> : null
+          const selector = (
+            <label>
+              Trabajador
+              <select value={historialSueldoWorkerId} onChange={(e) => setHistorialSueldoWorkerId(e.target.value)}>
+                {workers.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.full_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )
+          return worker ? (
+            <HistorialPagos key={worker.id} profile={worker} selector={selector} />
+          ) : (
+            <section className="card">
+              <h2>Historial de pagos</h2>
+              {selector}
+            </section>
+          )
         })()}
 
       {activeTab === 'trabajadores' && (

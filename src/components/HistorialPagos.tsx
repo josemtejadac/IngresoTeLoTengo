@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRealtimeRefresh } from '../lib/realtime'
 import type { Profile } from '../types'
 import { formatCLP } from '../lib/payroll'
@@ -11,17 +11,159 @@ import {
   type MonthPaySummary,
   type WeekPaySummary,
 } from '../lib/payHistory'
+import {
+  loadPagosSueldo,
+  marcarPagado,
+  periodoMes,
+  periodoSemana,
+  quitarPago,
+  urlCaptura,
+  type PagoSueldo,
+} from '../lib/pagosSueldo'
 
 const MESES_A_MOSTRAR = 6
 const SEMANAS_A_MOSTRAR = 8
 
+function fechaHora(iso: string): string {
+  return new Date(iso).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+/**
+ * Pago del periodo. El admin lo marca: transferencia (adjunta la captura, que se sube muy comprimida) o efectivo.
+ * Una vez marcado queda con el check verde de "Pagado"; el trabajador lo ve en su propio historial.
+ */
+function BloquePago({
+  workerId,
+  periodo,
+  monto,
+  pago,
+  admin,
+  onCambio,
+}: {
+  workerId: string
+  periodo: string
+  monto: number
+  pago?: PagoSueldo
+  admin: boolean
+  onCambio: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function ejecutar(fn: () => Promise<void>) {
+    setBusy(true)
+    setError(null)
+    try {
+      await fn()
+      onCambio()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el pago')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function verCaptura() {
+    if (!pago?.comprobante_path) return
+    try {
+      window.open(await urlCaptura(pago.comprobante_path), '_blank', 'noopener')
+    } catch {
+      setError('No se pudo abrir la captura.')
+    }
+  }
+
+  if (pago) {
+    return (
+      <div className="pago-sueldo pagado">
+        <p>
+          <span className="pago-check">✓</span> <strong>Pagado</strong> por{' '}
+          {pago.metodo === 'transferencia' ? 'transferencia' : 'efectivo'} · {fechaHora(pago.pagado_at)}
+          {pago.monto !== null && <> · {formatCLP(pago.monto)}</>}
+        </p>
+        <div className="pago-sueldo-acciones">
+          {pago.comprobante_path && (
+            <button type="button" className="btn-link" onClick={verCaptura}>
+              Ver captura
+            </button>
+          )}
+          {admin && (
+            <button
+              type="button"
+              className="btn-link"
+              disabled={busy}
+              onClick={() => {
+                if (!window.confirm('¿Quitar la marca de pagado?')) return
+                ejecutar(() => quitarPago(workerId, periodo, pago.comprobante_path))
+              }}
+            >
+              Quitar pago
+            </button>
+          )}
+        </div>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+    )
+  }
+
+  if (!admin) return null
+
+  return (
+    <div className="pago-sueldo">
+      <p className="subtitle">Marcar como pagado:</p>
+      <div className="pago-sueldo-acciones">
+        <button type="button" className="btn btn-secondary btn-small" disabled={busy} onClick={() => inputRef.current?.click()}>
+          {busy ? 'Subiendo...' : '📎 Transferencia (subir captura)'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-small"
+          disabled={busy}
+          onClick={() => {
+            if (!window.confirm(`¿Marcar ${formatCLP(monto)} como pagado en EFECTIVO?`)) return
+            ejecutar(() => marcarPagado({ workerId, periodo, metodo: 'efectivo', monto }))
+          }}
+        >
+          💵 Efectivo
+        </button>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const archivo = e.target.files?.[0]
+          e.target.value = ''
+          if (archivo) ejecutar(() => marcarPagado({ workerId, periodo, metodo: 'transferencia', monto, captura: archivo }))
+        }}
+      />
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  )
+}
+
 /** Historial de sueldo de meses/semanas ya cerrados (todo lo que "Mi sueldo" mostraba mientras corria ese periodo). */
-export function HistorialPagos({ profile, selector }: { profile: Profile; selector?: ReactNode }) {
+export function HistorialPagos({
+  profile,
+  selector,
+  admin = false,
+}: {
+  profile: Profile
+  selector?: ReactNode
+  /** Solo el admin puede marcar pagos (transferencia con captura o efectivo). */
+  admin?: boolean
+}) {
   const esSemanal = profile.pay_frequency === 'weekly'
   const [meses, setMeses] = useState<MonthPaySummary[] | null>(null)
   const [semanas, setSemanas] = useState<WeekPaySummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [abierto, setAbierto] = useState<string | null>(null)
+  const [pagos, setPagos] = useState<Record<string, PagoSueldo>>({})
+
+  const cargarPagos = useCallback(() => {
+    loadPagosSueldo(profile.id).then(setPagos).catch(() => {})
+  }, [profile.id])
 
   const cargar = useCallback(() => {
     const falla = (err: unknown) => setError(err instanceof Error ? err.message : 'Error cargando el historial de pagos')
@@ -30,8 +172,9 @@ export function HistorialPagos({ profile, selector }: { profile: Profile; select
     } else {
       loadPayHistory(profile, previousMonths(MESES_A_MOSTRAR)).then(setMeses).catch(falla)
     }
+    cargarPagos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile.id, esSemanal])
+  }, [profile.id, esSemanal, cargarPagos])
 
   // Carga al abrir (y al cambiar de trabajador), sin depender de la conexion en tiempo real.
   useEffect(() => {
@@ -64,6 +207,7 @@ export function HistorialPagos({ profile, selector }: { profile: Profile; select
             >
               <strong>Semana {s.label}</strong>
               <span>
+                {pagos[periodoSemana(s.week.start)] && <span className="pago-check-chip">✓ Pagado</span>}{' '}
                 {formatCLP(s.total)} {abierto === s.label ? '▴' : '▾'}
               </span>
             </button>
@@ -95,6 +239,14 @@ export function HistorialPagos({ profile, selector }: { profile: Profile; select
                 <p className="pago-mes-total">
                   Total de la semana: <strong>{formatCLP(s.total)}</strong>
                 </p>
+                <BloquePago
+                  workerId={profile.id}
+                  periodo={periodoSemana(s.week.start)}
+                  monto={s.total}
+                  pago={pagos[periodoSemana(s.week.start)]}
+                  admin={admin}
+                  onCambio={cargarPagos}
+                />
               </div>
             )}
           </div>
@@ -127,6 +279,7 @@ export function HistorialPagos({ profile, selector }: { profile: Profile; select
           >
             <strong>{m.label}</strong>
             <span>
+              {pagos[periodoMes(m.month)] && <span className="pago-check-chip">✓ Pagado</span>}{' '}
               {formatCLP(m.total)} {abierto === m.month ? '▴' : '▾'}
             </span>
           </button>
@@ -170,6 +323,14 @@ export function HistorialPagos({ profile, selector }: { profile: Profile; select
               <p className="pago-mes-total">
                 Total del mes: <strong>{formatCLP(m.total)}</strong>
               </p>
+              <BloquePago
+                workerId={profile.id}
+                periodo={periodoMes(m.month)}
+                monto={m.total}
+                pago={pagos[periodoMes(m.month)]}
+                admin={admin}
+                onCambio={cargarPagos}
+              />
             </div>
           )}
         </div>

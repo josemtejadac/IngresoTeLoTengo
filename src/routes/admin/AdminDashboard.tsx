@@ -1215,7 +1215,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
             </label>
           )
           return worker ? (
-            <HistorialPagos key={worker.id} profile={worker} selector={selector} />
+            <HistorialPagos key={worker.id} profile={worker} selector={selector} admin />
           ) : (
             <section className="card">
               <h2>Historial de pagos</h2>

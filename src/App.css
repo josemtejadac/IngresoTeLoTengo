@@ -4705,3 +4705,50 @@ body:has(.tema-halloween) {
   display: block;
   margin-top: 4px;
 }
+
+/* Historial de pagos: marca de pagado (transferencia con captura o efectivo). */
+.pago-sueldo {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.pago-sueldo.pagado {
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+}
+
+.pago-sueldo p {
+  margin: 0 0 6px;
+}
+
+.pago-sueldo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.pago-check {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.pago-check-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.72rem;
+  font-weight: 700;
+}

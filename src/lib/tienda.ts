@@ -346,6 +346,22 @@ export async function loadPedidoTiendaItems(pedidoId: string): Promise<PedidoTie
   return (data as PedidoTiendaItem[]) ?? []
 }
 
+/** Productos de varios pedidos con una sola consulta (por tandas, para no pasar el limite de filas ni el largo de la URL). */
+export async function loadItemsDePedidos(ids: string[]): Promise<Record<string, PedidoTiendaItem[]>> {
+  const mapa: Record<string, PedidoTiendaItem[]> = Object.fromEntries(ids.map((id) => [id, []]))
+  for (let i = 0; i < ids.length; i += 50) {
+    const { data, error } = await supabase
+      .from('ingreso_pedidos_tienda_items')
+      .select('*')
+      .in('pedido_id', ids.slice(i, i + 50))
+    if (error) throw error
+    for (const item of (data as (PedidoTiendaItem & { pedido_id: string })[]) ?? []) {
+      mapa[item.pedido_id]?.push(item)
+    }
+  }
+  return mapa
+}
+
 export async function marcarPedidoTiendaEntregado(id: string) {
   const { error } = await supabase
     .from('ingreso_pedidos_tienda')

@@ -268,10 +268,6 @@ export function Tienda() {
     }
   }, [])
 
-  useEffect(() => {
-    loadCategoriasTienda().then(setCategorias).catch(() => {})
-  }, [])
-
   // Al entrar, se recupera el carrito guardado (con precios y stock al dia; lo que ya no esta disponible se omite).
   useEffect(() => {
     const guardadas = leerCarritoGuardado()
@@ -334,25 +330,34 @@ export function Tienda() {
     requestAnimationFrame(() => window.scrollTo(0, y))
   }, [productos])
 
+  // Categorias, promos y subcategorias se ponen al dia solas (ej. si se crea o se vacia una, como Halloween), pero
+  // como casi no cambian se piden como mucho una vez por minuto, no en cada recarga ni en cada letra que se busca.
+  const extrasEn = useRef(0)
+  const cargarExtras = useCallback(() => {
+    if (Date.now() - extrasEn.current < 60000) return
+    extrasEn.current = Date.now()
+    // Que incluye cada promo (para mostrarla con su etiqueta y lo que trae); si falla, se ve como producto normal.
+    loadPromosTienda().then(setPromos).catch(() => {})
+    loadSubcategoriasTienda().then(setSubcats).catch(() => {})
+    loadCategoriasTienda().then(setCategorias).catch(() => {})
+  }, [])
+
   const runSearch = useCallback(async () => {
     try {
+      cargarExtras()
       const rows = await loadCatalogoTienda({
         search: search || undefined,
         categoria: categoria || undefined,
       })
       setProductos(rows)
-      // Que incluye cada promo (para mostrarla con su etiqueta y lo que trae); si falla, se ve como producto normal.
-      loadPromosTienda().then(setPromos).catch(() => {})
-      loadSubcategoriasTienda().then(setSubcats).catch(() => {})
-      // Las categorias tambien se ponen al dia solas (ej. si se crea o se vacia una, como Halloween).
-      loadCategoriasTienda().then(setCategorias).catch(() => {})
       setSinConexion(false)
       setError(null)
     } catch (err) {
       // Sin internet (o el servidor no respondio): no se muestra como error fatal, se reintenta sola.
+      extrasEn.current = 0
       setSinConexion(true)
     }
-  }, [search, categoria])
+  }, [search, categoria, cargarExtras])
 
   useEffect(() => {
     runSearch()
@@ -371,8 +376,9 @@ export function Tienda() {
   }, [sinConexion, runSearch])
 
   // Tiempo real: si un producto se agota o cambia de precio, el catalogo se actualiza solo.
-  // El respaldo cada 30s cubre el caso en que la conexion en vivo se corte sin avisar.
-  useRealtimeRefresh(['ingreso_productos'], runSearch, 30000)
+  // El respaldo cada 2 minutos cubre el caso en que la conexion en vivo se corte sin avisar.
+  // Con la pantalla oculta no se pide nada: al volver se pone al dia de inmediato.
+  useRealtimeRefresh(['ingreso_productos'], runSearch, 2 * 60 * 1000, { soloVisible: true })
 
   // Con "Mis pedidos" abierto, el estado (recibido/empacando/en camino/entregado) se actualiza solo,
   // sin que el cliente tenga que cerrar y volver a abrir.

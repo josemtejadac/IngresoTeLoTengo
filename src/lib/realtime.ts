@@ -11,9 +11,22 @@ let contador = 0
  * no la recuperan solos. Por eso ademas se recarga al volver a la app / recuperar internet y, si se indica
  * `cadaMs`, cada cierto tiempo como respaldo.
  */
-export function useRealtimeRefresh(tablas: string[], recargar: () => void, cadaMs?: number) {
+export function useRealtimeRefresh(
+  tablas: string[],
+  recargar: () => void,
+  cadaMs?: number,
+  opciones?: {
+    /** Con la pantalla oculta no pide nada y se pone al dia al volver. Nunca usarlo en pedidos: el aviso debe llegar igual. */
+    soloVisible?: boolean
+    /** Lo que corre en el respaldo por tiempo en lugar de `recargar` (ej. una revision mas liviana). */
+    respaldo?: () => void
+  },
+) {
   const recargarRef = useRef(recargar)
   recargarRef.current = recargar
+  const respaldoRef = useRef(opciones?.respaldo)
+  respaldoRef.current = opciones?.respaldo
+  const soloVisible = opciones?.soloVisible ?? false
   const clave = tablas.join(',')
 
   useEffect(() => {
@@ -22,26 +35,34 @@ export function useRealtimeRefresh(tablas: string[], recargar: () => void, cadaM
     let canal: ReturnType<typeof supabase.channel> | null = null
     let vivo = true
 
+    const toca = () => !soloVisible || document.visibilityState === 'visible'
+
     const programar = () => {
       if (timer) clearTimeout(timer)
-      timer = setTimeout(() => recargarRef.current(), 300)
+      timer = setTimeout(() => {
+        if (toca()) recargarRef.current()
+      }, 300)
     }
 
     const crearCanal = () => {
       if (!vivo) return
-      canal = supabase.channel(`rt_refresh_${clave}_${++contador}`)
+      const este = supabase.channel(`rt_refresh_${clave}_${++contador}`)
+      canal = este
       for (const table of clave.split(',')) {
-        canal.on('postgres_changes', { event: '*', schema: 'public', table }, programar)
+        este.on('postgres_changes', { event: '*', schema: 'public', table }, programar)
       }
-      canal.subscribe((estado) => {
-        if (!vivo) return
+      este.subscribe((estado) => {
+        // Al quitar un canal, este vuelve a avisar que se cerro: ese aviso ya no cuenta
+        // (si no, se quitaria una y otra vez, o se llevaria por delante al canal nuevo).
+        if (!vivo || este !== canal) return
         // Si la conexion se cae o se reconecta, se pone al dia de inmediato.
         if (estado === 'SUBSCRIBED') {
           programar()
           // Si el canal se corta (celular bloqueado, red inestable), se arma uno nuevo en vez de
           // quedar mudo esperando al respaldo por tiempo o a que el usuario vuelva a la pagina.
         } else if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') {
-          if (canal) supabase.removeChannel(canal)
+          canal = null
+          supabase.removeChannel(este)
           if (reintentoTimer) clearTimeout(reintentoTimer)
           reintentoTimer = setTimeout(crearCanal, 2000)
         }
@@ -55,7 +76,11 @@ export function useRealtimeRefresh(tablas: string[], recargar: () => void, cadaM
     document.addEventListener('visibilitychange', alVolver)
     window.addEventListener('focus', programar)
     window.addEventListener('online', programar)
-    const intervalo = cadaMs ? setInterval(() => recargarRef.current(), cadaMs) : null
+    const intervalo = cadaMs
+      ? setInterval(() => {
+          if (toca()) (respaldoRef.current ?? recargarRef.current)()
+        }, cadaMs)
+      : null
 
     return () => {
       vivo = false
@@ -67,5 +92,5 @@ export function useRealtimeRefresh(tablas: string[], recargar: () => void, cadaM
       window.removeEventListener('online', programar)
       if (canal) supabase.removeChannel(canal)
     }
-  }, [clave, cadaMs])
+  }, [clave, cadaMs, soloVisible])
 }

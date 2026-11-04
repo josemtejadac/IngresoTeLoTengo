@@ -20,7 +20,7 @@ import {
   loadPedidosTiendaPendientes,
   loadFotosProductos,
   loadPromosIncluyen,
-  loadPedidoTiendaItems,
+  loadItemsDePedidos,
   marcarEntregaFisica,
   productoFotoUrl,
   marcarPedidoTiendaEntregado,
@@ -55,6 +55,11 @@ const BLOQUEO_ENTREGADO: Record<string, () => boolean> = {
     return (dia === 6 || dia === 0) && minutos < 21 * 60
   },
 }
+
+// El respaldo corre cada 8 s con una sola consulta (la lista de pedidos). Si nada cambio, los productos de cada
+// pedido se revisan 1 de cada 4 vueltas (por si cambiaron sin que cambie el pedido) y las fotos cada 5 minutos.
+const RESPALDOS_POR_DETALLE = 4
+const FOTOS_VIGENCIA_MS = 5 * 60 * 1000
 
 export function PedidosTienda() {
   const { session } = useAuth()
@@ -102,34 +107,67 @@ export function PedidosTienda() {
   // Cada recarga tiene un numero: si una respuesta vieja llega despues de una nueva, se descarta
   // (si no, un pedido ya entregado puede reaparecer unos segundos como pendiente).
   const ultimaCarga = useRef(0)
+  // Lista de pedidos de la ultima carga completa: el respaldo compara contra esto para no bajar de nuevo lo que no cambio.
+  const firmaCargada = useRef<string | null>(null)
+  const respaldosSinDetalle = useRef(0)
+  const fotosRef = useRef(fotos)
+  const promosRef = useRef(promos)
+  const fotosAlDia = useRef(0)
 
-  const load = useCallback(async () => {
+  const cargar = useCallback(async (modo: 'completa' | 'respaldo') => {
     const numero = ++ultimaCarga.current
     try {
       // Primero se envian las entregas que se marcaron sin señal (si ya volvio internet).
-      if (leerCola().length > 0) await procesarCola()
+      const habiaCola = leerCola().length > 0
+      if (habiaCola) await procesarCola()
       setEnCola(leerCola().length)
       const rows = (await loadPedidosTiendaPendientes()).filter(
         // Lo que se marco "Entregado" sin señal y aun no se envia no debe reaparecer como pendiente.
         (p) => !leerCola().some((a) => a.tipo === 'entregado' && a.id === p.id),
       )
       if (numero !== ultimaCarga.current) return
+      const firma = JSON.stringify(rows)
+      // La revision de respaldo llega hasta aqui si ningun pedido cambio. Un pedido nuevo o modificado cambia la firma
+      // y sigue de largo, asi que se detecta igual que antes (a lo sumo en 8 s si se corto el tiempo real).
+      if (
+        modo === 'respaldo' &&
+        !habiaCola &&
+        firma === firmaCargada.current &&
+        ++respaldosSinDetalle.current < RESPALDOS_POR_DETALLE
+      ) {
+        setError(null)
+        setSinSenal(false)
+        return
+      }
+      respaldosSinDetalle.current = 0
       setPedidos(rows)
-      const entries = await Promise.all(
-        rows.map(async (p) => [p.id, await loadPedidoTiendaItems(p.id)] as const),
-      )
+      const itemsNuevos = await loadItemsDePedidos(rows.map((p) => p.id))
       if (numero !== ultimaCarga.current) return
-      const itemsNuevos = Object.fromEntries(entries)
       setItems(itemsNuevos)
-      const idsProductos = [...new Set(entries.flatMap(([, its]) => its.map((i) => i.producto_id).filter((x): x is string => !!x)))]
-      const [fotosNuevas, promosNuevas] = await Promise.all([
-        loadFotosProductos(idsProductos),
-        loadPromosIncluyen(idsProductos).catch(() => ({}) as PromosIncluyen),
-      ])
-      if (numero !== ultimaCarga.current) return
-      setFotos(fotosNuevas)
-      setPromos(promosNuevas)
-      guardarCache({ pedidos: rows, items: itemsNuevos, fotos: fotosNuevas, promos: promosNuevas })
+      const idsProductos = [
+        ...new Set(Object.values(itemsNuevos).flatMap((its) => its.map((i) => i.producto_id).filter((x): x is string => !!x))),
+      ]
+      // Fotos y promos: solo de los productos que aun no se conocen (y todas cada cierto tiempo, por si cambiaron).
+      const refrescarFotos = Date.now() - fotosAlDia.current > FOTOS_VIGENCIA_MS
+      const faltan = refrescarFotos ? idsProductos : idsProductos.filter((id) => !(id in fotosRef.current))
+      let promosFallaron = false
+      if (faltan.length > 0) {
+        const [fotosLeidas, promosLeidas] = await Promise.all([
+          loadFotosProductos(faltan),
+          loadPromosIncluyen(faltan).catch(() => null),
+        ])
+        if (numero !== ultimaCarga.current) return
+        fotosRef.current = refrescarFotos ? fotosLeidas : { ...fotosRef.current, ...fotosLeidas }
+        if (promosLeidas) promosRef.current = refrescarFotos ? promosLeidas : { ...promosRef.current, ...promosLeidas }
+        promosFallaron = !promosLeidas
+        setFotos(fotosRef.current)
+        setPromos(promosRef.current)
+      }
+      if (refrescarFotos) fotosAlDia.current = Date.now()
+      if (promosFallaron) fotosAlDia.current = 0
+      guardarCache({ pedidos: rows, items: itemsNuevos, fotos: fotosRef.current, promos: promosRef.current })
+      // Se marca recien aqui: si esta carga se interrumpe, la proxima revision vuelve a bajar todo.
+      firmaCargada.current = firma
       // Se limpia cualquier error viejo: si esto se ejecuto es porque la carga funciono.
       setError(null)
       setSinSenal(false)
@@ -140,13 +178,16 @@ export function PedidosTienda() {
     }
   }, [])
 
+  const load = useCallback(() => cargar('completa'), [cargar])
+  const revisarRespaldo = useCallback(() => cargar('respaldo'), [cargar])
+
   useEffect(() => {
     load()
   }, [load])
 
-  // Tiempo real, con respaldo cada 8 s por si el celular pierde la conexion en vivo (el celular bloqueado
-  // corta el WebSocket y a veces no lo retoma solo hasta volver a abrir la app).
-  useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 8000)
+  // Tiempo real (carga completa al instante), con respaldo cada 8 s por si el celular pierde la conexion en vivo
+  // (el celular bloqueado corta el WebSocket y a veces no lo retoma solo hasta volver a abrir la app).
+  useRealtimeRefresh(['ingreso_pedidos_tienda'], load, 8000, { respaldo: revisarRespaldo })
 
   async function handleEntregado(p: PedidoTienda) {
     if (!window.confirm(`¿Marcar como entregado el pedido de ${p.nombre_cliente} (${formatCLP(p.total)})? Esto se suma a tu arqueo.`)) return

@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile, WeeklySchedule } from '../../types'
 import { Logo } from '../../components/Logo'
@@ -913,27 +913,32 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
   // El celular corta el WebSocket de tiempo real cuando la pantalla se
   // bloquea o la app pasa a segundo plano. Al volver, refrescamos todo a
   // mano para no depender solo de la conexion en vivo.
+  const ultimoAlVolver = useRef(0)
   useEffect(() => {
+    // Al volver a la app llegan dos avisos juntos (pantalla visible y foco): con recargar una vez basta.
+    function alVolver() {
+      if (Date.now() - ultimoAlVolver.current < 3000) return
+      ultimoAlVolver.current = Date.now()
+      refreshAll()
+    }
     function handleVisibility() {
-      if (document.visibilityState === 'visible') {
-        refreshAll()
-      }
+      if (document.visibilityState === 'visible') alVolver()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', refreshAll)
+    window.addEventListener('focus', alVolver)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', refreshAll)
+      window.removeEventListener('focus', alVolver)
     }
   }, [refreshAll])
 
 
-  // Red de seguridad: si el WebSocket se cae sin avisar, igual se actualiza cada 30 s
-  // mientras la pantalla esta visible.
+  // Red de seguridad: si el WebSocket se cae sin avisar, igual se actualiza cada 2 minutos
+  // mientras la pantalla esta visible (asistencia, arqueo, bono y pendientes llegan al instante por tiempo real).
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') refreshAll()
-    }, 30000)
+    }, 2 * 60 * 1000)
     return () => clearInterval(id)
   }, [refreshAll])
 

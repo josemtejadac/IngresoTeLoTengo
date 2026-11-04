@@ -316,7 +316,8 @@ export async function uploadProductoFotoBlob(productoId: string, blob: Blob): Pr
   const path = `${productoId}/${Date.now()}.jpg`
   const { error: uploadError } = await supabase.storage
     .from('ingreso-productos-fotos')
-    .upload(path, blob, { contentType: 'image/jpeg' })
+    // Caché de 1 año: cada foto tiene nombre único (al cambiarla se crea otro archivo), así no se descarga de nuevo.
+    .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' })
   if (uploadError) throw uploadError
   // Foto anterior (si habia): se borra para no acumular archivos sin uso.
   const { data: previo } = await supabase

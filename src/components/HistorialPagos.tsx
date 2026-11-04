@@ -182,7 +182,7 @@ export function HistorialPagos({
   }, [cargar])
 
   // Se pone al dia sola: si una semana cumple la meta (el bono se marca solo), se ve en verde y se suma sin recargar.
-  useRealtimeRefresh(['ingreso_weekly_bonus'], cargar, 60000)
+  useRealtimeRefresh(['ingreso_weekly_bonus'], cargar, 2 * 60 * 1000, { soloVisible: true })
 
   if (esSemanal) {
     const conDatos = (semanas ?? []).filter(

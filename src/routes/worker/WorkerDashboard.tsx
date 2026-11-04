@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Attendance, Profile } from '../../types'
 import { CameraCapture } from '../../components/CameraCapture'
@@ -60,8 +60,14 @@ import {
   computeFeriadoBonus,
   loadFeriados,
   loadFeriadoExclusionsForWorker,
+  type Feriado,
   type FeriadoSummary,
 } from '../../lib/feriados'
+
+// Feriados y nombres casi no cambian: se vuelven a pedir como mucho cada 10 minutos, no en cada recarga.
+const DATOS_FIJOS_MS = 10 * 60 * 1000
+// Respaldo si se corta el tiempo real. Asistencia, arqueo, bono y pendientes llegan al instante por tiempo real.
+const RESPALDO_PANEL_MS = 2 * 60 * 1000
 
 interface WorkerDashboardProps {
   profile: Profile
@@ -170,6 +176,8 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     loadLastRecord()
   }, [loadLastRecord])
 
+  const feriadosCache = useRef<{ en: number; feriados: Feriado[]; excluidas: Set<string> } | null>(null)
+
   const loadPaySummary = useCallback(async () => {
     const now = new Date()
     let start: Date
@@ -195,10 +203,14 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     const shifts = annotateOvertime(computeShifts((data as Attendance[]) ?? []), profile, extensiones)
     setPaySummary(computePaySummary(shifts, profile, start, end))
 
-    const feriados = await loadFeriados()
-    const exclusions = await loadFeriadoExclusionsForWorker(profile.id)
-    const excludedDates = new Set(exclusions.map((e) => e.fecha))
-    setFeriadoSummary(computeFeriadoBonus(shifts, feriados, excludedDates))
+    let fijos = feriadosCache.current
+    if (!fijos || Date.now() - fijos.en > DATOS_FIJOS_MS) {
+      const feriados = await loadFeriados()
+      const exclusions = await loadFeriadoExclusionsForWorker(profile.id)
+      fijos = { en: Date.now(), feriados, excluidas: new Set(exclusions.map((e) => e.fecha)) }
+      feriadosCache.current = fijos
+    }
+    setFeriadoSummary(computeFeriadoBonus(shifts, fijos.feriados, fijos.excluidas))
   }, [profile])
 
   useEffect(() => {
@@ -235,8 +247,11 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
     setPendientes(rows)
   }, [])
 
+  const directorioEn = useRef(0)
   const loadDirectory = useCallback(async () => {
+    if (Date.now() - directorioEn.current < DATOS_FIJOS_MS) return
     const map = await loadNameDirectory()
+    directorioEn.current = Date.now()
     setNameDirectory(map)
   }, [])
 
@@ -334,26 +349,31 @@ export function WorkerDashboard({ profile }: WorkerDashboardProps) {
   // El celular corta el WebSocket de tiempo real cuando la pantalla se
   // bloquea o la app pasa a segundo plano. Al volver, refrescamos todo a
   // mano para no depender solo de la conexion en vivo.
+  const ultimoAlVolver = useRef(0)
   useEffect(() => {
+    // Al volver a la app llegan dos avisos juntos (pantalla visible y foco): con recargar una vez basta.
+    function alVolver() {
+      if (Date.now() - ultimoAlVolver.current < 3000) return
+      ultimoAlVolver.current = Date.now()
+      refreshAll()
+    }
     function handleVisibility() {
-      if (document.visibilityState === 'visible') {
-        refreshAll()
-      }
+      if (document.visibilityState === 'visible') alVolver()
     }
     document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('focus', refreshAll)
+    window.addEventListener('focus', alVolver)
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('focus', refreshAll)
+      window.removeEventListener('focus', alVolver)
     }
   }, [refreshAll])
 
-  // Red de seguridad: si el WebSocket se cae sin avisar, igual se actualiza cada 30 s
+  // Red de seguridad: si el WebSocket se cae sin avisar, igual se actualiza
   // mientras la pantalla esta visible.
   useEffect(() => {
     const id = setInterval(() => {
       if (document.visibilityState === 'visible') refreshAll()
-    }, 30000)
+    }, RESPALDO_PANEL_MS)
     return () => clearInterval(id)
   }, [refreshAll])
 

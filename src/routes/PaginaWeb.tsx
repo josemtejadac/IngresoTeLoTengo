@@ -356,7 +356,10 @@ export function PaginaWeb() {
 
   useEffect(() => {
     cargar()
-    const t = setInterval(cargar, 60000)
+    // Cada 2 minutos si la pantalla esta visible; al volver a la pagina se pone al dia de inmediato.
+    const t = setInterval(() => {
+      if (document.visibilityState === 'visible') cargar()
+    }, 2 * 60 * 1000)
     const alVolver = () => {
       if (document.visibilityState === 'visible') {
         cargar()

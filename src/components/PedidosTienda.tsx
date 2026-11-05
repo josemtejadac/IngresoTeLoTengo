@@ -43,9 +43,20 @@ function horaSantiago(): { dia: number; minutos: number } {
   return { dia: ahora.getDay(), minutos: ahora.getHours() * 60 + ahora.getMinutes() }
 }
 
+// Dias puntuales (AAAA-MM-DD, hora de Chile) en que el bloqueo no rige para ese trabajador: el admin lo habilita
+// por ese dia y se apaga solo al dia siguiente, sin tocar nada.
+const SIN_BLOQUEO_POR_DIA: Record<string, string[]> = {
+  [RICARDO_ID]: ['2026-11-05'],
+}
+
+function hoyChile(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+}
+
 // Solo "Ya lo entregue" queda habilitado para estos trabajadores en el horario indicado.
 const BLOQUEO_ENTREGADO: Record<string, () => boolean> = {
   [RICARDO_ID]: () => {
+    if (SIN_BLOQUEO_POR_DIA[RICARDO_ID]?.includes(hoyChile())) return false
     const { dia, minutos } = horaSantiago()
     return dia >= 1 && dia <= 5 && minutos < 17 * 60 + 30
   },

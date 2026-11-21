@@ -18,6 +18,19 @@ const HORARIO_POR_DIA: Partial<Record<number, HorarioDia>> = {
   6: { abre: { h: 9, m: 0 }, cierra: { h: 22, m: 0 } }, // sabado
 }
 
+/**
+ * Cambios de horario por un dia puntual (AAAA-MM-DD, hora de Chile). Solo rigen ese dia: al siguiente la tienda
+ * vuelve sola al horario de siempre, sin tocar nada.
+ */
+const HORARIO_POR_FECHA: Record<string, Partial<HorarioDia>> = {
+  '2026-11-21': { cierra: { h: 21, m: 0 } }, // sabado: hoy se cierra a las 21:00
+}
+
+function fechaChile(fecha: Date): string {
+  // en-CA entrega el formato AAAA-MM-DD.
+  return fecha.toLocaleDateString('en-CA', { timeZone: 'America/Santiago' })
+}
+
 function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -42,21 +55,23 @@ function partesChile(fecha: Date): { minutos: number; diaSemana: number } {
   return { minutos: h * 60 + m, diaSemana: dias[nombreDia] ?? new Date().getDay() }
 }
 
-function horarioDelDia(diaSemana: number): HorarioDia {
-  return HORARIO_POR_DIA[diaSemana] ?? HORARIO_POR_DEFECTO
+function horarioDelDia(diaSemana: number, fechaISO?: string): HorarioDia {
+  const normal = HORARIO_POR_DIA[diaSemana] ?? HORARIO_POR_DEFECTO
+  const cambio = fechaISO ? HORARIO_POR_FECHA[fechaISO] : undefined
+  return cambio ? { ...normal, ...cambio } : normal
 }
 
 /** true si la tienda esta recibiendo pedidos ahora mismo (hora de Chile, segun el dia que sea). */
 export function tiendaAbierta(fecha: Date = new Date()): boolean {
   const { minutos, diaSemana } = partesChile(fecha)
-  const h = horarioDelDia(diaSemana)
+  const h = horarioDelDia(diaSemana, fechaChile(fecha))
   return minutos >= h.abre.h * 60 + h.abre.m && minutos < h.cierra.h * 60 + h.cierra.m
 }
 
 /** Texto "8:30 a 22:50" con el horario de HOY (cambia solo segun el dia). */
 export function horarioHoyTexto(fecha: Date = new Date()): string {
   const { diaSemana } = partesChile(fecha)
-  const h = horarioDelDia(diaSemana)
+  const h = horarioDelDia(diaSemana, fechaChile(fecha))
   return `${horaTexto(h.abre)} a ${horaTexto(h.cierra)}`
 }
 

@@ -11,7 +11,7 @@ import { EVENTO_ANTES_DE_RECARGAR, avisarOcupado } from '../registrarServiceWork
 import { BotsitoCliente, type ItemBot } from '../components/BotsitoCliente'
 import { NotificacionesPedidoCliente } from '../components/NotificacionesPedidoCliente'
 import { useAtrasCierra } from '../lib/atras'
-import { tiendaAbierta, horarioHoyTexto } from '../lib/horarioTienda'
+import { tiendaAbierta, cargarHorarioTienda, frasePedidosHoy, fraseAtencionHoy } from '../lib/horarioTienda'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos, montoPorPeso } from '../lib/peso'
 import { guardarCliente, loadClienteGuardado, olvidarCliente } from '../lib/clienteGuardado'
@@ -336,6 +336,8 @@ export function Tienda() {
   const cargarExtras = useCallback(() => {
     if (Date.now() - extrasEn.current < 60000) return
     extrasEn.current = Date.now()
+    // Horario de la tienda: si el admin lo cambio, la tienda se abre o se cierra sola con el nuevo horario.
+    cargarHorarioTienda().then(() => setAbierta(tiendaAbierta()))
     // Que incluye cada promo (para mostrarla con su etiqueta y lo que trae); si falla, se ve como producto normal.
     loadPromosTienda().then(setPromos).catch(() => {})
     loadSubcategoriasTienda().then(setSubcats).catch(() => {})
@@ -597,8 +599,11 @@ export function Tienda() {
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
     if (cart.length === 0) return
+    // Justo antes de enviar se lee el horario al dia: si el admin lo cambio hace un momento, se respeta de inmediato.
+    await cargarHorarioTienda()
+    setAbierta(tiendaAbierta())
     if (!tiendaAbierta()) {
-      setError(`La tienda está cerrada. Recibimos pedidos de ${horarioHoyTexto()}.`)
+      setError(`La tienda está cerrada. ${frasePedidosHoy()}`)
       return
     }
     if (metodo === 'online' && totalConDescuento < 350) {
@@ -928,7 +933,7 @@ export function Tienda() {
           {halloween && <span className="hw-pill">🎃 ¡Especial Halloween!</span>}
           <span>🚚 Te lo llevamos a tu depto</span>
           <span>💳 Paga online o al recibir</span>
-          <span>🕒 Atendemos hoy de {horarioHoyTexto()}</span>
+          <span>🕒 {fraseAtencionHoy()}</span>
         </div>
         <input
           type="search"
@@ -970,7 +975,7 @@ export function Tienda() {
 
       {!abierta && (
         <div className="tienda-cerrada-aviso">
-          🔒 Tienda cerrada. Recibimos pedidos de {horarioHoyTexto()}. ¡Vuelve pronto!
+          🔒 Tienda cerrada. {frasePedidosHoy()} ¡Vuelve pronto!
         </div>
       )}
 

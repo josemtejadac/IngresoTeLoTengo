@@ -15,6 +15,7 @@ import { EstadisticasAdmin } from '../../components/EstadisticasAdmin'
 import { ClientesSeguimiento } from '../../components/ClientesSeguimiento'
 import { CuponesAdmin } from '../../components/CuponesAdmin'
 import { PedidosTienda } from '../../components/PedidosTienda'
+import { HorarioTiendaAdmin } from '../../components/HorarioTiendaAdmin'
 import { VentasOnlineDia } from '../../components/VentasOnlineDia'
 import { MesActual } from '../../components/MesActual'
 import { NotificacionesPush } from '../../components/NotificacionesPush'
@@ -1573,6 +1574,7 @@ export function AdminDashboard({ profile }: AdminDashboardProps) {
       </>
       )}
 
+      {activeTab === 'pedidos' && <HorarioTiendaAdmin />}
       {activeTab === 'pedidos' && <PedidosTienda />}
 
       {activeTab === 'inventario' && <InventarioAdmin />}

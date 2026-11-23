@@ -5,7 +5,7 @@ import { Stepper } from '../components/Stepper'
 import { PromoFoto, PromoIncluye, ahorroPct, ahorroPromo } from '../components/PromoTienda'
 import { formatCLP } from '../lib/payroll'
 import { formatGramos, montoPorPeso } from '../lib/peso'
-import { horarioHoyTexto, horarioSemanaTexto, tiendaAbierta } from '../lib/horarioTienda'
+import { cargarHorarioTienda, fraseHoyDe, horarioSemanaTexto, tiendaAbierta } from '../lib/horarioTienda'
 import { guardarCarrito, leerCarrito, mismaLinea, type LineaCarrito } from '../lib/carritoWeb'
 import { useArrastreHorizontal } from '../lib/arrastreHorizontal'
 import {
@@ -340,6 +340,8 @@ export function PaginaWeb() {
 
   // ---- Datos en vivo (mismo catalogo publico que la tienda) ----
   const cargar = useCallback(async () => {
+    // Horario que dejo el admin: la pagina se muestra abierta o cerrada segun ese horario.
+    cargarHorarioTienda().then(() => setAbierta(tiendaAbierta()))
     try {
       const [prods, cats] = await Promise.all([loadCatalogoTienda({}), loadCategoriasTienda()])
       setProductos(prods)
@@ -641,7 +643,7 @@ export function PaginaWeb() {
         <div className="pw-cinta-pista">
           {[0, 1].map((k) => (
             <span key={k}>
-              🚚 Delivery dentro del condominio · 💳 Paga online o al recibir · 🕒 Hoy de {horarioHoyTexto()} · 🎟️ Cupones de
+              🚚 Delivery dentro del condominio · 💳 Paga online o al recibir · 🕒 {fraseHoyDe().replace(/^./, (c) => c.toUpperCase())} · 🎟️ Cupones de
               descuento · 💬 Atención por WhatsApp · 🥤 Bebidas heladas · 🥖 Pan fresco ·&nbsp;
             </span>
           ))}
@@ -693,7 +695,7 @@ export function PaginaWeb() {
         <div className="pw-hero-texto">
           <span className={`pw-estado${abierta ? ' abierto' : ''}`}>
             <i />
-            {abierta ? `Abierto ahora · hoy de ${horarioHoyTexto()}` : `Cerrado ahora · hoy de ${horarioHoyTexto()}`}
+            {abierta ? `Abierto ahora · ${fraseHoyDe()}` : `Cerrado ahora · ${fraseHoyDe()}`}
           </span>
           <h1>
             Todo lo que necesitas,
